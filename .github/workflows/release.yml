@@ -1,0 +1,16 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  placeholder:
+    name: Release (not yet implemented)
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "Release workflow not yet implemented."
+          echo "See REL-02 (cosign) and REL-03 (SBOM) for the design."
+          echo "Tag: ${{ github.ref_name }}"
