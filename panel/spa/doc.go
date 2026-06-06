@@ -3,6 +3,5 @@
 //
 // Tickets: PANEL-02 (Dashboard SPA)
 // Spec: fox-in-the-box/docs/architecture/DEMO_TIER.md section 3.4 (technology: vanilla JS, ~200 lines)
-//       fox-in-the-box/docs/architecture/FLEET_BASE_V01_SPEC.md section 1 (auto-refresh = 5s)
 // Milestone: v0.1
 package spa

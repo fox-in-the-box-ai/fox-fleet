@@ -4,6 +4,5 @@
 //
 // Tickets: PLUG-02 (Docker plugin implementing DeploymentPlugin)
 // Spec: fox-in-the-box/docs/architecture/ENTERPRISE_ARCHITECTURE.md section 2.2 (Docker plugin)
-//       fox-in-the-box/docs/architecture/DEMO_TIER.md section 2.2 (extraction plan)
 // Milestone: v0.1
 package docker

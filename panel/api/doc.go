@@ -4,6 +4,5 @@
 //
 // Tickets: PANEL-01 (Dashboard API)
 // Spec: fox-in-the-box/docs/architecture/DEMO_TIER.md section 3.4 (dashboard views)
-//       fox-in-the-box/docs/architecture/FLEET_BASE_V01_SPEC.md section 1 (health_poll_interval = 15s)
 // Milestone: v0.1
 package api
