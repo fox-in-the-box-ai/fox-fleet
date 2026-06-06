@@ -1,3 +1,5 @@
+version: "2"
+
 linters:
   enable:
     - errcheck
@@ -6,5 +8,8 @@ linters:
     - ineffassign
     - staticcheck
     - unused
+
+formatters:
+  enable:
     - gofmt
     - goimports
