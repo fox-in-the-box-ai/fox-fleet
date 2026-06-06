@@ -1,0 +1,6 @@
+# Default reviewer for all PRs
+* @roadhero
+
+# Architecture docs in this repo get the same routing.
+# Cross-repo architecture changes go to fox-in-the-box/docs/architecture/
+docs/ @roadhero

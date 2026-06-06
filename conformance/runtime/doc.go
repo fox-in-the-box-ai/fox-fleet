@@ -3,7 +3,6 @@
 // contract endpoints, SSE events, and lifecycle.
 //
 // Tickets: CONF-01 (Runtime conformance test suite)
-// Spec: fox-in-the-box/docs/architecture/ENTERPRISE_ARCHITECTURE.md §6.3 (16 checks)
-//       fox-in-the-box/docs/architecture/INSTANCE_CONTRACT.md §4.5 (endpoint auth, confirmed)
+// Spec: fox-in-the-box/docs/architecture/ENTERPRISE_ARCHITECTURE.md section 6.3 (16 checks)
 // Milestone: v0.1
 package runtime

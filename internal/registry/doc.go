@@ -3,6 +3,6 @@
 // and WAL mode for concurrent access.
 //
 // Tickets: CTRL-01 (Instance registry)
-// Spec: fox-in-the-box/docs/architecture/DEMO_TIER.md §2.4 (table schema)
+// Spec: fox-in-the-box/docs/architecture/DEMO_TIER.md section 2.4 (table schema)
 // Milestone: v0.1
 package registry
