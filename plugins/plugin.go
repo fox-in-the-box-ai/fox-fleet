@@ -26,11 +26,11 @@ type ImageRef struct {
 
 // ProvisionRequest contains everything needed to create a new instance.
 type ProvisionRequest struct {
-	InstanceID string        `json:"instance_id"`
-	Image      ImageRef      `json:"image"`
+	InstanceID string         `json:"instance_id"`
+	Image      ImageRef       `json:"image"`
 	Config     InstanceConfig `json:"config"`
-	Port       int           `json:"port"`
-	DataDir    string        `json:"data_dir"`
+	Port       int            `json:"port"`
+	DataDir    string         `json:"data_dir"`
 }
 
 // InstanceConfig holds per-instance configuration injected before boot.
@@ -46,14 +46,14 @@ type InstanceConfig struct {
 
 // HealthStatus reports the health and readiness of an instance.
 type HealthStatus struct {
-	Healthy   bool              `json:"healthy"`
-	Ready     bool              `json:"ready"`
-	Checks    map[string]bool   `json:"checks,omitempty"`
-	CheckedAt time.Time         `json:"checked_at"`
+	Healthy   bool            `json:"healthy"`
+	Ready     bool            `json:"ready"`
+	Checks    map[string]bool `json:"checks,omitempty"`
+	CheckedAt time.Time       `json:"checked_at"`
 }
 
 // LogOpts configures log retrieval.
 type LogOpts struct {
-	Tail  int  `json:"tail"`
+	Tail   int  `json:"tail"`
 	Follow bool `json:"follow"`
 }
