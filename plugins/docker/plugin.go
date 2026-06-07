@@ -165,7 +165,7 @@ func (p *Plugin) Rollout(ctx context.Context, instanceID string, target plugins.
 	if err != nil {
 		return fmt.Errorf("docker: pull %s: %w", imageRef, err)
 	}
-	io.Copy(io.Discard, pullReader)
+	_, _ = io.Copy(io.Discard, pullReader)
 	pullReader.Close()
 
 	timeout := stopTimeout
@@ -283,7 +283,7 @@ func extractHostPort(info types.ContainerJSON) int {
 		return 0
 	}
 	var port int
-	fmt.Sscanf(bindings[0].HostPort, "%d", &port)
+	_, _ = fmt.Sscanf(bindings[0].HostPort, "%d", &port)
 	return port
 }
 

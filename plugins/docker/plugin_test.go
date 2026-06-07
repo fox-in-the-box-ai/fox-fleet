@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"context"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -80,7 +81,7 @@ func TestContainerNaming(t *testing.T) {
 }
 
 func TestHttpProbeUnreachable(t *testing.T) {
-	if httpProbe(nil, 1, "/health") {
+	if httpProbe(context.Background(), 1, "/health") {
 		t.Error("httpProbe should return false for unreachable port")
 	}
 }
