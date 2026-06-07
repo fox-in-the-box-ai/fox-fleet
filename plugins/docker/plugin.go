@@ -66,7 +66,7 @@ func (p *Plugin) Provision(ctx context.Context, req plugins.ProvisionRequest) er
 		},
 	}
 
-	imageRef := req.Image.Repository + "@" + req.Image.Digest
+	imageRef := refString(req.Image)
 
 	resp, err := p.cli.ContainerCreate(ctx,
 		&container.Config{
@@ -160,7 +160,7 @@ func (p *Plugin) Rollout(ctx context.Context, instanceID string, target plugins.
 		return fmt.Errorf("docker: inspect %s for rollout: %w", cname, err)
 	}
 
-	imageRef := target.Repository + "@" + target.Digest
+	imageRef := refString(target)
 	pullReader, err := p.cli.ImagePull(ctx, imageRef, image.PullOptions{})
 	if err != nil {
 		return fmt.Errorf("docker: pull %s: %w", imageRef, err)
@@ -285,6 +285,13 @@ func extractHostPort(info types.ContainerJSON) int {
 	var port int
 	_, _ = fmt.Sscanf(bindings[0].HostPort, "%d", &port)
 	return port
+}
+
+func refString(ref plugins.ImageRef) string {
+	if ref.Digest != "" {
+		return ref.Repository + "@" + ref.Digest
+	}
+	return ref.Repository
 }
 
 var _ plugins.DeploymentPlugin = (*Plugin)(nil)
