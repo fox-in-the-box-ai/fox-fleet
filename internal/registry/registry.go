@@ -1,0 +1,162 @@
+package registry
+
+import (
+	"database/sql"
+	"errors"
+	"fmt"
+	"time"
+
+	_ "modernc.org/sqlite"
+)
+
+var ErrNotFound = errors.New("instance not found")
+
+// Instance represents a provisioned Fox instance in the registry.
+type Instance struct {
+	ID          string `json:"id"`
+	ImageDigest string `json:"image_digest"`
+	Port        int    `json:"port"`
+	DataDir     string `json:"data_dir"`
+	Status      string `json:"status"`
+	CreatedAt   string `json:"created_at"`
+}
+
+// Registry is the SQLite-backed instance store.
+type Registry struct {
+	db *sql.DB
+}
+
+// Open creates or opens the registry database at the given path.
+func Open(path string) (*Registry, error) {
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		return nil, fmt.Errorf("registry: open %s: %w", path, err)
+	}
+	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("registry: enable WAL: %w", err)
+	}
+	if err := migrate(db); err != nil {
+		db.Close()
+		return nil, err
+	}
+	return &Registry{db: db}, nil
+}
+
+func migrate(db *sql.DB) error {
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS instances (
+		id           TEXT PRIMARY KEY,
+		image_digest TEXT NOT NULL,
+		port         INTEGER NOT NULL UNIQUE,
+		data_dir     TEXT NOT NULL,
+		status       TEXT NOT NULL DEFAULT 'provisioning',
+		created_at   TEXT NOT NULL
+	)`)
+	if err != nil {
+		return fmt.Errorf("registry: migrate: %w", err)
+	}
+	return nil
+}
+
+// Create inserts a new instance or updates an existing one with the same ID
+// (idempotent per conformance check 07).
+func (r *Registry) Create(inst Instance) error {
+	if inst.CreatedAt == "" {
+		inst.CreatedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+	_, err := r.db.Exec(`INSERT INTO instances (id, image_digest, port, data_dir, status, created_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			image_digest = excluded.image_digest,
+			port = excluded.port,
+			data_dir = excluded.data_dir,
+			status = excluded.status`,
+		inst.ID, inst.ImageDigest, inst.Port, inst.DataDir, inst.Status, inst.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("registry: create %s: %w", inst.ID, err)
+	}
+	return nil
+}
+
+// Get returns a single instance by ID.
+func (r *Registry) Get(id string) (Instance, error) {
+	var inst Instance
+	err := r.db.QueryRow(
+		`SELECT id, image_digest, port, data_dir, status, created_at FROM instances WHERE id = ?`, id,
+	).Scan(&inst.ID, &inst.ImageDigest, &inst.Port, &inst.DataDir, &inst.Status, &inst.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Instance{}, ErrNotFound
+	}
+	if err != nil {
+		return Instance{}, fmt.Errorf("registry: get %s: %w", id, err)
+	}
+	return inst, nil
+}
+
+// List returns all instances ordered by creation time.
+func (r *Registry) List() ([]Instance, error) {
+	rows, err := r.db.Query(
+		`SELECT id, image_digest, port, data_dir, status, created_at FROM instances ORDER BY created_at`)
+	if err != nil {
+		return nil, fmt.Errorf("registry: list: %w", err)
+	}
+	defer rows.Close()
+	var out []Instance
+	for rows.Next() {
+		var inst Instance
+		if err := rows.Scan(&inst.ID, &inst.ImageDigest, &inst.Port, &inst.DataDir, &inst.Status, &inst.CreatedAt); err != nil {
+			return nil, fmt.Errorf("registry: list scan: %w", err)
+		}
+		out = append(out, inst)
+	}
+	return out, rows.Err()
+}
+
+// UpdateStatus changes the status of an existing instance.
+func (r *Registry) UpdateStatus(id, status string) error {
+	res, err := r.db.Exec(`UPDATE instances SET status = ? WHERE id = ?`, status, id)
+	if err != nil {
+		return fmt.Errorf("registry: update status %s: %w", id, err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// Delete removes an instance from the registry.
+func (r *Registry) Delete(id string) error {
+	res, err := r.db.Exec(`DELETE FROM instances WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("registry: delete %s: %w", id, err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// UsedPorts returns a set of ports currently allocated to instances.
+func (r *Registry) UsedPorts() (map[int]bool, error) {
+	rows, err := r.db.Query(`SELECT port FROM instances`)
+	if err != nil {
+		return nil, fmt.Errorf("registry: used ports: %w", err)
+	}
+	defer rows.Close()
+	ports := make(map[int]bool)
+	for rows.Next() {
+		var p int
+		if err := rows.Scan(&p); err != nil {
+			return nil, fmt.Errorf("registry: used ports scan: %w", err)
+		}
+		ports[p] = true
+	}
+	return ports, rows.Err()
+}
+
+// Close closes the database connection.
+func (r *Registry) Close() error {
+	return r.db.Close()
+}
