@@ -65,6 +65,7 @@ func newRootCmd() *cobra.Command {
 		newRolloutCmd(),
 		newVersionCmd(),
 		newConformanceCmd(),
+		newVerifyCmd(),
 	)
 	return cmd
 }

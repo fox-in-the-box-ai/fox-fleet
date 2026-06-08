@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **REL-02:** Cosign keyless signing — Sigstore cosign signs every release binary, checksums file, and container image via GitHub Actions OIDC; `fox-control verify` subcommand validates signatures locally
+
 ## [0.3.0-alpha] - 2026-06-08
 
 ### Added

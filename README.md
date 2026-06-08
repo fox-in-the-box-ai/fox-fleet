@@ -270,7 +270,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 See [SECURITY.md](SECURITY.md) for vulnerability reporting policy.
 
-Fox Fleet's auth model uses shared secrets (not OIDC/mTLS — those are Fleet Enterprise features). For v0.1, the threat model assumes a trusted network. The `admin_secret` authenticates operator-to-panel and panel-to-instance communication via `X-Fox-Auth` headers with constant-time comparison. Credentials are injected at provision time and never logged.
+Fox Fleet's auth model uses shared secrets (not OIDC/mTLS — those are Fleet Enterprise features). The `admin_secret` authenticates operator-to-panel and panel-to-instance communication via `X-Fox-Auth` headers with constant-time comparison. Credentials are injected at provision time and never logged.
+
+**Release signing:** every release artifact (binaries, checksums, container images) is signed with [Sigstore cosign](https://docs.sigstore.dev/cosign/overview/) via GitHub Actions OIDC — no long-lived keys. Verify with `fox-control verify <tarball>` or cosign directly. See [docs/security/signing.md](docs/security/signing.md).
 
 ---
 
