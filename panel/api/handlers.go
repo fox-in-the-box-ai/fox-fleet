@@ -201,6 +201,25 @@ func (s *Server) handleListSources(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, list)
 }
 
+func (s *Server) handleGetSource(w http.ResponseWriter, r *http.Request) {
+	if s.sources == nil {
+		writeError(w, http.StatusNotFound, "not_found", "source registry not configured")
+		return
+	}
+	id := r.PathValue("id")
+	src, err := s.sources.Get(id)
+	if err != nil {
+		if errors.Is(err, source.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "not_found",
+				fmt.Sprintf("source %s not found", id))
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "internal_error", "failed to get source")
+		return
+	}
+	writeJSON(w, http.StatusOK, src)
+}
+
 func (s *Server) handleDestroy(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	removeData := r.URL.Query().Get("remove_data") == "true"

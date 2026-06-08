@@ -720,6 +720,7 @@ var state = {
   page: "instances",
   detailId: "",
   skillsetDetail: "",
+  sourceDetail: "",
   loading: false,
   refreshTimer: null
 };
@@ -792,6 +793,7 @@ function refresh() {
   var p = state.page;
   if (p === "instances" && state.detailId) { renderDetail(state.detailId); }
   else if (p === "instances") { renderInstances(); }
+  else if (p === "sources" && state.sourceDetail) { renderSourceDetail(state.sourceDetail); }
   else if (p === "sources") { renderSources(); }
   else if (p === "skillsets" && state.skillsetDetail) { renderSkillsetDetail(state.skillsetDetail); }
   else if (p === "skillsets") { renderSkillsets(); }
@@ -806,6 +808,7 @@ function navigate(page) {
   state.page = page;
   state.detailId = "";
   state.skillsetDetail = "";
+  state.sourceDetail = "";
   document.querySelectorAll(".sb-link").forEach(function(el) {
     el.classList.toggle("active", el.dataset.page === page);
   });
@@ -1084,7 +1087,7 @@ function renderSources() {
     for (var i = 0; i < sources.length; i++) {
       var s = sources[i];
       var badge = s.status || "pending";
-      html += '<tr>'
+      html += '<tr style="cursor:pointer" data-action="source-detail" data-id="' + esc(s.id) + '">'
         + '<td style="font-weight:500">' + esc(s.name || s.id) + '</td>'
         + '<td>' + esc(s.type) + '</td>'
         + '<td><span class="badge badge-' + esc(badge) + '">' + esc(badge) + '</span></td>'
@@ -1097,6 +1100,60 @@ function renderSources() {
     content.innerHTML = html;
   }).catch(function(e) {
     if (e.message !== "Unauthorized") showToast("Failed to load sources: " + e.message);
+  });
+}
+
+/* ── Source Detail ─────────────────────────────────────────────────── */
+
+function showSourceDetail(id) {
+  state.sourceDetail = id;
+  document.getElementById("page-title").textContent = id;
+  document.getElementById("page-meta").textContent = "";
+  renderSourceDetail(id);
+}
+
+function renderSourceDetail(id) {
+  apiFetch("/api/sources/" + encodeURIComponent(id)).then(function(res) {
+    if (res.status === 404) { state.sourceDetail = ""; navigate("sources"); return; }
+    return res.json();
+  }).then(function(src) {
+    if (!src) return;
+    var content = document.getElementById("content");
+    var badge = src.status || "pending";
+    var html = '<button class="back-link" data-action="source-back">&larr; Back to sources</button>'
+      + '<div class="detail-card">'
+      + '<div class="detail-header">'
+      + '<div class="detail-title">' + esc(src.name || src.id) + '</div>'
+      + '<span class="badge badge-' + esc(badge) + '">' + esc(badge) + '</span>'
+      + '</div>'
+      + '<dl class="detail-grid">'
+      + '<dt>ID</dt><dd style="font-family:var(--font-mono);font-size:12px">' + esc(src.id) + '</dd>'
+      + '<dt>Type</dt><dd>' + esc(src.type) + '</dd>'
+      + '<dt>Collection</dt><dd>' + esc(src.collection) + '</dd>'
+      + '<dt>Documents</dt><dd>' + (src.doc_count || 0) + '</dd>'
+      + '<dt>Chunks</dt><dd>' + (src.chunk_count || 0) + '</dd>'
+      + '<dt>Created</dt><dd>' + formatDate(src.created_at) + '</dd>'
+      + '<dt>Updated</dt><dd>' + formatDate(src.updated_at) + '</dd>';
+    if (src.error_detail) {
+      html += '<dt>Error</dt><dd style="color:var(--color-error)">' + esc(src.error_detail) + '</dd>';
+    }
+    html += '</dl>';
+
+    if (src.config && Object.keys(src.config).length > 0) {
+      html += '<h3 style="font-family:var(--font-heading);font-size:14px;font-weight:500;margin-bottom:8px">Configuration</h3>'
+        + '<dl class="detail-grid" style="margin-bottom:0">';
+      var keys = Object.keys(src.config);
+      for (var i = 0; i < keys.length; i++) {
+        html += '<dt>' + esc(keys[i]) + '</dt>'
+          + '<dd style="font-family:var(--font-mono);font-size:12px">' + esc(src.config[keys[i]]) + '</dd>';
+      }
+      html += '</dl>';
+    }
+
+    html += '</div>';
+    content.innerHTML = html;
+  }).catch(function(e) {
+    if (e.message !== "Unauthorized") showToast("Failed to load source: " + e.message);
   });
 }
 
@@ -1384,6 +1441,10 @@ document.getElementById("content").addEventListener("click", function(e) {
   if (destroy) { showDestroyModal(destroy.dataset.id); return; }
   var prov = e.target.closest("#btn-provision, #btn-provision-empty");
   if (prov) { showProvisionModal(); return; }
+  var srcDetail = e.target.closest("[data-action='source-detail']");
+  if (srcDetail) { showSourceDetail(srcDetail.dataset.id); return; }
+  var srcBack = e.target.closest("[data-action='source-back']");
+  if (srcBack) { navigate("sources"); return; }
   var skDetail = e.target.closest("[data-action='skillset-detail']");
   if (skDetail) { showSkillsetDetail(skDetail.dataset.name); return; }
   var skBack = e.target.closest("[data-action='skillset-back']");
