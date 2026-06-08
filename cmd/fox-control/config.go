@@ -15,6 +15,15 @@ type Config struct {
 	Docker    DockerSection    `toml:"docker"`
 	Auth      AuthSection      `toml:"auth"`
 	Instances InstancesSection `toml:"instances"`
+	Qdrant    QdrantSection    `toml:"qdrant"`
+}
+
+type QdrantSection struct {
+	Enabled  bool   `toml:"enabled"`
+	Image    string `toml:"image"`
+	HTTPPort int    `toml:"http_port"`
+	GRPCPort int    `toml:"grpc_port"`
+	DataDir  string `toml:"data_dir"`
 }
 
 type ControlSection struct {
