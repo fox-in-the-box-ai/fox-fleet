@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/spf13/cobra"
 
+	conformance "github.com/fox-in-the-box-ai/fox-fleet/conformance/runtime"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/provisioner"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
 	"github.com/fox-in-the-box-ai/fox-fleet/plugins/docker"
@@ -50,6 +51,7 @@ func newRootCmd() *cobra.Command {
 		newDestroyCmd(),
 		newListCmd(),
 		newVersionCmd(),
+		newConformanceCmd(),
 	)
 	return cmd
 }
@@ -217,6 +219,39 @@ func newDestroyCmd() *cobra.Command {
 	cmd.Flags().StringVar(&instanceID, "id", "", "instance ID (required)")
 	cmd.Flags().BoolVar(&removeData, "remove-data", false, "also remove instance data directory")
 	_ = cmd.MarkFlagRequired("id")
+	return cmd
+}
+
+func newConformanceCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "conformance",
+		Short: "Runtime conformance testing",
+	}
+	cmd.AddCommand(newConformanceRunCmd())
+	return cmd
+}
+
+func newConformanceRunCmd() *cobra.Command {
+	var image string
+
+	cmd := &cobra.Command{
+		Use:   "run",
+		Short: "Run the runtime conformance suite against a Fox image",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			suite := &conformance.Suite{Image: image}
+			result, err := suite.Run(cmd.Context())
+			if err != nil {
+				return err
+			}
+			fmt.Fprint(cmd.OutOrStdout(), result.Format())
+			if !result.OK() {
+				return fmt.Errorf("%d conformance checks failed", result.Failed())
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&image, "image", "", "Fox container image (required)")
+	_ = cmd.MarkFlagRequired("image")
 	return cmd
 }
 
