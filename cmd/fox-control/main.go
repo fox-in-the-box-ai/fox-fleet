@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/spf13/cobra"
 
+	plugconf "github.com/fox-in-the-box-ai/fox-fleet/conformance/plugin"
 	conformance "github.com/fox-in-the-box-ai/fox-fleet/conformance/runtime"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/provisioner"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
@@ -327,9 +328,10 @@ func newRolloutCmd() *cobra.Command {
 func newConformanceCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "conformance",
-		Short: "Runtime conformance testing",
+		Short: "Conformance testing",
 	}
 	cmd.AddCommand(newConformanceRunCmd())
+	cmd.AddCommand(newConformancePluginCmd())
 	return cmd
 }
 
@@ -348,6 +350,30 @@ func newConformanceRunCmd() *cobra.Command {
 			fmt.Fprint(cmd.OutOrStdout(), result.Format())
 			if !result.OK() {
 				return fmt.Errorf("%d conformance checks failed", result.Failed())
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&image, "image", "", "Fox container image (required)")
+	_ = cmd.MarkFlagRequired("image")
+	return cmd
+}
+
+func newConformancePluginCmd() *cobra.Command {
+	var image string
+
+	cmd := &cobra.Command{
+		Use:   "plugin",
+		Short: "Run the plugin conformance suite against a Fox image",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			suite := &plugconf.Suite{Image: image}
+			result, err := suite.Run(cmd.Context())
+			if err != nil {
+				return err
+			}
+			fmt.Fprint(cmd.OutOrStdout(), result.Format())
+			if !result.OK() {
+				return fmt.Errorf("%d plugin conformance checks failed", result.Failed())
 			}
 			return nil
 		},
