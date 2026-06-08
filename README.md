@@ -6,7 +6,7 @@
 
 Open-source management plane for [Fox in the Box](https://github.com/fox-in-the-box-ai/fox-in-the-box) AI assistants. One binary, one config file, one Docker host — provision, monitor, update, and destroy a fleet of Fox instances through a CLI and browser-based panel.
 
-> **Status: v1.0.0 GA.** Production-ready. Signed releases (cosign + SBOM), conformance in CI, full deployment paths (Compose / Helm / systemd / Homebrew / apt / container image).
+> **Status: v1.4.0 GA.** Production-ready. Signed releases (cosign + SBOM), conformance in CI, full deployment paths (Compose / Helm / systemd / Homebrew / apt / container image).
 
 ---
 
@@ -142,7 +142,7 @@ graph TB
 
 **Key design decisions:**
 
-- **Plugin interface** — `DeploymentPlugin` is a 7-operation Go interface (Provision, HealthCheck, Configure, Rollout, Rollback, Destroy, Logs). Docker is the built-in implementation. The interface accommodates Kubernetes and Compose plugins without changes.
+- **Plugin interface** — `DeploymentPlugin` is a 9-method Go interface (Provision, HealthCheck, Configure, Rollout, Rollback, Destroy, Logs, Restart, Stats). Docker is the built-in implementation. The interface accommodates Kubernetes and Compose plugins without changes.
 - **SQLite registry** — instance metadata in a single embedded database. CGO-free via `modernc.org/sqlite`. No external database dependency.
 - **Config injection** — each instance gets its own data directory with `config.yaml`, `settings.json`, `hermes.env`, and `tools.json` written before container start. When a data plane is configured, `tools.json` includes a `knowledge_query` tool manifest pointing instances at the query API. Credentials are injected as environment variables, never baked into images.
 - **Data plane** — optional organizational knowledge layer. File and REST ingestion connectors chunk documents, embed them via an OpenAI-compatible API, and store vectors in a shared Qdrant sidecar. Instances query the data plane through the `knowledge_query` tool injected by config injection.
@@ -160,7 +160,7 @@ These hold across the entire Fox ecosystem. Fleet inherits all of them.
 
 ### Known limitations
 
-Fox Fleet v1.0.0 has intentional architectural boundaries: single-host only (no multi-node), no HA (single SQLite), single admin token (no RBAC), no TLS termination (reverse proxy required), Docker socket is root-equivalent. See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) for the full list and planned improvements.
+Fox Fleet has intentional architectural boundaries: single-host only (no multi-node), no HA (single SQLite), single admin token (no RBAC), Docker socket is root-equivalent. See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) for the full list.
 
 ---
 
@@ -203,6 +203,11 @@ fox-cloud (Commercial)         Hosted product
 | **v0.2** | Data plane — organizational knowledge (ingestion, vector search, query API, skillsets) | Shipped (0.2.0-alpha) |
 | **v0.3** | Product polish — branded UI, i18n, dark mode, mobile, SSE, deployment infra, docs | Shipped (0.3.0-alpha) |
 | **v1.0** | Apache GA — conformance CI, cosign + SBOM, full deployment paths, all PRODUCTS.md promises | Shipped (1.0.0) |
+| **v1.0.1** | SSE auth hardened (session tokens), data plane query auth | Shipped (1.0.1) |
+| **v1.1** | Security hardening — file permissions, SSRF, path traversal, WriteTimeout, env blocklist, security headers, persistent events | Shipped (1.1.0) |
+| **v1.2** | Operations — Prometheus metrics, built-in TLS, backup CLI, diagnostics, webhooks, structured logging, rate limiting | Shipped (1.2.0) |
+| **v1.3** | Data plane hardening — embedding retry, Qdrant timeouts/batching/health, incremental ingestion, auto-restart, conformance | Shipped (1.3.0) |
+| **v1.4** | Panel & docs — health timeline, resource gauges, i18n (en/es/fr), skillset picker, operator/developer handbooks, OpenAPI spec, examples | Shipped (1.4.0) |
 
 Full roadmap: [FLEET_BASE_ROADMAP.md](https://github.com/fox-in-the-box-ai/fox-in-the-box/blob/main/docs/architecture/FLEET_BASE_ROADMAP.md)
 
@@ -237,7 +242,7 @@ internal/
   registry/            Instance registry (SQLite, CRUD, status + skillset tracking)
 plugins/
   plugin.go            DeploymentPlugin interface + shared types
-  docker/              Docker plugin implementation (7 operations)
+  docker/              Docker plugin implementation (9 methods)
 panel/
   api/                 Dashboard HTTP API + health poller + source listing
   spa/                 Embedded single-page dashboard (instances + sources tabs)

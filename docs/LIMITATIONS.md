@@ -1,6 +1,6 @@
 # Known Limitations
 
-Fox Fleet v1.0.0 — last updated 2026-06-08.
+Fox Fleet v1.4.0 — last updated 2026-06-08.
 
 This document tracks architectural boundaries, known gaps, and constraints
 that operators and contributors should be aware of. Items here are
@@ -37,15 +37,8 @@ There is no leader election, replication, or automatic failover. If the
 process crashes, systemd restarts it; if the host goes down, manual
 recovery is required.
 
-**Workaround:** regular backups of `/var/lib/fox-control` (the SQLite
-database and instance state).
-
-## Instance port allocation
-
-Ports are allocated sequentially from `instances.port_start` (default
-8787). There is no port reclamation — if instance A was on port 8787 and
-is destroyed, that port is not reused until `fox-control` restarts and
-reassigns from the current registry state.
+**Workaround:** regular backups via `fox-control backup` (VACUUM INTO)
+or filesystem snapshot of `/var/lib/fox-control`.
 
 ## Qdrant is external
 
@@ -59,66 +52,55 @@ node with no backup automation.
 The data plane calls an OpenAI-compatible embedding API. The default
 config points at a local Ollama instance. There is no built-in model
 download, GPU scheduling, or embedding queue. If the embedding provider
-is slow or unavailable, ingestion and queries block or fail.
+is slow or unavailable, ingestion and queries block or fail. Embedding
+calls retry with exponential backoff on 429/5xx errors.
 
 ## Source ingestion limits
 
 - **File connector:** 50 MB per file, local filesystem only.
 - **REST connector:** 1000 pages maximum, single JSON endpoint per source.
-- No streaming ingestion, no webhook-triggered re-ingestion, no
-  incremental updates (full re-ingest on change).
+- No streaming ingestion, no webhook-triggered re-ingestion.
+- Incremental re-ingestion is supported (SHA-256 content hashing skips
+  unchanged files), but schema changes require a full re-ingest.
 
 ## Authentication model
 
 All management API endpoints share a single bearer token
 (`auth.admin_secret`). There are no user accounts, roles, RBAC, or
-session management. The token is static until manually rotated.
+multi-user session management. The token is static until manually rotated.
 
 Instance containers receive a shared `instance_password` — there is no
-per-instance credential rotation.
+per-instance credential rotation. Per-instance query tokens exist for
+data plane access but are not user-facing credentials.
 
-## No TLS termination
+## Skillset validation
 
-`fox-control` serves plain HTTP. TLS must be terminated by a reverse
-proxy (Caddy, nginx, Traefik) or cloud load balancer. The Caddy
-reference config in `deploy/caddy/` handles this with automatic Let's
-Encrypt certificates.
-
-## Event log
-
-The activity feed uses an in-memory ring buffer (200 events). Events are
-lost on restart. There is no persistent event store, no webhook
-forwarding, and no structured log export.
+Skillset YAML manifests are validated at upload time against the
+`contract_version: "1"` schema. `ValidateAgainstManifest` checks declared
+tools against available tools at provision time. There is no runtime
+validation inside the instance that tools are actually functional — a
+misconfigured skillset will be accepted but the instance may fail to
+use the declared tools.
 
 ## Panel SPA
 
 The management panel is a vanilla HTML/CSS/JS single-page application
 embedded in the Go binary. It has no offline support, no service worker,
 no client-side routing (hash-based navigation only), and no build step.
-The panel supports English and Spanish.
-
-## Skillset validation
-
-Skillset YAML manifests are validated at upload time against the
-`contract_version: "1"` schema. There is no runtime validation that the
-tools declared in a skillset are actually available in the instance image.
-A misconfigured skillset will be accepted but the instance may fail to
-use the declared tools.
+The panel supports English, Spanish, and French.
 
 ---
 
-## Planned improvements
+## v2.x scope (not in Apache Base)
 
-These limitations are tracked in the project roadmap. Items marked with a
-ticket reference are scheduled; others are aspirational.
+These are tracked as Enterprise or future features, not bugs:
 
-| Limitation | Planned | Ticket |
-|---|---|---|
-| Single-host only | Multi-node with shared registry | — |
-| No HA | SQLite WAL + read replicas | — |
-| Single auth token | Multi-user with RBAC | — |
-| Event log volatile | Persistent event store | — |
-| English-only panel | i18n (POLISH-01) | Shipped (v1.0.0) |
-| No dark mode | Dark mode toggle (POLISH-02) | Shipped (v1.0.0) |
-| Desktop-only panel | Mobile responsive (POLISH-03) | Shipped (v1.0.0) |
-| Polling refresh | SSE real-time updates (POLISH-04) | Shipped (v1.0.0) |
+| Limitation | v2.x / Enterprise |
+|---|---|
+| Single-host only | Multi-node with shared registry |
+| No HA | SQLite WAL + read replicas |
+| Single auth token | Multi-user with RBAC, SSO/OIDC |
+| No ACME auto-cert | Automatic Let's Encrypt via built-in ACME |
+| No OpenTelemetry | Request tracing |
+| No real-time log streaming | SSE-based log tailing in panel |
+| No bulk instance actions | Multi-select provision/destroy |
