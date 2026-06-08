@@ -16,6 +16,8 @@ type Config struct {
 	Auth      AuthSection      `toml:"auth"`
 	Instances InstancesSection `toml:"instances"`
 	Qdrant    QdrantSection    `toml:"qdrant"`
+	DataPlane DataPlaneSection `toml:"data_plane"`
+	Embedding EmbeddingSection `toml:"embedding"`
 }
 
 type QdrantSection struct {
@@ -24,6 +26,19 @@ type QdrantSection struct {
 	HTTPPort int    `toml:"http_port"`
 	GRPCPort int    `toml:"grpc_port"`
 	DataDir  string `toml:"data_dir"`
+}
+
+type DataPlaneSection struct {
+	Enabled    bool   `toml:"enabled"`
+	Listen     string `toml:"listen"`
+	Collection string `toml:"collection"`
+	VectorSize int    `toml:"vector_size"`
+}
+
+type EmbeddingSection struct {
+	BaseURL string `toml:"base_url"`
+	APIKey  string `toml:"api_key"`
+	Model   string `toml:"model"`
 }
 
 type ControlSection struct {
@@ -83,6 +98,15 @@ func applyDefaults(cfg *Config) {
 	if cfg.Control.HealthPollSeconds == 0 {
 		cfg.Control.HealthPollSeconds = 15
 	}
+	if cfg.DataPlane.Listen == "" {
+		cfg.DataPlane.Listen = "127.0.0.1:9091"
+	}
+	if cfg.DataPlane.Collection == "" {
+		cfg.DataPlane.Collection = "fox-knowledge"
+	}
+	if cfg.DataPlane.VectorSize == 0 {
+		cfg.DataPlane.VectorSize = 1536
+	}
 }
 
 func validateConfig(cfg *Config) error {
@@ -105,6 +129,17 @@ func validateConfig(cfg *Config) error {
 		}
 		if cfg.Qdrant.DataDir == "" {
 			errs = append(errs, "qdrant.data_dir is required when qdrant is enabled")
+		}
+	}
+	if cfg.DataPlane.Enabled {
+		if cfg.Embedding.BaseURL == "" {
+			errs = append(errs, "embedding.base_url is required when data_plane is enabled")
+		}
+		if cfg.Embedding.Model == "" {
+			errs = append(errs, "embedding.model is required when data_plane is enabled")
+		}
+		if !cfg.Qdrant.Enabled {
+			errs = append(errs, "qdrant must be enabled when data_plane is enabled")
 		}
 	}
 	if len(errs) > 0 {
