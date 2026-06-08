@@ -11,7 +11,7 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 		token := extractToken(r)
 		if subtle.ConstantTimeCompare([]byte(token), s.secret) != 1 {
 			s.log.Warn("unauthorized request", "remote_addr", r.RemoteAddr, "path", r.URL.Path)
-			writeError(w, http.StatusUnauthorized, "unauthorized", "missing or invalid Authorization header")
+			writeError(w, http.StatusUnauthorized, "unauthorized", "invalid credentials")
 			return
 		}
 		next.ServeHTTP(w, r)

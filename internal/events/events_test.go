@@ -195,4 +195,7 @@ func TestSinceIDAfterWrap(t *testing.T) {
 	if got[0].Message != "event-5" {
 		t.Errorf("first = %q, want event-5", got[0].Message)
 	}
+	if got[1].Message != "event-6" {
+		t.Errorf("second = %q, want event-6", got[1].Message)
+	}
 }

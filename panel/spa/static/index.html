@@ -1138,7 +1138,7 @@ function connectSSE() {
   };
 
   es.onerror = function() {
-    if (!state.refreshTimer) startAutoRefresh();
+    if (es.readyState === 2 && !state.refreshTimer) startAutoRefresh();
   };
 }
 

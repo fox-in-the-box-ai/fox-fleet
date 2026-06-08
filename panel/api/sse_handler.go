@@ -23,30 +23,44 @@ func (s *Server) handleEventsStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
+	w.Header().Set("Referrer-Policy", "no-referrer")
 
 	fmt.Fprint(w, "retry: 3000\nevent: connected\ndata: {}\n\n")
 	flusher.Flush()
 
+	// Subscribe before replay to close the race window — any event
+	// emitted between SinceID and the live loop lands in ch.
+	ch, cancel := s.events.Subscribe()
+	defer cancel()
+
+	var highID uint64
 	if lastIDStr := r.Header.Get("Last-Event-ID"); lastIDStr != "" {
 		if lastID, err := strconv.ParseUint(lastIDStr, 10, 64); err == nil {
 			for _, e := range s.events.SinceID(lastID) {
 				data, _ := json.Marshal(e)
-				fmt.Fprintf(w, "id: %d\ndata: %s\n\n", e.ID, data)
+				if _, err := fmt.Fprintf(w, "id: %d\ndata: %s\n\n", e.ID, data); err != nil {
+					return
+				}
+				if e.ID > highID {
+					highID = e.ID
+				}
 			}
 			flusher.Flush()
 		}
 	}
-
-	ch, cancel := s.events.Subscribe()
-	defer cancel()
 
 	for {
 		select {
 		case <-r.Context().Done():
 			return
 		case e := <-ch:
+			if e.ID <= highID {
+				continue
+			}
 			data, _ := json.Marshal(e)
-			fmt.Fprintf(w, "id: %d\ndata: %s\n\n", e.ID, data)
+			if _, err := fmt.Fprintf(w, "id: %d\ndata: %s\n\n", e.ID, data); err != nil {
+				return
+			}
 			flusher.Flush()
 		}
 	}
