@@ -66,6 +66,7 @@ func newRootCmd() *cobra.Command {
 		newVersionCmd(),
 		newConformanceCmd(),
 		newVerifyCmd(),
+		newSecCmd(),
 	)
 	return cmd
 }
@@ -129,6 +130,13 @@ func newServeCmd() *cobra.Command {
 				}
 			}
 
+			signingKey, err := reg.EnsureSigningKey()
+			if err != nil {
+				return fmt.Errorf("cannot initialize signing key: %w", err)
+			}
+
+			sessionTTL := time.Duration(cfg.Control.SessionTokenTTLSecs) * time.Second
+
 			eventLog := events.NewLog(200)
 
 			apiServer := api.NewServer(api.Deps{
@@ -147,6 +155,8 @@ func newServeCmd() *cobra.Command {
 				DefaultRole:     cfg.Instances.DefaultRole,
 				SkillsetsDir:    filepath.Join(cfg.Control.DataRoot, "skillsets"),
 				EventLog:        eventLog,
+				SigningKey:      signingKey,
+				SessionTokenTTL: sessionTTL,
 			})
 
 			ctx := cmd.Context()
@@ -410,6 +420,43 @@ func newConformancePluginCmd() *cobra.Command {
 	cmd.Flags().StringVar(&image, "image", "", "Fox container image (required)")
 	_ = cmd.MarkFlagRequired("image")
 	return cmd
+}
+
+func newSecCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "sec",
+		Short: "Security operations",
+	}
+	cmd.AddCommand(newSecRotateSSEKeyCmd())
+	return cmd
+}
+
+func newSecRotateSSEKeyCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "rotate-sse-key",
+		Short: "Rotate the SSE session token signing key",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg, err := LoadConfig(cfgPath)
+			if err != nil {
+				return err
+			}
+
+			reg, err := registry.Open(filepath.Join(cfg.Control.DataRoot, "registry.db"))
+			if err != nil {
+				return err
+			}
+			defer reg.Close()
+
+			if _, err := reg.RotateSigningKey(); err != nil {
+				return err
+			}
+
+			slog.Info("SSE signing key rotated — all active session tokens are now invalid")
+			fmt.Fprintln(cmd.OutOrStdout(), "SSE signing key rotated. All active session tokens are now invalid.")
+			fmt.Fprintln(cmd.OutOrStdout(), "Connected SSE clients will reconnect and obtain new tokens automatically.")
+			return nil
+		},
+	}
 }
 
 func openRegistryAndPlugin(cfg *Config) (*registry.Registry, *docker.Plugin, error) {

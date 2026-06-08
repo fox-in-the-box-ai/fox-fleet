@@ -859,6 +859,8 @@ var state = {
   loading: false,
   refreshTimer: null,
   eventSource: null,
+  sseToken: "",
+  sseRefreshTimer: null,
   locale: localStorage.getItem("fox_locale") || "en",
   theme: localStorage.getItem("fox_theme") || "system"
 };
@@ -1097,12 +1099,14 @@ function enterApp() {
   document.getElementById("auth-screen").style.display = "none";
   document.getElementById("shell").style.display = "flex";
   refresh();
-  connectSSE();
+  fetchSSEToken().then(function() { connectSSE(); }).catch(function() { startAutoRefresh(); });
 }
 
 function logout() {
   sessionStorage.removeItem("fox_secret");
   state.secret = "";
+  state.sseToken = "";
+  if (state.sseRefreshTimer) { clearTimeout(state.sseRefreshTimer); state.sseRefreshTimer = null; }
   stopAutoRefresh();
   if (state.eventSource) { state.eventSource.close(); state.eventSource = null; }
   document.getElementById("auth-screen").style.display = "flex";
@@ -1128,12 +1132,33 @@ function apiFetch(path, opts) {
 
 var _refreshPending = null;
 
+function fetchSSEToken() {
+  return apiFetch("/api/auth/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ purpose: "sse" })
+  }).then(function(res) {
+    if (!res.ok) throw new Error("session token request failed");
+    return res.json();
+  }).then(function(data) {
+    state.sseToken = data.token;
+    var expiresAt = new Date(data.expires_at).getTime();
+    var refreshIn = Math.max((expiresAt - Date.now()) - 120000, 10000);
+    if (state.sseRefreshTimer) clearTimeout(state.sseRefreshTimer);
+    state.sseRefreshTimer = setTimeout(refreshSSEToken, refreshIn);
+  });
+}
+
+function refreshSSEToken() {
+  fetchSSEToken().catch(function() { logout(); });
+}
+
 function connectSSE() {
   stopAutoRefresh();
   if (state.eventSource) { state.eventSource.close(); state.eventSource = null; }
-  if (!state.secret) return;
+  if (!state.sseToken) return;
 
-  var es = new EventSource("/api/events/stream?token=" + encodeURIComponent(state.secret));
+  var es = new EventSource("/api/events/stream");
   state.eventSource = es;
 
   es.onopen = function() { stopAutoRefresh(); };
@@ -1144,7 +1169,11 @@ function connectSSE() {
   };
 
   es.onerror = function() {
-    if (es.readyState === 2 && !state.refreshTimer) startAutoRefresh();
+    if (es.readyState === 2) {
+      fetchSSEToken().then(function() { connectSSE(); }).catch(function() {
+        if (!state.refreshTimer) startAutoRefresh();
+      });
+    }
   };
 }
 

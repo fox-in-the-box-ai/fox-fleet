@@ -43,6 +43,7 @@ func newSourceTestEnv(t *testing.T) (*testEnv, *source.Registry) {
 		InstancePwd:    "test-instance-pwd",
 		MaxInstances:   2,
 		SourceRegistry: srcReg,
+		SigningKey:     testSigningKey,
 	})
 
 	return &testEnv{

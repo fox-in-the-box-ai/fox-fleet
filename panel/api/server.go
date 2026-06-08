@@ -10,6 +10,7 @@ import (
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/events"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/provisioner"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
+	"github.com/fox-in-the-box-ai/fox-fleet/internal/sessiontoken"
 	"github.com/fox-in-the-box-ai/fox-fleet/plugins"
 )
 
@@ -32,7 +33,11 @@ type Deps struct {
 	DefaultRole     string
 	SkillsetsDir    string
 	EventLog        *events.Log
+	SigningKey       []byte
+	SessionTokenTTL time.Duration
 }
+
+const defaultSessionTokenTTL = 10 * time.Minute
 
 type Server struct {
 	registry        *registry.Registry
@@ -51,6 +56,8 @@ type Server struct {
 	defaultRole     string
 	skillsetsDir    string
 	events          *events.Log
+	signer          *sessiontoken.Signer
+	sessionTTL      time.Duration
 }
 
 func NewServer(d Deps) *Server {
@@ -59,6 +66,15 @@ func NewServer(d Deps) *Server {
 	}
 	if d.PollInterval == 0 {
 		d.PollInterval = defaultPollInterval
+	}
+
+	if len(d.SigningKey) < 32 {
+		panic("api: signing key must be at least 32 bytes")
+	}
+
+	ttl := d.SessionTokenTTL
+	if ttl == 0 {
+		ttl = defaultSessionTokenTTL
 	}
 
 	s := &Server{
@@ -76,6 +92,8 @@ func NewServer(d Deps) *Server {
 		defaultRole:     d.DefaultRole,
 		skillsetsDir:    d.SkillsetsDir,
 		events:          d.EventLog,
+		signer:          sessiontoken.NewSigner(d.SigningKey),
+		sessionTTL:      ttl,
 	}
 
 	s.poller = &HealthPoller{
@@ -100,10 +118,11 @@ func NewServer(d Deps) *Server {
 	apiMux.HandleFunc("DELETE /api/skillsets/{name}", s.handleDeleteSkillset)
 	apiMux.HandleFunc("POST /api/query", s.handleQuery)
 	apiMux.HandleFunc("GET /api/events", s.handleEvents)
-	apiMux.HandleFunc("GET /api/events/stream", s.handleEventsStream)
+	apiMux.HandleFunc("POST /api/auth/session", s.handleSession)
 
 	s.mux = http.NewServeMux()
 	s.mux.HandleFunc("GET /healthz", s.handleHealthz)
+	s.mux.Handle("/api/events/stream", s.requireSessionToken(http.HandlerFunc(s.handleEventsStream)))
 	s.mux.Handle("/api/", s.requireAuth(apiMux))
 
 	if d.WebFS != nil {

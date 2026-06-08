@@ -47,6 +47,7 @@ func TestEvents_WithLog(t *testing.T) {
 		InstancePwd:  "test-pwd",
 		MaxInstances: 2,
 		EventLog:     elog,
+		SigningKey:   testSigningKey,
 	})
 
 	env := &testEnv{server: srv, registry: reg}

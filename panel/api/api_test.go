@@ -27,6 +27,8 @@ import (
 
 const testSecret = "test-admin-secret-9f4a"
 
+var testSigningKey = []byte("test-signing-key-32-bytes-long!ab")
+
 // --- compile-time interface checks ---
 
 var (
@@ -113,6 +115,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		MaxInstances: 2,
 		PollInterval: time.Hour,
 		Logger:       logger,
+		SigningKey:   testSigningKey,
 	})
 
 	return &testEnv{
@@ -510,6 +513,7 @@ func TestSPAServed(t *testing.T) {
 		MaxInstances: 2,
 		PollInterval: time.Hour,
 		WebFS:        webFS,
+		SigningKey:   testSigningKey,
 	})
 
 	req := httptest.NewRequest("GET", "/", nil)
@@ -578,6 +582,7 @@ func TestSourcesEndpointWithRegistry(t *testing.T) {
 		MaxInstances:   2,
 		PollInterval:   time.Hour,
 		SourceRegistry: srcReg,
+		SigningKey:     testSigningKey,
 	})
 
 	req := httptest.NewRequest("GET", "/api/sources", nil)
@@ -620,6 +625,7 @@ func TestCreatePassesDataPlaneURL(t *testing.T) {
 		MaxInstances: 2,
 		PollInterval: time.Hour,
 		DataPlaneURL: "http://127.0.0.1:9091",
+		SigningKey:   testSigningKey,
 	})
 
 	req := httptest.NewRequest("POST", "/api/instances", strings.NewReader(`{"id":"fox-dp"}`))
@@ -665,6 +671,7 @@ func TestCreatePassesSkillsetAndRole(t *testing.T) {
 		InstancePwd:  "test-pwd",
 		MaxInstances: 2,
 		PollInterval: time.Hour,
+		SigningKey:   testSigningKey,
 	})
 
 	body := `{"id":"fox-sk","skillset_path":"/opt/skills/sales.yaml","role":"rep"}`
@@ -713,6 +720,7 @@ func TestCreateUsesDefaultSkillsetAndRole(t *testing.T) {
 		PollInterval:    time.Hour,
 		DefaultSkillset: "/etc/fox/default.yaml",
 		DefaultRole:     "user",
+		SigningKey:      testSigningKey,
 	})
 
 	req := httptest.NewRequest("POST", "/api/instances", strings.NewReader(`{"id":"fox-def"}`))
@@ -769,6 +777,7 @@ func TestDetailIncludesSkillsetAndRole(t *testing.T) {
 		InstancePwd:  "test-pwd",
 		MaxInstances: 2,
 		PollInterval: time.Hour,
+		SigningKey:   testSigningKey,
 	})
 
 	req := httptest.NewRequest("GET", "/api/instances/fox-detail", nil)

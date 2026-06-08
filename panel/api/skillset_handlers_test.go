@@ -66,6 +66,7 @@ func newSkillsetTestEnv(t *testing.T) (*testEnv, string) {
 		PollInterval: time.Hour,
 		Logger:       logger,
 		SkillsetsDir: skillsetsDir,
+		SigningKey:   testSigningKey,
 	})
 
 	return &testEnv{
