@@ -1,6 +1,6 @@
 # Release Signing and Verification
 
-Fox Fleet releases are signed using [Sigstore cosign](https://docs.sigstore.dev/cosign/overview/) with keyless signing via GitHub Actions OIDC. Every binary tarball, checksums file, and container image published in a GitHub Release is cryptographically signed.
+Fox Fleet releases are signed using [Sigstore cosign](https://docs.sigstore.dev/cosign/overview/) with keyless signing via GitHub Actions OIDC. Every binary tarball, checksums file, SBOM, and container image published in a GitHub Release is cryptographically signed.
 
 ---
 
@@ -88,6 +88,34 @@ Replace `v1.0.0` with the version you are verifying.
 
 ---
 
+## Software Bill of Materials (SBOM)
+
+Each GitHub Release includes a CycloneDX JSON SBOM (`fox-control-<tag>.sbom.cdx.json`) listing Go module dependencies of the `fox-control` binary. The SBOM is signed with cosign alongside the other release artifacts.
+
+The container image has an additional SBOM attached in the registry, covering both the Go binary and the Alpine base image system libraries.
+
+### Verifying the binary SBOM signature
+
+```bash
+cosign verify-blob \
+  --signature fox-control-v1.0.0.sbom.cdx.json.sig \
+  --certificate fox-control-v1.0.0.sbom.cdx.json.pem \
+  --certificate-identity "https://github.com/fox-in-the-box-ai/fox-fleet/.github/workflows/release.yml@refs/tags/v1.0.0" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  fox-control-v1.0.0.sbom.cdx.json
+```
+
+### Downloading the container SBOM
+
+```bash
+cosign download sbom \
+  ghcr.io/fox-in-the-box-ai/fox-control@sha256:<digest>
+```
+
+Replace `<digest>` with the image digest from the release notes or `docker inspect`.
+
+---
+
 ## What the signature proves
 
 A valid signature proves:
@@ -101,4 +129,4 @@ A valid signature does **not** prove:
 
 - That the source code is free of vulnerabilities.
 - That the tag was created by a specific person (tags are not signed with GPG by default).
-- That the binary matches a specific commit (use the SBOM, when available, for dependency-level traceability).
+- That the binary matches a specific commit (use the SBOM for dependency-level traceability).
