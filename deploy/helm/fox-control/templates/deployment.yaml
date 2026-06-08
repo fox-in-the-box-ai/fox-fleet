@@ -16,6 +16,7 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
     spec:
+      automountServiceAccountToken: false
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -32,6 +33,10 @@ spec:
         - name: fox-control
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
           args:
             - serve
             - --config
@@ -49,24 +54,18 @@ spec:
                   key: instance-password
           ports:
             - name: http
-              containerPort: 9090
+              containerPort: {{ .Values.service.port }}
               protocol: TCP
           livenessProbe:
             httpGet:
-              path: /api/instances
+              path: /healthz
               port: http
-              httpHeaders:
-                - name: Authorization
-                  value: "Bearer $(FOX_ADMIN_SECRET)"
             initialDelaySeconds: 10
             periodSeconds: 30
           readinessProbe:
             httpGet:
-              path: /api/instances
+              path: /healthz
               port: http
-              httpHeaders:
-                - name: Authorization
-                  value: "Bearer $(FOX_ADMIN_SECRET)"
             initialDelaySeconds: 5
             periodSeconds: 10
           resources:

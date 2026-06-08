@@ -1,3 +1,6 @@
+nameOverride: ""
+fullnameOverride: ""
+
 replicaCount: 1
 
 image:
@@ -48,19 +51,16 @@ auth:
   adminSecret: ""
   instancePassword: ""
 
+# Qdrant is NOT deployed by this chart. Set enabled to true only when you
+# have an external Qdrant instance reachable at the configured ports.
 qdrant:
-  enabled: true
-  image:
-    repository: qdrant/qdrant
-    tag: v1.14.1
-  persistence:
-    size: 5Gi
+  enabled: false
   service:
     httpPort: 6333
     grpcPort: 6334
 
 dataPlane:
-  enabled: true
+  enabled: false
   listen: "0.0.0.0:9091"
   collection: "fox-knowledge"
   vectorSize: 1536
@@ -68,7 +68,6 @@ dataPlane:
 embedding:
   baseURL: ""
   model: "nomic-embed-text"
-  apiKey: ""
 
 nodeSelector: {}
 tolerations: []

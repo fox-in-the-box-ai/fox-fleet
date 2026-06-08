@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"strings"
 
@@ -76,6 +77,7 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	applyDefaults(&cfg)
+	applyEnvOverrides(&cfg)
 
 	if err := validateConfig(&cfg); err != nil {
 		return nil, err
@@ -108,6 +110,15 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.DataPlane.VectorSize == 0 {
 		cfg.DataPlane.VectorSize = 1536
+	}
+}
+
+func applyEnvOverrides(cfg *Config) {
+	if v := os.Getenv("FOX_ADMIN_SECRET"); v != "" {
+		cfg.Auth.AdminSecret = v
+	}
+	if v := os.Getenv("FOX_INSTANCE_PASSWORD"); v != "" {
+		cfg.Auth.InstancePassword = v
 	}
 }
 

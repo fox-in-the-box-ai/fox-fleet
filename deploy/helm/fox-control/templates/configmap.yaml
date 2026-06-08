@@ -16,21 +16,21 @@ data:
     image = {{ .Values.config.dockerImage | quote }}
 
     [auth]
-    admin_secret = "${FOX_ADMIN_SECRET}"
-    instance_password = "${FOX_INSTANCE_PASSWORD}"
+    admin_secret = "placeholder"
+    instance_password = "placeholder"
 
     [instances]
     port_start = {{ .Values.config.portStart }}
     max_instances = {{ .Values.config.maxInstances }}
-
     {{- if .Values.qdrant.enabled }}
+
     [qdrant]
     enabled = true
     http_port = {{ .Values.qdrant.service.httpPort }}
     grpc_port = {{ .Values.qdrant.service.grpcPort }}
     {{- end }}
-
     {{- if .Values.dataPlane.enabled }}
+
     [data_plane]
     enabled = true
     listen = {{ .Values.dataPlane.listen | quote }}
