@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-06-08
+
+### Added
+
+- **DP-01:** Embedding retry with exponential backoff — retries 429/5xx with jitter, configurable max retries and backoff bounds
+- **DP-02:** Per-operation Qdrant timeouts — separate timeouts for health (5s), search (30s), upsert (60s), and collection (30s) operations
+- **DP-03:** Qdrant health monitoring — panel health poller checks Qdrant status with state transition logging; `/healthz` surfaces Qdrant health
+- **DP-04:** Incremental file ingestion — SHA-256 content hashing skips unchanged documents; removed files cleaned from Qdrant and tracking table
+- **DP-06:** Qdrant upsert batching — large point sets split into 100-point batches to avoid request size limits
+- **DP-07:** DeleteByFilter for Qdrant — enables cascade deletion of source points during source removal
+- **DP-08:** Configurable minimum score threshold — query results below `min_score` (per-request or server default) are filtered out
+- **DP-09:** Embedding dimension validation — data plane validates embedding model dimensions against configured vector size at startup
+- **PLAT-01:** Skillset tool validation — `ValidateAgainstManifest` reports missing and extra tools against the skillset manifest
+- **PLAT-03:** Instance auto-restart — health poller auto-restarts instances exceeding a configurable consecutive failure threshold with cooldown; `DeploymentPlugin.Restart` method added
+- **CONF-01:** Data plane conformance suite — 10 round-trip checks covering health, readyz, admin auth, source CRUD, query auth, and content-type compliance
+- **CONF-02:** Security conformance checks — 4 checks for security headers, path traversal rejection, auth timing consistency, and HTTP method restriction
+- **REL-03:** Release health monitoring workflow — weekly scheduled CI checks tag/CHANGELOG alignment, go.sum freshness, govulncheck, cross-platform build, and Helm version parity
+- **PERF-02:** Cross-file embedding batching — ingestion batches up to 256 texts per embed call across files, reducing API round trips
+
 ## [1.2.0] - 2026-06-08
 
 ### Added
