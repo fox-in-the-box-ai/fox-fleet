@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-06-08
+
+### Added
+
+- **PERF-01:** Query token hash index — `ValidQueryToken` now uses SHA-256 hash lookup with index scan instead of full table scan, followed by constant-time comparison
+- **POLISH-01:** Token bucket rate limiter — API requests throttled with configurable rate; 429 responses include `Retry-After` header
+- **OPS-03:** Prometheus metrics endpoint — `/metrics` exposes request count, error count, provision count, SSE connections, and uptime in Prometheus exposition format
+- **OPS-04:** Built-in TLS termination — `tls.cert_file` and `tls.key_file` config options; data plane URL auto-switches to HTTPS when TLS is configured
+- **OPS-05:** SQLite backup/restore CLI — `fox-control backup` uses VACUUM INTO for registry.db, sources.db, and events.db; `fox-control restore` with lock-file safety check
+- **OPS-06:** Diagnostics command — `fox-control diagnostics` runs 8 health checks (config, Docker, registry integrity, disk space, port availability, qdrant, embedding, data plane)
+- **INT-01:** Webhook event forwarding — configurable webhook targets with HMAC-SHA256 signatures (`X-Fox-Signature`), event type filtering, per-target rate limiting (10/sec), 5s timeout
+- **INT-02:** Structured JSON logging — `control.log_format` (text/json) and `control.log_level` (debug/info/warn/error) configuration options
+- **POLISH-02:** CLI output formatting — `--output` / `-o` flag supporting table, json, and quiet formats
+- **REL-01:** govulncheck in CI — new CI job runs `govulncheck ./...` on every push and PR to detect known Go vulnerabilities
+- **REL-02:** Docker Dependabot — Dependabot now monitors Docker base image updates alongside Go modules and GitHub Actions
+
 ## [1.1.0] - 2026-06-08
 
 ### Security
