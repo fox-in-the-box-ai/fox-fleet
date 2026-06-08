@@ -7,9 +7,11 @@ linters:
         - fmt.Fprint
         - fmt.Fprintf
         - fmt.Fprintln
-        - (io.Closer).Close
-        - (*os).File.Close
         - os.RemoveAll
+  exclusions:
+    rules:
+      - linters: [errcheck]
+        text: '`.*\.Close`'
 
 formatters:
   enable:
