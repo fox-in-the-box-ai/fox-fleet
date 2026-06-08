@@ -37,8 +37,11 @@ and logs.
 Use an HMAC-SHA256 signed token rather than JWT. Rationale:
 
 - **Simpler.** No JWT library dependency. The token is
-  `base64url(payload || hmac(payload))` where payload is
-  `purpose + expiry + random-nonce`.
+  `base64url(payload || hmac(payload))` where payload is a
+  fixed-layout binary blob: purpose (1 byte enum), expiry
+  (8 bytes, Unix seconds big-endian), nonce (16 bytes,
+  `crypto/rand`). Fixed-length fields eliminate delimiter
+  ambiguity.
 - **No header/claims parsing attack surface.** JWT `alg: none` and
   key-confusion attacks are eliminated by construction.
 - **Opaque to the client.** The SPA treats it as an opaque string —
@@ -60,6 +63,9 @@ Use an HMAC-SHA256 signed token rather than JWT. Rationale:
 ### Token endpoint
 
 New endpoint: `POST /api/auth/session`
+
+This endpoint is registered within the existing `apiMux` and
+protected by `requireAuth` like all other `/api/` endpoints.
 
 - **Auth:** `Authorization: Bearer <admin_secret>` (existing admin
   auth middleware).

@@ -6,22 +6,24 @@
 
 ## Context
 
-The data plane query endpoint `POST /v1/query` is unauthenticated.
-Any process that can reach port 9091 can query the knowledge base
-without credentials:
+Two data plane endpoints are unauthenticated: `POST /v1/query` and
+`GET /v1/sources`. Any process that can reach port 9091 can query
+the knowledge base or enumerate source metadata without credentials:
 
 ```
 curl -s http://localhost:9091/v1/query \
   -d '{"query":"confidential roadmap"}'
+
+curl -s http://localhost:9091/v1/sources
 ```
 
 The admin routes (`/v1/admin/*`) are correctly gated behind
 `requireAdmin`, which checks `Authorization: Bearer <admin_secret>`
-with constant-time comparison. But the query route was left public
-under the assumption that only Fox instances would call it — an
-assumption that doesn't hold once the data plane port is reachable
-from the host network or from other containers on the same Docker
-network.
+with constant-time comparison. But the query and source-listing
+routes were left public under the assumption that only Fox instances
+would call them — an assumption that doesn't hold once the data
+plane port is reachable from the host network or from other
+containers on the same Docker network.
 
 The config injection layer (`internal/config/inject.go`) already
 generates an `X-Fox-Auth` header in the `knowledge_query` tool
@@ -106,8 +108,8 @@ two credentials are now distinct.
 
 ### Data plane auth changes
 
-`POST /v1/query` gets a new middleware `requireQueryAuth` that
-accepts two credential types:
+`POST /v1/query` and `GET /v1/sources` get a new middleware
+`requireQueryAuth` that accepts two credential types:
 
 1. **Admin secret** — `Authorization: Bearer <admin_secret>`.
    Validated by constant-time comparison against the configured
@@ -134,18 +136,40 @@ The `registry.Registry` implements this interface:
 
 ```go
 func (r *Registry) ValidQueryToken(token string) bool {
+    if token == "" {
+        return false
+    }
     var count int
     err := r.db.QueryRow(
-        `SELECT COUNT(*) FROM instances WHERE query_token = ?`,
+        `SELECT COUNT(*) FROM instances WHERE query_token = ? AND query_token != ''`,
         token,
     ).Scan(&count)
     return err == nil && count > 0
 }
 ```
 
+The empty-string guard is defense-in-depth: between schema migration
+and backfill completion, existing rows have `query_token = ''`. The
+guard ensures an empty credential never matches during this window.
+
 The data plane `server.New()` accepts a `QueryTokenValidator` as
 a new parameter. When nil (data plane not connected to a registry),
 query auth falls back to admin-secret-only.
+
+### Security considerations
+
+The SQL lookup for instance tokens is not constant-time — query
+execution time varies with row count and position. This is
+acceptable because the token has 256 bits of entropy (32 bytes of
+`crypto/rand`); brute-force search is computationally infeasible
+regardless of timing leakage. If future changes reduce token
+entropy below 128 bits, the lookup must switch to iterating all
+tokens with `subtle.ConstantTimeCompare`.
+
+Instances never call `/v1/admin/*` endpoints. The `X-Fox-Auth` vs
+`Authorization` header mismatch on `requireAdmin` is therefore
+harmless — only the new `requireQueryAuth` middleware needs to
+handle both header forms.
 
 ### Panel proxy changes
 
@@ -261,7 +285,7 @@ New subcommand: `fox-control sec rotate-query-token --instance <id>`
 |----------|----------|
 | Fresh v1.0.1 install | Tokens generated at provision time. No action needed. |
 | v1.0.0 → v1.0.1 upgrade | `registry.Open()` detects empty `query_token` rows and backfills them. Config re-injection happens on next instance restart or configure call. |
-| v1.0.1 → v1.0.0 rollback | SQLite ignores the unknown `query_token` column. Instances have `FOX_DATA_PLANE_TOKEN` in their env, which the v1.0.0 data plane ignores (query endpoint returns to unauthenticated). No breakage, but the security fix is lost. |
+| v1.0.1 → v1.0.0 rollback | SQLite ignores the unknown `query_token` column. The v1.0.0 data plane has no auth on `/v1/query`, so queries work regardless of credentials. Instances that were re-injected under v1.0.1 have `tools.json` pointing at `FOX_DATA_PLANE_TOKEN` instead of `FOX_PLANE_AUTH_SECRET` — this is harmless because v1.0.0 ignores auth on the query path. `FOX_PLANE_AUTH_SECRET` is still present in `hermes.env` for instance-level auth. If a clean rollback is desired, re-run config injection under v1.0.0 to restore the original `tools.json`. The security fix is lost on rollback. |
 
 ### Compatibility
 
