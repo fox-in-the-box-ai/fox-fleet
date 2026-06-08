@@ -153,11 +153,11 @@ func migrate(db *sql.DB) error {
 			return fmt.Errorf("registry: begin migration %d: %w", i+1, err)
 		}
 		if err := migrations[i](tx); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("registry: migration %d failed: %w", i+1, err)
 		}
 		if err := setSchemaVersion(tx, i+1); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("registry: set schema version %d: %w", i+1, err)
 		}
 		if err := tx.Commit(); err != nil {
@@ -402,7 +402,7 @@ func (r *Registry) EnsureSigningKey() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("registry: begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var key []byte
 	err = tx.QueryRow(`SELECT key FROM signing_keys WHERE active = 1 ORDER BY id DESC LIMIT 1`).Scan(&key)
@@ -436,7 +436,7 @@ func (r *Registry) RotateSigningKey() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("registry: begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if _, err := tx.Exec(`UPDATE signing_keys SET active = 0`); err != nil {
 		return nil, fmt.Errorf("registry: deactivate signing keys: %w", err)

@@ -136,7 +136,7 @@ func NewServer(d Deps) *Server {
 	apiMux.HandleFunc("GET /api/events", s.handleEvents)
 	apiMux.HandleFunc("POST /api/auth/session", s.handleSession)
 
-	var apiHandler http.Handler = s.requireAuth(apiMux)
+	apiHandler := s.requireAuth(apiMux)
 
 	rlRate := d.RateLimit
 	if rlRate <= 0 {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -201,7 +202,7 @@ func checkDocker(cfg *Config) diagCheck {
 		return diagCheck{Name: "docker", Status: "fail", Detail: err.Error()}
 	}
 	defer cli.Close()
-	_, err = cli.Ping(nil)
+	_, err = cli.Ping(context.TODO())
 	if err != nil {
 		return diagCheck{Name: "docker", Status: "fail", Detail: err.Error()}
 	}

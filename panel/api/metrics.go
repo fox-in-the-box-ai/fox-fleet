@@ -27,7 +27,6 @@ func (m *metrics) incRequests(path string) {
 	v.(*atomic.Int64).Add(1)
 }
 
-func (m *metrics) incErrors()     { m.errorsTotal.Add(1) }
 func (m *metrics) incProvisions() { m.provisionTotal.Add(1) }
 func (m *metrics) sseConnect()    { m.sseConnections.Add(1) }
 func (m *metrics) sseDisconnect() { m.sseConnections.Add(-1) }
