@@ -2,6 +2,7 @@ package registry
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/base64"
 	"errors"
@@ -217,12 +218,22 @@ func (r *Registry) ValidQueryToken(token string) bool {
 	if token == "" {
 		return false
 	}
-	var count int
-	err := r.db.QueryRow(
-		`SELECT COUNT(*) FROM instances WHERE query_token = ? AND query_token != ''`,
-		token,
-	).Scan(&count)
-	return err == nil && count > 0
+	rows, err := r.db.Query(`SELECT query_token FROM instances WHERE query_token != ''`)
+	if err != nil {
+		return false
+	}
+	defer rows.Close()
+	tokenBytes := []byte(token)
+	for rows.Next() {
+		var stored string
+		if rows.Scan(&stored) != nil {
+			continue
+		}
+		if subtle.ConstantTimeCompare(tokenBytes, []byte(stored)) == 1 {
+			return true
+		}
+	}
+	return false
 }
 
 // UpdateQueryToken sets the query_token for an existing instance.
