@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha] - 2026-06-08
+
 ### Added
 
 - **PLUG-01:** `DeploymentPlugin` 7-operation Go interface and shared types (#32)
