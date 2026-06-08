@@ -41,17 +41,17 @@
 | REL-01 | govulncheck in CI | S | v1.2.0 | Shipped |
 | REL-02 | Automated dependency updates (Dependabot) | S | v1.2.0 | Shipped |
 | REL-03 | Release health monitoring | M | v1.3.0 | Shipped |
-| DOC-01 | Operator handbook | L | v1.4.0 | Backlog |
-| DOC-02 | Developer and contributor handbook | M | v1.4.0 | Backlog |
-| DOC-03 | API reference (OpenAPI 3.0) | M | v1.4.0 | Backlog |
-| DOC-04 | Example deployment configurations | S | v1.4.0 | Backlog |
+| DOC-01 | Operator handbook | L | v1.4.0 | Shipped |
+| DOC-02 | Developer and contributor handbook | M | v1.4.0 | Shipped |
+| DOC-03 | API reference (OpenAPI 3.0) | M | v1.4.0 | Shipped |
+| DOC-04 | Example deployment configurations | S | v1.4.0 | Shipped |
 | PERF-01 | ValidQueryToken hash-then-lookup optimization | XS | v1.2.0 | Shipped |
 | PERF-02 | Embedding request batching | M | v1.3.0 | Shipped |
-| PANEL-01 | Instance health history timeline | S | v1.4.0 | Backlog |
-| PANEL-02 | Per-instance resource usage display | S | v1.4.0 | Backlog |
+| PANEL-01 | Instance health history timeline | S | v1.4.0 | Shipped |
+| PANEL-02 | Per-instance resource usage display | S | v1.4.0 | Shipped |
 | PANEL-03 | Fix handleCreate race condition | S | v1.1.0 | Shipped |
-| PANEL-04 | i18n contribution workflow | S | v1.4.0 | Backlog |
-| PANEL-05 | Instance create form with skillset dropdown | S | v1.4.0 | Backlog |
+| PANEL-04 | i18n contribution workflow | S | v1.4.0 | Shipped |
+| PANEL-05 | Instance create form with skillset dropdown | S | v1.4.0 | Shipped |
 | POLISH-01 | Token bucket rate limiting | S | v1.2.0 | Shipped |
 | POLISH-02 | CLI --output flag (table/json/quiet) | S | v1.2.0 | Shipped |
 

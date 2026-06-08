@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-06-08
+
+### Added
+
+- **PANEL-01:** Instance health timeline — 24-hour color-coded health history bar in instance detail view; `GET /api/instances/{id}/health-history` endpoint; health transition events emitted by the poller
+- **PANEL-02:** Instance resource gauges — CPU, memory, and network usage display with critical/high thresholds; `GET /api/instances/{id}/stats` endpoint; `ContainerStats` struct and `Stats` method on `DeploymentPlugin` interface; Docker implementation via one-shot container stats API
+- **PANEL-04:** i18n extraction and French language — translations extracted from inline JS to `panel/spa/static/i18n/{en,es,fr}.json`; locales loaded asynchronously via fetch; `scripts/validate-i18n.sh` for key-parity checks; i18n contribution guide added to `CONTRIBUTING.md`
+- **PANEL-05:** Skillset picker dropdown — provision modal now fetches available skillsets from `/api/skillsets` and presents a dropdown instead of free-text input
+- **DOC-01:** Operator handbook updated for v1.1.0–v1.4.0 — Prometheus metrics, structured logging, built-in TLS, CLI backup, persistent events, webhooks, rate limiting, auto-restart, health history, resource stats; troubleshooting table expanded to 18 scenarios
+- **DOC-02:** Developer handbook — architecture overview, package layout, `DeploymentPlugin` development guide, data plane connector guide, test patterns, build instructions
+- **DOC-03:** OpenAPI 3.0.3 specification — 28 operations across panel API and data plane API with shared schemas and security definitions
+- **DOC-04:** Example configurations — minimal, production (Docker Compose + TLS + Qdrant), and air-gapped (pre-pulled images + local Ollama + setup script) deployment examples
+
 ## [1.3.0] - 2026-06-08
 
 ### Added
