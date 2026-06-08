@@ -265,6 +265,231 @@ func TestPublicSourcesList(t *testing.T) {
 	}
 }
 
+func TestQuerySuccess(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { db.Close() })
+
+	sources, err := source.OpenRegistry(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	embedSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		resp := map[string]any{
+			"data": []map[string]any{
+				{"embedding": []float32{0.1, 0.2, 0.3}, "index": 0},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	t.Cleanup(embedSrv.Close)
+
+	qdrantSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/healthz" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		resp := map[string]any{
+			"result": []map[string]any{
+				{
+					"id":    "abc123",
+					"score": 0.95,
+					"payload": map[string]any{
+						"text":      "Fox Fleet manages AI instances",
+						"source_id": "src-1",
+						"file":      "readme.md",
+						"chunk_idx": 0,
+					},
+				},
+				{
+					"id":    "def456",
+					"score": 0.87,
+					"payload": map[string]any{
+						"text":      "Provisioning loop orchestrator",
+						"source_id": "src-1",
+						"file":      "design.md",
+						"chunk_idx": 2,
+					},
+				},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	t.Cleanup(qdrantSrv.Close)
+
+	ec := embedding.NewClient(embedding.Config{BaseURL: embedSrv.URL, Model: "test"})
+	qc := qdrant.NewClient(qdrantSrv.URL)
+
+	srv := New(Config{
+		AdminSecret: testSecret,
+		Collection:  "test-docs",
+		VectorSize:  3,
+	}, sources, ec, qc, nil)
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	body := map[string]any{"query": "what is fox fleet?"}
+	var buf bytes.Buffer
+	_ = json.NewEncoder(&buf).Encode(body)
+	resp, err := http.Post(ts.URL+"/v1/query", "application/json", &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+
+	var result struct {
+		Results []struct {
+			Text     string  `json:"text"`
+			Score    float32 `json:"score"`
+			SourceID string  `json:"source_id"`
+			File     string  `json:"file"`
+			ChunkIdx int     `json:"chunk_idx"`
+		} `json:"results"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Results) != 2 {
+		t.Fatalf("results = %d, want 2", len(result.Results))
+	}
+	if result.Results[0].Text != "Fox Fleet manages AI instances" {
+		t.Errorf("text = %q", result.Results[0].Text)
+	}
+	if result.Results[0].Score != 0.95 {
+		t.Errorf("score = %f, want 0.95", result.Results[0].Score)
+	}
+	if result.Results[0].SourceID != "src-1" {
+		t.Errorf("source_id = %q", result.Results[0].SourceID)
+	}
+}
+
+func TestQueryMissingField(t *testing.T) {
+	_, ts := setup(t)
+
+	var buf bytes.Buffer
+	_ = json.NewEncoder(&buf).Encode(map[string]any{"top_k": 3})
+	resp, err := http.Post(ts.URL+"/v1/query", "application/json", &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestQueryQdrantDown(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { db.Close() })
+
+	sources, err := source.OpenRegistry(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	embedSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		resp := map[string]any{
+			"data": []map[string]any{
+				{"embedding": []float32{0.1, 0.2, 0.3}, "index": 0},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	t.Cleanup(embedSrv.Close)
+
+	qdrantSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/healthz" {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(qdrantSrv.Close)
+
+	ec := embedding.NewClient(embedding.Config{BaseURL: embedSrv.URL, Model: "test"})
+	qc := qdrant.NewClient(qdrantSrv.URL)
+
+	srv := New(Config{
+		AdminSecret: testSecret,
+		Collection:  "test-docs",
+		VectorSize:  3,
+	}, sources, ec, qc, nil)
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	var buf bytes.Buffer
+	_ = json.NewEncoder(&buf).Encode(map[string]any{"query": "test"})
+	resp, err := http.Post(ts.URL+"/v1/query", "application/json", &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want 503", resp.StatusCode)
+	}
+}
+
+func TestQueryEmbeddingDown(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { db.Close() })
+
+	sources, err := source.OpenRegistry(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	embedSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(embedSrv.Close)
+
+	qdrantSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(qdrantSrv.Close)
+
+	ec := embedding.NewClient(embedding.Config{BaseURL: embedSrv.URL, Model: "test"})
+	qc := qdrant.NewClient(qdrantSrv.URL)
+
+	srv := New(Config{
+		AdminSecret: testSecret,
+		Collection:  "test-docs",
+		VectorSize:  3,
+	}, sources, ec, qc, nil)
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	var buf bytes.Buffer
+	_ = json.NewEncoder(&buf).Encode(map[string]any{"query": "test"})
+	resp, err := http.Post(ts.URL+"/v1/query", "application/json", &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want 503", resp.StatusCode)
+	}
+}
+
 func TestDeleteNotFound(t *testing.T) {
 	_, ts := setup(t)
 

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Text chunker — 512-token fixed-size with 64-token overlap, rune-aware Unicode support
 - Embedding client — OpenAI-compatible HTTP API adapter
 - Qdrant REST client — collection CRUD, point upsert, vector search with payload filtering
+- **DP-05:** Query API — `POST /v1/query` with embedding + vector search, source filtering, top-k control, 503 on infra failure
 
 ## [0.1.0-alpha] - 2026-06-08
 

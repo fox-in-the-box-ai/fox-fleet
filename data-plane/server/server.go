@@ -59,6 +59,7 @@ func New(cfg Config, sources *source.Registry, embedder *embedding.Client, vecto
 	mux.HandleFunc("GET /v1/readyz", s.handleReadyz)
 
 	mux.HandleFunc("GET /v1/sources", s.handleListSources)
+	mux.HandleFunc("POST /v1/query", s.handleQuery)
 
 	adminMux := http.NewServeMux()
 	adminMux.HandleFunc("GET /v1/admin/sources", s.handleAdminListSources)
@@ -138,6 +139,98 @@ func (s *Server) handleListSources(w http.ResponseWriter, _ *http.Request) {
 		list = []source.Source{}
 	}
 	writeJSON(w, http.StatusOK, list)
+}
+
+const defaultTopK = 5
+
+func (s *Server) handleQuery(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	var req struct {
+		Query      string `json:"query"`
+		Collection string `json:"collection"`
+		TopK       int    `json:"top_k"`
+		SourceID   string `json:"source_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
+		return
+	}
+	if req.Query == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "query is required"})
+		return
+	}
+	if req.Collection == "" {
+		req.Collection = s.cfg.Collection
+	}
+	if req.TopK <= 0 {
+		req.TopK = defaultTopK
+	}
+
+	vectors, err := s.embedder.Embed(r.Context(), []string{req.Query})
+	if err != nil {
+		s.log.Error("query embed", "error", err)
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "embedding service unavailable"})
+		return
+	}
+	if len(vectors) == 0 || len(vectors[0]) == 0 {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "embedding service returned no vectors"})
+		return
+	}
+
+	sr := qdrant.SearchRequest{
+		Vector:      vectors[0],
+		Limit:       req.TopK,
+		WithPayload: true,
+	}
+	if req.SourceID != "" {
+		sr.Filter = &qdrant.Filter{
+			Must: []qdrant.Condition{{
+				Key:   "source_id",
+				Match: &qdrant.Match{Value: req.SourceID},
+			}},
+		}
+	}
+
+	results, err := s.vector.Search(r.Context(), req.Collection, sr)
+	if err != nil {
+		s.log.Error("query search", "error", err)
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "vector search unavailable"})
+		return
+	}
+
+	type queryResult struct {
+		Text     string  `json:"text"`
+		Score    float32 `json:"score"`
+		SourceID string  `json:"source_id,omitempty"`
+		File     string  `json:"file,omitempty"`
+		DocID    string  `json:"doc_id,omitempty"`
+		ChunkIdx int     `json:"chunk_idx"`
+	}
+
+	out := make([]queryResult, 0, len(results))
+	for _, r := range results {
+		qr := queryResult{
+			Score: r.Score,
+		}
+		if v, ok := r.Payload["text"].(string); ok {
+			qr.Text = v
+		}
+		if v, ok := r.Payload["source_id"].(string); ok {
+			qr.SourceID = v
+		}
+		if v, ok := r.Payload["file"].(string); ok {
+			qr.File = v
+		}
+		if v, ok := r.Payload["doc_id"].(string); ok {
+			qr.DocID = v
+		}
+		if v, ok := r.Payload["chunk_idx"].(float64); ok {
+			qr.ChunkIdx = int(v)
+		}
+		out = append(out, qr)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"results": out})
 }
 
 func (s *Server) handleAdminListSources(w http.ResponseWriter, r *http.Request) {
