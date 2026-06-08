@@ -39,5 +39,5 @@ func (s *Server) handleQuery(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, io.LimitReader(resp.Body, 1<<20))
+	_, _ = io.Copy(w, io.LimitReader(resp.Body, 1<<20))
 }
