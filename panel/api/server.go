@@ -39,6 +39,7 @@ type Deps struct {
 	RateLimit          int
 	ProvisionRateLimit int
 	MetricsEnabled     bool
+	QdrantHealth       QdrantHealthChecker
 }
 
 const defaultSessionTokenTTL = 10 * time.Minute
@@ -113,6 +114,7 @@ func NewServer(d Deps) *Server {
 		interval: d.PollInterval,
 		cache:    make(map[string]plugins.HealthStatus),
 		log:      d.Logger,
+		qdrant:   d.QdrantHealth,
 	}
 
 	apiMux := http.NewServeMux()

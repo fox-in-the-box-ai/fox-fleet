@@ -52,9 +52,72 @@ func migrate(db *sql.DB) error {
 		updated_at   TEXT NOT NULL
 	)`)
 	if err != nil {
-		return fmt.Errorf("source: migrate: %w", err)
+		return fmt.Errorf("source: migrate sources: %w", err)
+	}
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS document_tracking (
+		source_id    TEXT NOT NULL,
+		doc_id       TEXT NOT NULL,
+		content_hash TEXT NOT NULL,
+		updated_at   TEXT NOT NULL,
+		PRIMARY KEY (source_id, doc_id)
+	)`)
+	if err != nil {
+		return fmt.Errorf("source: migrate document_tracking: %w", err)
 	}
 	return nil
+}
+
+func (r *Registry) GetDocHash(sourceID, docID string) (string, error) {
+	var hash string
+	err := r.db.QueryRow(
+		`SELECT content_hash FROM document_tracking WHERE source_id = ? AND doc_id = ?`,
+		sourceID, docID,
+	).Scan(&hash)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return hash, nil
+}
+
+func (r *Registry) SetDocHash(sourceID, docID, hash string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := r.db.Exec(
+		`INSERT INTO document_tracking (source_id, doc_id, content_hash, updated_at)
+		 VALUES (?, ?, ?, ?)
+		 ON CONFLICT (source_id, doc_id) DO UPDATE SET content_hash = excluded.content_hash, updated_at = excluded.updated_at`,
+		sourceID, docID, hash, now,
+	)
+	return err
+}
+
+func (r *Registry) ListDocIDs(sourceID string) ([]string, error) {
+	rows, err := r.db.Query(`SELECT doc_id FROM document_tracking WHERE source_id = ?`, sourceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+func (r *Registry) DeleteDocTracking(sourceID, docID string) error {
+	_, err := r.db.Exec(`DELETE FROM document_tracking WHERE source_id = ? AND doc_id = ?`, sourceID, docID)
+	return err
+}
+
+func (r *Registry) DeleteAllDocTracking(sourceID string) error {
+	_, err := r.db.Exec(`DELETE FROM document_tracking WHERE source_id = ?`, sourceID)
+	return err
 }
 
 func (r *Registry) Create(src Source) error {

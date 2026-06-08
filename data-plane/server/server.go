@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
@@ -19,11 +20,12 @@ import (
 )
 
 type Config struct {
-	Listen         string
-	AdminSecret    string
-	Collection     string
-	VectorSize     int
-	AllowedFileDir string
+	Listen          string
+	AdminSecret     string
+	Collection      string
+	VectorSize      int
+	AllowedFileDir  string
+	DefaultMinScore float32
 }
 
 type QueryTokenValidator interface {
@@ -47,6 +49,7 @@ func New(cfg Config, sources *source.Registry, embedder *embedding.Client, vecto
 		log = slog.Default()
 	}
 	fc := fileconn.New(embedder, vector, cfg.AllowedFileDir)
+	fc.SetTracker(sources)
 	rc := restconn.New(embedder, vector)
 
 	s := &Server{
@@ -124,6 +127,24 @@ func extractBearerToken(r *http.Request) string {
 	return ""
 }
 
+func (s *Server) ValidateEmbeddingDimension(ctx context.Context) error {
+	vecs, err := s.embedder.Embed(ctx, []string{"dimension validation probe"})
+	if err != nil {
+		s.log.Warn("embedding dimension validation skipped — service unreachable", "error", err)
+		return nil
+	}
+	if len(vecs) == 0 || len(vecs[0]) == 0 {
+		s.log.Warn("embedding dimension validation skipped — no vectors returned")
+		return nil
+	}
+	actual := len(vecs[0])
+	if actual != s.cfg.VectorSize {
+		return fmt.Errorf("embedding dimension mismatch: config vector_size=%d but embedding model returned %d dimensions", s.cfg.VectorSize, actual)
+	}
+	s.log.Info("embedding dimension validated", "dimensions", actual)
+	return nil
+}
+
 func (s *Server) Handler() http.Handler {
 	return s.mux
 }
@@ -197,10 +218,11 @@ const defaultTopK = 5
 func (s *Server) handleQuery(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var req struct {
-		Query      string `json:"query"`
-		Collection string `json:"collection"`
-		TopK       int    `json:"top_k"`
-		SourceID   string `json:"source_id"`
+		Query      string   `json:"query"`
+		Collection string   `json:"collection"`
+		TopK       int      `json:"top_k"`
+		SourceID   string   `json:"source_id"`
+		MinScore   *float32 `json:"min_score,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
@@ -247,6 +269,20 @@ func (s *Server) handleQuery(w http.ResponseWriter, r *http.Request) {
 		s.log.Error("query search", "error", err)
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "vector search unavailable"})
 		return
+	}
+
+	minScore := s.cfg.DefaultMinScore
+	if req.MinScore != nil {
+		minScore = *req.MinScore
+	}
+	if minScore > 0 {
+		filtered := results[:0]
+		for _, r := range results {
+			if r.Score >= minScore {
+				filtered = append(filtered, r)
+			}
+		}
+		results = filtered
 	}
 
 	type queryResult struct {
@@ -357,14 +393,39 @@ func (s *Server) handleAdminGetSource(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAdminDeleteSource(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if err := s.sources.Delete(id); errors.Is(err, source.ErrNotFound) {
+
+	src, err := s.sources.Get(id)
+	if errors.Is(err, source.ErrNotFound) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "source not found"})
 		return
-	} else if err != nil {
+	}
+	if err != nil {
+		s.log.Error("get source for delete", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
+		return
+	}
+
+	col := src.Collection
+	if col == "" {
+		col = s.cfg.Collection
+	}
+	if err := s.vector.DeleteByFilter(r.Context(), col, qdrant.Filter{
+		Must: []qdrant.Condition{{
+			Key:   "source_id",
+			Match: &qdrant.Match{Value: id},
+		}},
+	}); err != nil {
+		s.log.Error("delete qdrant points for source", "source", id, "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete vector points"})
+		return
+	}
+
+	if err := s.sources.Delete(id); err != nil {
 		s.log.Error("delete source", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
 		return
 	}
+	_ = s.sources.DeleteAllDocTracking(id)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 

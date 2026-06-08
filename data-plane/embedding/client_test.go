@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestEmbed_Empty(t *testing.T) {
@@ -74,10 +75,72 @@ func TestEmbed_APIError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClient(Config{BaseURL: srv.URL, Model: "test"})
+	c := NewClient(Config{BaseURL: srv.URL, Model: "test", MaxRetries: 1})
 	_, err := c.Embed(context.Background(), []string{"hello"})
 	if err == nil {
 		t.Fatal("expected error for 429 response")
+	}
+}
+
+func TestEmbed_RetryThenSuccess(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		if calls < 3 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		resp := embeddingResponse{
+			Data: []struct {
+				Embedding []float32 `json:"embedding"`
+				Index     int       `json:"index"`
+			}{
+				{Embedding: []float32{0.1}, Index: 0},
+			},
+		}
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	c := NewClient(Config{
+		BaseURL:        srv.URL,
+		Model:          "test",
+		MaxRetries:     3,
+		InitialBackoff: time.Millisecond,
+		MaxBackoff:     5 * time.Millisecond,
+	})
+	vecs, err := c.Embed(context.Background(), []string{"hello"})
+	if err != nil {
+		t.Fatalf("Embed: %v", err)
+	}
+	if len(vecs) != 1 {
+		t.Errorf("len(vecs) = %d, want 1", len(vecs))
+	}
+	if calls != 3 {
+		t.Errorf("calls = %d, want 3", calls)
+	}
+}
+
+func TestEmbed_NoRetryOn400(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer srv.Close()
+
+	c := NewClient(Config{
+		BaseURL:        srv.URL,
+		Model:          "test",
+		MaxRetries:     3,
+		InitialBackoff: time.Millisecond,
+	})
+	_, err := c.Embed(context.Background(), []string{"hello"})
+	if err == nil {
+		t.Fatal("expected error for 400 response")
+	}
+	if calls != 1 {
+		t.Errorf("calls = %d, want 1 (should not retry on 400)", calls)
 	}
 }
 
