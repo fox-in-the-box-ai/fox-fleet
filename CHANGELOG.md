@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **DP-01:** Qdrant vector DB container management — shared sidecar lifecycle, health polling, auto-start with provisioner (#51)
+- **PLAT-01:** Skillset manifest spec — YAML schema, parser, validator, and conformance tests (#51)
+- **DP-02:** File ingestion connector — local file/directory upload, chunking, embedding, Qdrant upsert with 50 MB limit
+- **DP-03:** REST ingestion connector — paginated JSON API fetch, SSRF protection, 1000-page limit, bearer auth
+- **DP-07a:** Source management API — SQLite registry, admin CRUD endpoints with auth, ingest trigger
+- Data plane server with health/readyz probes, public source listing, admin auth via `crypto/subtle`
+- Text chunker — 512-token fixed-size with 64-token overlap, rune-aware Unicode support
+- Embedding client — OpenAI-compatible HTTP API adapter
+- Qdrant REST client — collection CRUD, point upsert, vector search with payload filtering
+
 ## [0.1.0-alpha] - 2026-06-08
 
 ### Added
