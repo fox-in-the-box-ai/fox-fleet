@@ -57,7 +57,7 @@ const (
 func (s *Server) handleList(w http.ResponseWriter, r *http.Request) {
 	instances, err := s.registry.List()
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "internal_error", "failed to list instances")
+		writeError(w, http.StatusInternalServerError, "internal_error", "cannot list instances")
 		return
 	}
 
@@ -88,7 +88,7 @@ func (s *Server) handleDetail(w http.ResponseWriter, r *http.Request) {
 				fmt.Sprintf("instance %s not found", id))
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "internal_error", "failed to get instance")
+		writeError(w, http.StatusInternalServerError, "internal_error", "cannot retrieve instance details")
 		return
 	}
 
@@ -121,7 +121,7 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxCreateBody)
 	var body createRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body")
+		writeError(w, http.StatusBadRequest, "bad_request", "request body is not valid JSON")
 		return
 	}
 	if body.ID == "" {
@@ -129,13 +129,14 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !validInstanceID.MatchString(body.ID) {
-		writeError(w, http.StatusBadRequest, "bad_request", "id must be alphanumeric (max 64 chars)")
+		writeError(w, http.StatusBadRequest, "bad_request",
+			fmt.Sprintf("id must match [a-zA-Z0-9._-] and be 1-64 characters, got %q", body.ID))
 		return
 	}
 
 	instances, err := s.registry.List()
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "internal_error", "failed to list instances")
+		writeError(w, http.StatusInternalServerError, "internal_error", "cannot list instances")
 		return
 	}
 	for _, inst := range instances {
@@ -199,7 +200,7 @@ func (s *Server) handleListSources(w http.ResponseWriter, _ *http.Request) {
 	}
 	list, err := s.sources.List()
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "internal_error", "failed to list sources")
+		writeError(w, http.StatusInternalServerError, "internal_error", "cannot list sources")
 		return
 	}
 	if list == nil {
@@ -210,7 +211,7 @@ func (s *Server) handleListSources(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handleGetSource(w http.ResponseWriter, r *http.Request) {
 	if s.sources == nil {
-		writeError(w, http.StatusNotFound, "not_found", "source registry not configured")
+		writeError(w, http.StatusNotFound, "not_found", "source registry is not configured — enable data_plane in config")
 		return
 	}
 	id := r.PathValue("id")
@@ -221,7 +222,7 @@ func (s *Server) handleGetSource(w http.ResponseWriter, r *http.Request) {
 				fmt.Sprintf("source %s not found", id))
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "internal_error", "failed to get source")
+		writeError(w, http.StatusInternalServerError, "internal_error", "cannot retrieve source details")
 		return
 	}
 	writeJSON(w, http.StatusOK, src)
@@ -246,7 +247,8 @@ func (s *Server) handleDestroy(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.log.Error("destroy failed", "instance", id, "error", err)
-		writeError(w, http.StatusInternalServerError, "destroy_failed", "failed to destroy instance")
+		writeError(w, http.StatusInternalServerError, "destroy_failed",
+			fmt.Sprintf("cannot destroy instance %s — check server logs for details", id))
 		return
 	}
 

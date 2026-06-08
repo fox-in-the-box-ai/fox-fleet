@@ -10,12 +10,12 @@ import (
 func (s *Server) handleEventsStream(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		writeError(w, http.StatusInternalServerError, "internal_error", "streaming not supported")
+		writeError(w, http.StatusInternalServerError, "internal_error", "streaming is not supported by this HTTP transport")
 		return
 	}
 
 	if s.events == nil {
-		writeError(w, http.StatusServiceUnavailable, "unavailable", "event log not configured")
+		writeError(w, http.StatusServiceUnavailable, "unavailable", "event log is not configured on this server")
 		return
 	}
 
