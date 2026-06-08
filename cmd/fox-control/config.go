@@ -104,6 +104,9 @@ func applyDefaults(cfg *Config) {
 	if cfg.Control.HealthPollSeconds == 0 {
 		cfg.Control.HealthPollSeconds = 15
 	}
+	if cfg.Control.SessionTokenTTLSecs == 0 {
+		cfg.Control.SessionTokenTTLSecs = 600
+	}
 	if cfg.DataPlane.Listen == "" {
 		cfg.DataPlane.Listen = "127.0.0.1:9091"
 	}
@@ -143,6 +146,9 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.Control.HealthPollSeconds < 1 || cfg.Control.HealthPollSeconds > 3600 {
 		errs = append(errs, fmt.Sprintf("control.health_poll_seconds must be between 1 and 3600, got %d", cfg.Control.HealthPollSeconds))
+	}
+	if cfg.Control.SessionTokenTTLSecs < 60 || cfg.Control.SessionTokenTTLSecs > 3600 {
+		errs = append(errs, fmt.Sprintf("control.session_token_ttl_seconds must be between 60 and 3600, got %d", cfg.Control.SessionTokenTTLSecs))
 	}
 	if cfg.Instances.PortStart < 1 || cfg.Instances.PortStart > 65535 {
 		errs = append(errs, fmt.Sprintf("instances.port_start must be between 1 and 65535, got %d", cfg.Instances.PortStart))

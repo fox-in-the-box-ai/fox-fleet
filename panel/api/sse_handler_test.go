@@ -54,7 +54,12 @@ func newSSETestEnv(t *testing.T) *sseTestEnv {
 	return &sseTestEnv{server: srv, elog: elog, logBuf: &logBuf}
 }
 
-func getSessionToken(t *testing.T, ts *httptest.Server) string {
+type sessionResult struct {
+	token  string
+	cookie *http.Cookie
+}
+
+func getSession(t *testing.T, ts *httptest.Server) sessionResult {
 	t.Helper()
 	body := strings.NewReader(`{"purpose":"sse"}`)
 	req, _ := http.NewRequest("POST", ts.URL+"/api/auth/session", body)
@@ -74,7 +79,17 @@ func getSessionToken(t *testing.T, ts *httptest.Server) string {
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		t.Fatal(err)
 	}
-	return data.Token
+	var cookie *http.Cookie
+	for _, c := range resp.Cookies() {
+		if c.Name == "fox_sse_token" {
+			cookie = c
+			break
+		}
+	}
+	if cookie == nil {
+		t.Fatal("Set-Cookie fox_sse_token not found in session response")
+	}
+	return sessionResult{token: data.Token, cookie: cookie}
 }
 
 func TestSSE_AuthRequired(t *testing.T) {
@@ -108,18 +123,42 @@ func TestSSE_AdminSecretInQueryRejected(t *testing.T) {
 	}
 }
 
-func TestSSE_SessionTokenQueryParam(t *testing.T) {
+func TestSSE_QueryParamSessionTokenRejected(t *testing.T) {
 	env := newSSETestEnv(t)
 
 	ts := httptest.NewServer(env.server.Handler())
 	defer ts.Close()
 
-	token := getSessionToken(t, ts)
+	sess := getSession(t, ts)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream?token="+token, nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream?token="+sess.token, nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for session token in query param, got %d", resp.StatusCode)
+	}
+}
+
+func TestSSE_CookieAuth(t *testing.T) {
+	env := newSSETestEnv(t)
+
+	ts := httptest.NewServer(env.server.Handler())
+	defer ts.Close()
+
+	sess := getSession(t, ts)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream", nil)
+	req.AddCookie(sess.cookie)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -147,42 +186,19 @@ func TestSSE_SessionTokenQueryParam(t *testing.T) {
 	}
 }
 
-func TestSSE_CookieAuth(t *testing.T) {
-	env := newSSETestEnv(t)
-
-	ts := httptest.NewServer(env.server.Handler())
-	defer ts.Close()
-
-	token := getSessionToken(t, ts)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream", nil)
-	req.AddCookie(&http.Cookie{Name: "fox_sse_token", Value: token})
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
-	}
-}
-
 func TestSSE_StreamsLiveEvents(t *testing.T) {
 	env := newSSETestEnv(t)
 
 	ts := httptest.NewServer(env.server.Handler())
 	defer ts.Close()
 
-	token := getSessionToken(t, ts)
+	sess := getSession(t, ts)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream?token="+token, nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream", nil)
+	req.AddCookie(sess.cookie)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -221,12 +237,13 @@ func TestSSE_LastEventIDReplay(t *testing.T) {
 	ts := httptest.NewServer(env.server.Handler())
 	defer ts.Close()
 
-	token := getSessionToken(t, ts)
+	sess := getSession(t, ts)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream?token="+token, nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream", nil)
+	req.AddCookie(sess.cookie)
 	req.Header.Set("Last-Event-ID", "1")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -263,12 +280,13 @@ func TestSSE_TokenNotInLogs(t *testing.T) {
 	ts := httptest.NewServer(env.server.Handler())
 	defer ts.Close()
 
-	token := getSessionToken(t, ts)
+	sess := getSession(t, ts)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream?token=bogus-token", nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream", nil)
+	req.AddCookie(&http.Cookie{Name: "fox_sse_token", Value: "bogus-token"})
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -280,7 +298,7 @@ func TestSSE_TokenNotInLogs(t *testing.T) {
 	}
 
 	logOutput := env.logBuf.String()
-	if strings.Contains(logOutput, token) {
+	if strings.Contains(logOutput, sess.token) {
 		t.Fatal("session token found in log output")
 	}
 	if strings.Contains(logOutput, testSecret) {
@@ -298,9 +316,22 @@ func TestSessionEndpoint(t *testing.T) {
 	defer ts.Close()
 
 	t.Run("success", func(t *testing.T) {
-		token := getSessionToken(t, ts)
-		if token == "" {
+		sess := getSession(t, ts)
+		if sess.token == "" {
 			t.Fatal("empty token returned")
+		}
+	})
+
+	t.Run("sets_httponly_cookie", func(t *testing.T) {
+		sess := getSession(t, ts)
+		if !sess.cookie.HttpOnly {
+			t.Fatal("expected HttpOnly flag on fox_sse_token cookie")
+		}
+		if sess.cookie.SameSite != http.SameSiteStrictMode {
+			t.Fatalf("expected SameSite=Strict, got %v", sess.cookie.SameSite)
+		}
+		if sess.cookie.Path != "/api/events" {
+			t.Fatalf("expected Path=/api/events, got %q", sess.cookie.Path)
 		}
 	})
 

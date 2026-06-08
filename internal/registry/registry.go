@@ -210,40 +210,62 @@ func (r *Registry) ActiveSigningKey() ([]byte, error) {
 
 // EnsureSigningKey returns the active signing key, creating one if none exists.
 func (r *Registry) EnsureSigningKey() ([]byte, error) {
-	key, err := r.ActiveSigningKey()
+	tx, err := r.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("registry: begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	var key []byte
+	err = tx.QueryRow(`SELECT key FROM signing_keys WHERE active = 1 ORDER BY id DESC LIMIT 1`).Scan(&key)
 	if err == nil {
 		return key, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("registry: active signing key: %w", err)
 	}
 
 	newKey := make([]byte, 32)
 	if _, err := rand.Read(newKey); err != nil {
 		return nil, fmt.Errorf("registry: generate signing key: %w", err)
 	}
-	_, err = r.db.Exec(
+	_, err = tx.Exec(
 		`INSERT INTO signing_keys (key, active, created_at) VALUES (?, 1, ?)`,
 		newKey, time.Now().UTC().Format(time.RFC3339),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("registry: insert signing key: %w", err)
 	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("registry: commit signing key: %w", err)
+	}
 	return newKey, nil
 }
 
 // RotateSigningKey deactivates the current key and creates a new one.
 func (r *Registry) RotateSigningKey() ([]byte, error) {
-	if _, err := r.db.Exec(`UPDATE signing_keys SET active = 0`); err != nil {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("registry: begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`UPDATE signing_keys SET active = 0`); err != nil {
 		return nil, fmt.Errorf("registry: deactivate signing keys: %w", err)
 	}
 	newKey := make([]byte, 32)
 	if _, err := rand.Read(newKey); err != nil {
 		return nil, fmt.Errorf("registry: generate signing key: %w", err)
 	}
-	_, err := r.db.Exec(
+	_, err = tx.Exec(
 		`INSERT INTO signing_keys (key, active, created_at) VALUES (?, 1, ?)`,
 		newKey, time.Now().UTC().Format(time.RFC3339),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("registry: insert rotated signing key: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("registry: commit rotated signing key: %w", err)
 	}
 	return newKey, nil
 }

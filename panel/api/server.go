@@ -68,6 +68,10 @@ func NewServer(d Deps) *Server {
 		d.PollInterval = defaultPollInterval
 	}
 
+	if len(d.SigningKey) < 32 {
+		panic("api: signing key must be at least 32 bytes")
+	}
+
 	ttl := d.SessionTokenTTL
 	if ttl == 0 {
 		ttl = defaultSessionTokenTTL

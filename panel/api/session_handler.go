@@ -28,13 +28,28 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.log.Info("session token issued", "purpose", req.Purpose, "expires_at", expiresAt.Format("2006-01-02T15:04:05Z"))
+	http.SetCookie(w, &http.Cookie{
+		Name:     "fox_sse_token",
+		Value:    token,
+		Path:     "/api/events",
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		Secure:   r.TLS != nil,
+	})
+
+	s.log.Info("session token issued",
+		"purpose", req.Purpose,
+		"expires_at", expiresAt.Format("2006-01-02T15:04:05Z"),
+		"remote_addr", r.RemoteAddr,
+	)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"token":      token,
 		"expires_at": expiresAt.Format("2006-01-02T15:04:05Z"),
 		"purpose":    req.Purpose,
-	})
+	}); err != nil {
+		s.log.Error("encode session response", "error", err)
+	}
 }

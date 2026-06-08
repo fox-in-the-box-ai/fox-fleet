@@ -68,6 +68,7 @@ func TestQueryProxy_ForwardsToDataPlane(t *testing.T) {
 		PollInterval: time.Hour,
 		Logger:       slog.New(slog.NewTextHandler(&logBuf, nil)),
 		DataPlaneURL: fakeDP.URL,
+		SigningKey:   testSigningKey,
 	})
 
 	req := httptest.NewRequest("POST", "/api/query", bytes.NewBufferString(`{"query":"test","top_k":3}`))
@@ -109,6 +110,7 @@ func TestQueryProxy_DataPlaneDown(t *testing.T) {
 		PollInterval: time.Hour,
 		Logger:       slog.New(slog.NewTextHandler(&logBuf, nil)),
 		DataPlaneURL: "http://127.0.0.1:1",
+		SigningKey:   testSigningKey,
 	})
 
 	req := httptest.NewRequest("POST", "/api/query", bytes.NewBufferString(`{"query":"test"}`))
