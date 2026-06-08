@@ -123,7 +123,9 @@ func newServeCmd() *cobra.Command {
 				<-ctx.Done()
 				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
-				srv.Shutdown(shutdownCtx)
+				if err := srv.Shutdown(shutdownCtx); err != nil {
+						slog.Error("server shutdown error", "error", err)
+					}
 			}()
 
 			slog.Info("panel server listening", "addr", cfg.Control.Listen)

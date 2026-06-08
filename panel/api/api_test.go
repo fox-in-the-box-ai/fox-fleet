@@ -25,8 +25,8 @@ const testSecret = "test-admin-secret-9f4a"
 // --- compile-time interface checks ---
 
 var (
-	_ provisioner.Provisioner    = (*fakeProvisioner)(nil)
-	_ plugins.DeploymentPlugin   = (*fakePlugin)(nil)
+	_ provisioner.Provisioner  = (*fakeProvisioner)(nil)
+	_ plugins.DeploymentPlugin = (*fakePlugin)(nil)
 )
 
 // --- fakes ---
@@ -161,7 +161,9 @@ func TestAuthMissing(t *testing.T) {
 		t.Fatalf("expected 401, got %d", w.Code)
 	}
 	var resp apiError
-	json.NewDecoder(w.Body).Decode(&resp)
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
 	if resp.Error != "unauthorized" {
 		t.Fatalf("expected error code 'unauthorized', got %q", resp.Error)
 	}
@@ -227,7 +229,9 @@ func TestListEmpty(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 	var items []instanceItem
-	json.NewDecoder(w.Body).Decode(&items)
+	if err := json.NewDecoder(w.Body).Decode(&items); err != nil {
+		t.Fatal(err)
+	}
 	if len(items) != 0 {
 		t.Fatalf("expected empty list, got %d items", len(items))
 	}
@@ -243,7 +247,9 @@ func TestListWithInstances(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 	var items []instanceItem
-	json.NewDecoder(w.Body).Decode(&items)
+	if err := json.NewDecoder(w.Body).Decode(&items); err != nil {
+		t.Fatal(err)
+	}
 	if len(items) != 2 {
 		t.Fatalf("expected 2 items, got %d", len(items))
 	}
@@ -263,7 +269,9 @@ func TestListIncludesHealth(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 	var items []instanceItem
-	json.NewDecoder(w.Body).Decode(&items)
+	if err := json.NewDecoder(w.Body).Decode(&items); err != nil {
+		t.Fatal(err)
+	}
 	if len(items) != 1 {
 		t.Fatalf("expected 1 item, got %d", len(items))
 	}
@@ -286,7 +294,9 @@ func TestDetailFound(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 	var detail instanceDetail
-	json.NewDecoder(w.Body).Decode(&detail)
+	if err := json.NewDecoder(w.Body).Decode(&detail); err != nil {
+		t.Fatal(err)
+	}
 	if detail.ID != "fox-1" {
 		t.Fatalf("expected id 'fox-1', got %q", detail.ID)
 	}
@@ -305,7 +315,9 @@ func TestDetailNotFound(t *testing.T) {
 		t.Fatalf("expected 404, got %d", w.Code)
 	}
 	var resp apiError
-	json.NewDecoder(w.Body).Decode(&resp)
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
 	if resp.Error != "not_found" {
 		t.Fatalf("expected error code 'not_found', got %q", resp.Error)
 	}
@@ -320,7 +332,9 @@ func TestCreateSuccess(t *testing.T) {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
 	}
 	var resp createResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
 	if resp.ID != "fox-1" {
 		t.Fatalf("expected id 'fox-1', got %q", resp.ID)
 	}
@@ -353,7 +367,9 @@ func TestCreateConflict(t *testing.T) {
 		t.Fatalf("expected 409, got %d", w.Code)
 	}
 	var resp apiError
-	json.NewDecoder(w.Body).Decode(&resp)
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
 	if resp.Error != "conflict" {
 		t.Fatalf("expected error code 'conflict', got %q", resp.Error)
 	}
@@ -369,7 +385,9 @@ func TestCreateCapReached(t *testing.T) {
 		t.Fatalf("expected 429, got %d", w.Code)
 	}
 	var resp apiError
-	json.NewDecoder(w.Body).Decode(&resp)
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
 	if resp.Error != "cap_reached" {
 		t.Fatalf("expected error code 'cap_reached', got %q", resp.Error)
 	}
