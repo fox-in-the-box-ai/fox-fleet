@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **TEST-01:** Test hardening — CI runs tests with `-race -shuffle=on -count=1` to detect data races, order-dependent tests, and prevent false cache hits
 - **TEST-02:** Test coverage gate — CI collects coverage profile and fails if total statement coverage drops below 45%
 - **TEST-03:** End-to-end smoke tests — lifecycle test covering instance create/list/detail/destroy and skillset upload/list/get/download/delete; auth gate test verifying all API endpoints require authentication and /healthz is public
+- **TEST-04:** Mutation testing pass — gremlins mutation testing run across critical packages (panel/api, skillsets, internal/registry, internal/events, internal/config, rollout); 89–100% efficacy confirms test suite catches real regressions
 
 ## [0.3.0-alpha] - 2026-06-08
 
