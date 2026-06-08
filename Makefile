@@ -1,4 +1,4 @@
-.PHONY: build test lint clean conformance
+.PHONY: build test lint clean conformance bench
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -19,3 +19,6 @@ clean:
 
 conformance:
 	go test ./conformance/...
+
+bench:
+	go test -bench=. -benchmem -count=3 -run=^$$ ./internal/registry/ ./internal/events/ ./skillsets/ ./panel/api/

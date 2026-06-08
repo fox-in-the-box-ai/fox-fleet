@@ -134,17 +134,16 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if _, err := s.registry.Get(body.ID); err == nil {
+		writeError(w, http.StatusConflict, "conflict",
+			fmt.Sprintf("instance %s already exists", body.ID))
+		return
+	}
+
 	instances, err := s.registry.List()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal_error", "cannot list instances")
 		return
-	}
-	for _, inst := range instances {
-		if inst.ID == body.ID {
-			writeError(w, http.StatusConflict, "conflict",
-				fmt.Sprintf("instance %s already exists", body.ID))
-			return
-		}
 	}
 	if len(instances) >= s.maxInst {
 		writeError(w, http.StatusTooManyRequests, "cap_reached",
