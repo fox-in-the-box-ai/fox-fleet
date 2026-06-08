@@ -4,297 +4,1074 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fox Fleet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
-header{background:#1e293b;padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #334155}
-header h1{font-size:1.25rem;font-weight:600}
-#last-updated{font-size:.75rem;color:#94a3b8}
-main{max-width:960px;margin:0 auto;padding:1.5rem}
-.toolbar{display:flex;gap:.75rem;margin-bottom:1.5rem;align-items:center}
-.toolbar input{background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:.5rem .75rem;border-radius:6px;font-size:.875rem;width:200px}
-.toolbar button{background:#2563eb;color:#fff;border:none;padding:.5rem 1rem;border-radius:6px;font-size:.875rem;cursor:pointer}
-.toolbar button:hover{background:#1d4ed8}
-.toolbar button:disabled{opacity:.5;cursor:not-allowed}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem}
-.card{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:1rem;cursor:pointer;transition:border-color .15s}
-.card:hover{border-color:#475569}
-.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
-.card-id{font-weight:600;font-size:1rem}
-.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
-.dot.healthy{background:#22c55e}
-.dot.unhealthy{background:#ef4444}
-.dot.unknown{background:#94a3b8}
-.card-meta{font-size:.75rem;color:#94a3b8;display:flex;flex-direction:column;gap:.25rem}
-.detail{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:1.5rem;margin-top:1rem}
-.detail h2{font-size:1.125rem;font-weight:600;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between}
-.detail-grid{display:grid;grid-template-columns:auto 1fr;gap:.5rem 1rem;font-size:.875rem;margin-bottom:1rem}
-.detail-grid dt{color:#94a3b8}
-.detail-grid dd{color:#e2e8f0}
-.logs{background:#0f172a;border:1px solid #334155;border-radius:6px;padding:.75rem;font-family:monospace;font-size:.75rem;white-space:pre-wrap;max-height:300px;overflow-y:auto;color:#cbd5e1}
-.btn-destroy{background:#dc2626;color:#fff;border:none;padding:.375rem .75rem;border-radius:6px;font-size:.8125rem;cursor:pointer}
-.btn-destroy:hover{background:#b91c1c}
-.btn-back{background:none;border:none;color:#60a5fa;cursor:pointer;font-size:.875rem;margin-bottom:1rem;padding:0}
-.btn-back:hover{text-decoration:underline}
-.empty{text-align:center;color:#64748b;padding:3rem 1rem}
-#auth-prompt{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:10}
-#auth-prompt div{background:#1e293b;padding:2rem;border-radius:12px;border:1px solid #334155;text-align:center;max-width:360px;width:90%}
-#auth-prompt h2{margin-bottom:1rem;font-size:1.125rem}
-#auth-prompt input{width:100%;background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:.5rem;border-radius:6px;font-size:.875rem;margin-bottom:1rem}
-#auth-prompt button{background:#2563eb;color:#fff;border:none;padding:.5rem 1.5rem;border-radius:6px;cursor:pointer}
-.error-banner{background:#7f1d1d;border:1px solid #dc2626;color:#fecaca;padding:.75rem 1rem;border-radius:6px;margin-bottom:1rem;font-size:.875rem}
-.tabs{display:flex;gap:0;margin-bottom:1.5rem;border-bottom:1px solid #334155}
-.tab{background:none;border:none;color:#94a3b8;padding:.5rem 1rem;font-size:.875rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
-.tab:hover{color:#e2e8f0}
-.tab.active{color:#60a5fa;border-bottom-color:#60a5fa}
-.src-table{width:100%;border-collapse:collapse;font-size:.875rem}
-.src-table th{text-align:left;color:#94a3b8;padding:.5rem .75rem;border-bottom:1px solid #334155;font-weight:500}
-.src-table td{padding:.5rem .75rem;border-bottom:1px solid #1e293b}
-.badge{display:inline-block;padding:.125rem .5rem;border-radius:4px;font-size:.75rem;font-weight:500}
-.badge.active{background:#065f46;color:#6ee7b7}
-.badge.ingesting{background:#92400e;color:#fcd34d}
-.badge.error{background:#7f1d1d;color:#fca5a5}
-.badge.pending{background:#334155;color:#94a3b8}
+:root {
+  --color-bg: #fbf9f4;
+  --color-surface: #f8f5ef;
+  --color-surface-strong: #171513;
+  --color-text: #171513;
+  --color-text-muted: rgb(23 21 19 / 60%);
+  --color-border: #b8a089;
+  --color-border-subtle: rgb(184 160 137 / 22%);
+  --color-accent: #b8a089;
+  --color-wash: rgb(184 160 137 / 5%);
+  --color-wash-hover: rgb(184 160 137 / 12%);
+  --color-primary-fill: rgb(184 160 137 / 50%);
+  --color-shadow: rgb(184 160 137 / 40%);
+  --color-success: #3d8b40;
+  --color-error: #c62828;
+  --color-warning: #e68a00;
+  --color-info: #2e6f9e;
+
+  --sidebar-bg: #171513;
+  --sidebar-text: #f5f2ec;
+  --sidebar-muted: rgb(245 242 236 / 55%);
+  --sidebar-hover: rgb(255 255 255 / 8%);
+  --sidebar-active: rgb(255 255 255 / 12%);
+  --sidebar-border: rgb(255 255 255 / 8%);
+
+  --font-heading: "Sora", system-ui, sans-serif;
+  --font-body: "Manrope", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --shadow-card: 3px 3px 8px 0 var(--color-shadow);
+  --shadow-modal: 0 20px 60px rgb(0 0 0 / 18%);
+  --sidebar-width: 240px;
+  --transition: 0.15s ease;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-bg);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Auth Screen ───────────────────────────────────────────────────── */
+#auth-screen {
+  position: fixed; inset: 0; z-index: 100;
+  background: var(--color-bg);
+  display: flex; align-items: center; justify-content: center;
+}
+.auth-card {
+  width: 100%; max-width: 380px; padding: 0 24px;
+  text-align: center;
+}
+.auth-brand {
+  font-family: var(--font-heading);
+  font-size: 1.5rem; font-weight: 300;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+  color: var(--color-text);
+}
+.auth-tagline {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-bottom: 32px;
+}
+.auth-label {
+  display: block; text-align: left;
+  font-size: 12px; font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+.auth-input {
+  width: 100%; padding: 10px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  font: inherit; font-size: 14px;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color var(--transition);
+}
+.auth-input:focus { border-color: var(--color-accent); }
+.auth-btn {
+  width: 100%; margin-top: 16px; padding: 11px 20px;
+  background: var(--color-primary-fill);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font: inherit; font-size: 14px; font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.auth-btn:hover { background: var(--color-accent); }
+.auth-error {
+  margin-top: 12px; padding: 8px 12px;
+  background: rgb(198 40 40 / 8%);
+  border: 1px solid rgb(198 40 40 / 20%);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--color-error);
+  display: none;
+}
+
+/* ── Shell Layout ──────────────────────────────────────────────────── */
+#shell { display: none; min-height: 100vh; }
+#sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0;
+  width: var(--sidebar-width);
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  display: flex; flex-direction: column;
+  z-index: 50;
+  overflow-y: auto;
+}
+#main {
+  margin-left: var(--sidebar-width);
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────── */
+.sb-brand {
+  padding: 20px 20px 8px;
+  font-family: var(--font-heading);
+  font-size: 1.1rem; font-weight: 300;
+  letter-spacing: -0.01em;
+}
+.sb-tagline {
+  padding: 0 20px 20px;
+  font-size: 11px;
+  color: var(--sidebar-muted);
+  line-height: 1.4;
+  border-bottom: 1px solid var(--sidebar-border);
+}
+.sb-section {
+  padding: 12px 12px 4px;
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sidebar-muted);
+}
+.sb-nav { list-style: none; padding: 4px 8px; }
+.sb-nav li { margin-bottom: 2px; }
+.sb-link {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  font-size: 13px; font-weight: 500;
+  color: var(--sidebar-text);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--transition);
+  border: none; background: none; width: 100%;
+  font-family: inherit;
+}
+.sb-link:hover { background: var(--sidebar-hover); }
+.sb-link.active { background: var(--sidebar-active); font-weight: 600; }
+.sb-link svg {
+  width: 18px; height: 18px; flex-shrink: 0;
+  stroke: currentColor; fill: none;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.sb-link .soon {
+  margin-left: auto;
+  font-size: 9px; font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sidebar-muted);
+  background: var(--sidebar-hover);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+.sb-footer {
+  margin-top: auto;
+  padding: 16px 20px;
+  border-top: 1px solid var(--sidebar-border);
+  font-size: 11px;
+  color: var(--sidebar-muted);
+}
+
+/* ── Page Header ───────────────────────────────────────────────────── */
+.page-header {
+  padding: 24px 32px 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.page-title {
+  font-family: var(--font-heading);
+  font-size: 1.25rem; font-weight: 400;
+  letter-spacing: -0.02em;
+}
+.page-meta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* ── Content Area ──────────────────────────────────────────────────── */
+#content { padding: 20px 32px 32px; flex: 1; }
+
+/* ── Toolbar ───────────────────────────────────────────────────────── */
+.toolbar {
+  display: flex; gap: 10px; align-items: center;
+  margin-bottom: 20px; flex-wrap: wrap;
+}
+.input {
+  padding: 8px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  font: inherit; font-size: 13px;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color var(--transition);
+}
+.input:focus { border-color: var(--color-accent); }
+.input::placeholder { color: var(--color-text-muted); }
+
+/* ── Buttons ───────────────────────────────────────────────────────── */
+.btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background var(--transition), border-color var(--transition);
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary {
+  background: var(--color-primary-fill);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+.btn-primary:hover:not(:disabled) { background: var(--color-accent); }
+.btn-danger {
+  background: rgb(198 40 40 / 8%);
+  border-color: rgb(198 40 40 / 25%);
+  color: var(--color-error);
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--color-error);
+  color: #fff;
+  border-color: var(--color-error);
+}
+.btn-ghost {
+  background: none;
+  color: var(--color-text-muted);
+}
+.btn-ghost:hover:not(:disabled) { background: var(--color-wash-hover); }
+
+/* ── Cards ─────────────────────────────────────────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  cursor: pointer;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.card:hover {
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.card-id {
+  font-family: var(--font-heading);
+  font-weight: 500; font-size: 15px;
+  letter-spacing: -0.01em;
+}
+.card-meta {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 12px; color: var(--color-text-muted);
+}
+
+/* ── Health Dots ───────────────────────────────────────────────────── */
+.dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.dot.healthy { background: var(--color-success); }
+.dot.unhealthy {
+  background: var(--color-error);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+.dot.unknown { background: var(--color-border); }
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(198 40 40 / 40%); }
+  50% { box-shadow: 0 0 0 5px rgb(198 40 40 / 0%); }
+}
+
+/* ── Detail View ───────────────────────────────────────────────────── */
+.detail-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+.detail-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px; padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.detail-title {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-heading);
+  font-size: 1.1rem; font-weight: 500;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px 16px;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+.detail-grid dt {
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+.detail-grid dd { color: var(--color-text); }
+.logs-section h3 {
+  font-family: var(--font-heading);
+  font-size: 14px; font-weight: 500;
+  margin-bottom: 8px;
+}
+.logs {
+  background: var(--sidebar-bg);
+  color: #f5f2ec;
+  border-radius: var(--radius-md);
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.back-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer; border: none; background: none;
+  font-family: inherit;
+  margin-bottom: 16px;
+  transition: color var(--transition);
+}
+.back-link:hover { color: var(--color-text); }
+
+/* ── Table ─────────────────────────────────────────────────────────── */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.data-table th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.data-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-wash);
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tbody tr {
+  transition: background var(--transition);
+}
+.data-table tbody tr:hover { background: var(--color-wash-hover); }
+
+/* ── Badges ────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.badge-active, .badge-running {
+  background: rgb(61 139 64 / 10%);
+  color: var(--color-success);
+}
+.badge-ingesting, .badge-provisioning {
+  background: rgb(230 138 0 / 10%);
+  color: var(--color-warning);
+}
+.badge-error {
+  background: rgb(198 40 40 / 8%);
+  color: var(--color-error);
+}
+.badge-pending, .badge-unknown {
+  background: var(--color-wash-hover);
+  color: var(--color-text-muted);
+}
+
+/* ── Empty States ──────────────────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 64px 24px;
+}
+.empty-icon {
+  width: 56px; height: 56px;
+  margin: 0 auto 16px;
+  stroke: var(--color-border);
+  fill: none;
+  stroke-width: 1.2;
+}
+.empty-title {
+  font-family: var(--font-heading);
+  font-size: 16px; font-weight: 500;
+  margin-bottom: 8px;
+}
+.empty-desc {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  max-width: 360px;
+  margin: 0 auto 20px;
+}
+
+/* ── Skeleton Loading ──────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--color-wash) 25%, var(--color-wash-hover) 50%, var(--color-wash) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skel-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+.skel-line { height: 14px; margin-bottom: 8px; border-radius: var(--radius-sm); }
+.skel-line-short { width: 60%; }
+.skel-line-med { width: 80%; }
+.skel-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+/* ── Toast Notifications ───────────────────────────────────────────── */
+#toast-container {
+  position: fixed; top: 20px; right: 20px;
+  z-index: 200;
+  display: flex; flex-direction: column; gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  font-size: 13px; font-weight: 500;
+  box-shadow: 0 4px 20px rgb(0 0 0 / 12%);
+  display: flex; align-items: center; gap: 10px;
+  pointer-events: auto;
+  animation: toast-in 0.25s ease;
+  max-width: 380px;
+}
+.toast-error {
+  background: #fef2f2;
+  border: 1px solid rgb(198 40 40 / 20%);
+  color: var(--color-error);
+}
+.toast-success {
+  background: #f0fdf4;
+  border: 1px solid rgb(61 139 64 / 20%);
+  color: var(--color-success);
+}
+.toast-dismiss {
+  margin-left: auto;
+  background: none; border: none;
+  font-size: 16px; cursor: pointer;
+  color: inherit; opacity: 0.5;
+  padding: 0 4px;
+}
+.toast-dismiss:hover { opacity: 1; }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Modal ─────────────────────────────────────────────────────────── */
+#modal-overlay {
+  position: fixed; inset: 0; z-index: 150;
+  background: rgb(0 0 0 / 40%);
+  display: none; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.modal {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  width: 100%; max-width: 420px;
+  padding: 24px;
+}
+.modal-title {
+  font-family: var(--font-heading);
+  font-size: 16px; font-weight: 500;
+  margin-bottom: 8px;
+}
+.modal-desc {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-bottom: 20px;
+}
+.modal-actions {
+  display: flex; justify-content: flex-end; gap: 8px;
+  margin-top: 20px;
+}
+.modal-field { margin-bottom: 12px; }
+.modal-label {
+  display: block;
+  font-size: 12px; font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+/* ── Placeholder Pages ─────────────────────────────────────────────── */
+.placeholder-page {
+  text-align: center;
+  padding: 80px 24px;
+  color: var(--color-text-muted);
+}
+.placeholder-page h2 {
+  font-family: var(--font-heading);
+  font-size: 18px; font-weight: 400;
+  color: var(--color-text);
+  margin-bottom: 8px;
+}
+.placeholder-page p {
+  font-size: 13px;
+  max-width: 400px;
+  margin: 0 auto;
+}
 </style>
 </head>
 <body>
-<header>
-  <h1>Fox Fleet</h1>
-  <span id="last-updated"></span>
-</header>
-<main>
-  <div id="app"></div>
-</main>
 
-<div id="auth-prompt">
-  <div>
-    <h2>Admin Secret</h2>
-    <input type="password" id="secret-input" placeholder="Enter admin secret">
-    <br>
-    <button onclick="saveSecret()">Connect</button>
+<!-- Auth Screen -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-brand">Fox Fleet</div>
+    <div class="auth-tagline">The operating layer for personal AI assistants</div>
+    <label class="auth-label" for="secret-input">Admin Secret</label>
+    <input type="password" id="secret-input" class="auth-input" placeholder="Enter your admin secret" autocomplete="off">
+    <button class="auth-btn" id="auth-btn">Connect</button>
+    <div class="auth-error" id="auth-error"></div>
   </div>
 </div>
 
+<!-- App Shell -->
+<div id="shell">
+  <nav id="sidebar">
+    <div class="sb-brand">Fox Fleet</div>
+    <div class="sb-tagline">The operating layer for personal AI assistants</div>
+
+    <div class="sb-section">Manage</div>
+    <ul class="sb-nav">
+      <li><button class="sb-link active" data-page="instances">
+        <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="2" y1="15" x2="22" y2="15"/></svg>
+        Instances
+      </button></li>
+      <li><button class="sb-link" data-page="sources">
+        <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4.03 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/></svg>
+        Sources
+      </button></li>
+      <li><button class="sb-link" data-page="skillsets">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Skillsets<span class="soon">Soon</span>
+      </button></li>
+    </ul>
+
+    <div class="sb-section">Observe</div>
+    <ul class="sb-nav">
+      <li><button class="sb-link" data-page="query">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Query<span class="soon">Soon</span>
+      </button></li>
+      <li><button class="sb-link" data-page="activity">
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Activity<span class="soon">Soon</span>
+      </button></li>
+    </ul>
+
+    <div class="sb-section">Configure</div>
+    <ul class="sb-nav">
+      <li><button class="sb-link" data-page="settings">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings<span class="soon">Soon</span>
+      </button></li>
+    </ul>
+
+    <div class="sb-footer">
+      <span id="last-updated"></span>
+    </div>
+  </nav>
+
+  <div id="main">
+    <div class="page-header">
+      <h1 class="page-title" id="page-title">Instances</h1>
+      <span class="page-meta" id="page-meta"></span>
+    </div>
+    <div id="content"></div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- Modal Overlay -->
+<div id="modal-overlay"></div>
+
 <script>
-let secret = sessionStorage.getItem("fox_secret") || "";
-let view = "list";
-let selectedId = "";
-let refreshTimer = null;
-let activeTab = "instances";
+var state = {
+  secret: sessionStorage.getItem("fox_secret") || "",
+  page: "instances",
+  detailId: "",
+  loading: false,
+  refreshTimer: null
+};
 
-function saveSecret() {
-  secret = document.getElementById("secret-input").value;
-  if (!secret) return;
-  sessionStorage.setItem("fox_secret", secret);
-  document.getElementById("auth-prompt").style.display = "none";
+/* ── Auth ──────────────────────────────────────────────────────────── */
+
+function initAuth() {
+  if (state.secret) { enterApp(); return; }
+  document.getElementById("auth-screen").style.display = "flex";
+  document.getElementById("shell").style.display = "none";
+  var input = document.getElementById("secret-input");
+  input.addEventListener("keydown", function(e) {
+    if (e.key === "Enter") doAuth();
+  });
+  document.getElementById("auth-btn").addEventListener("click", doAuth);
+}
+
+function doAuth() {
+  var val = document.getElementById("secret-input").value.trim();
+  if (!val) return;
+  state.secret = val;
+  sessionStorage.setItem("fox_secret", val);
+  document.getElementById("auth-error").style.display = "none";
+  enterApp();
+}
+
+function enterApp() {
+  document.getElementById("auth-screen").style.display = "none";
+  document.getElementById("shell").style.display = "flex";
   refresh();
   startAutoRefresh();
 }
 
-if (secret) {
-  document.getElementById("auth-prompt").style.display = "none";
-  refresh();
-  startAutoRefresh();
+function logout() {
+  sessionStorage.removeItem("fox_secret");
+  state.secret = "";
+  stopAutoRefresh();
+  document.getElementById("auth-screen").style.display = "flex";
+  document.getElementById("shell").style.display = "none";
+  document.getElementById("secret-input").value = "";
 }
+
+/* ── API ───────────────────────────────────────────────────────────── */
+
+function apiFetch(path, opts) {
+  opts = opts || {};
+  var headers = Object.assign({ "Authorization": "Bearer " + state.secret }, opts.headers || {});
+  return fetch(path, Object.assign({}, opts, { headers: headers })).then(function(res) {
+    if (res.status === 401) {
+      logout();
+      throw new Error("Unauthorized");
+    }
+    return res;
+  });
+}
+
+/* ── Refresh ───────────────────────────────────────────────────────── */
 
 function startAutoRefresh() {
-  if (refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = setInterval(refresh, 5000);
+  stopAutoRefresh();
+  state.refreshTimer = setInterval(refresh, 5000);
 }
 
-async function apiFetch(path, opts = {}) {
-  const res = await fetch(path, {
-    ...opts,
-    headers: { "Authorization": "Bearer " + secret, ...(opts.headers || {}) }
+function stopAutoRefresh() {
+  if (state.refreshTimer) { clearInterval(state.refreshTimer); state.refreshTimer = null; }
+}
+
+function refresh() {
+  if (!state.secret) return;
+  var p = state.page;
+  if (p === "instances" && state.detailId) { renderDetail(state.detailId); }
+  else if (p === "instances") { renderInstances(); }
+  else if (p === "sources") { renderSources(); }
+  else { renderPlaceholder(p); }
+  document.getElementById("last-updated").textContent = "Updated " + new Date().toLocaleTimeString();
+}
+
+/* ── Navigation ────────────────────────────────────────────────────── */
+
+function navigate(page) {
+  state.page = page;
+  state.detailId = "";
+  document.querySelectorAll(".sb-link").forEach(function(el) {
+    el.classList.toggle("active", el.dataset.page === page);
   });
-  if (res.status === 401) {
-    sessionStorage.removeItem("fox_secret");
-    secret = "";
-    document.getElementById("auth-prompt").style.display = "flex";
-    throw new Error("Unauthorized");
-  }
-  return res;
+  var titles = {
+    instances: "Instances", sources: "Sources", skillsets: "Skillsets",
+    query: "Query", activity: "Activity", settings: "Settings"
+  };
+  document.getElementById("page-title").textContent = titles[page] || page;
+  refresh();
 }
 
-async function refresh() {
-  if (!secret) return;
-  try {
-    if (view === "detail") await renderDetail(selectedId);
-    else if (activeTab === "sources") await renderSources();
-    else await renderList();
-    document.getElementById("last-updated").textContent = "Updated " + new Date().toLocaleTimeString();
-  } catch (e) {
-    if (e.message !== "Unauthorized") {
-      document.getElementById("app").innerHTML = '<div class="error-banner">Connection error: ' + escapeHtml(e.message) + '</div>';
+document.getElementById("sidebar").addEventListener("click", function(e) {
+  var link = e.target.closest(".sb-link");
+  if (link && link.dataset.page) navigate(link.dataset.page);
+});
+
+/* ── Toast ─────────────────────────────────────────────────────────── */
+
+function showToast(msg, type) {
+  type = type || "error";
+  var el = document.createElement("div");
+  el.className = "toast toast-" + type;
+  el.innerHTML = esc(msg) + '<button class="toast-dismiss">&times;</button>';
+  document.getElementById("toast-container").appendChild(el);
+  el.querySelector(".toast-dismiss").addEventListener("click", function() { el.remove(); });
+  setTimeout(function() { if (el.parentNode) el.remove(); }, 6000);
+}
+
+/* ── Modal ─────────────────────────────────────────────────────────── */
+
+function showModal(html) {
+  var overlay = document.getElementById("modal-overlay");
+  overlay.innerHTML = html;
+  overlay.style.display = "flex";
+}
+
+function closeModal() {
+  document.getElementById("modal-overlay").style.display = "none";
+  document.getElementById("modal-overlay").innerHTML = "";
+}
+
+document.getElementById("modal-overlay").addEventListener("click", function(e) {
+  if (e.target === this) closeModal();
+});
+
+/* ── Skeleton Helpers ──────────────────────────────────────────────── */
+
+function skeletonCards(n) {
+  var html = '<div class="grid">';
+  for (var i = 0; i < n; i++) {
+    html += '<div class="skel-card">'
+      + '<div style="display:flex;justify-content:space-between;margin-bottom:12px">'
+      + '<div class="skeleton skel-line" style="width:120px"></div>'
+      + '<div class="skeleton skel-dot"></div></div>'
+      + '<div class="skeleton skel-line skel-line-short"></div>'
+      + '<div class="skeleton skel-line skel-line-med"></div>'
+      + '</div>';
+  }
+  return html + '</div>';
+}
+
+/* ── Instances View ────────────────────────────────────────────────── */
+
+function renderInstances() {
+  var content = document.getElementById("content");
+  if (state.loading) { content.innerHTML = skeletonCards(4); return; }
+
+  apiFetch("/api/instances").then(function(res) { return res.json(); }).then(function(instances) {
+    var meta = instances.length + " instance" + (instances.length !== 1 ? "s" : "");
+    document.getElementById("page-meta").textContent = meta;
+
+    var html = '<div class="toolbar">'
+      + '<button class="btn btn-primary" id="btn-provision">Provision Instance</button>'
+      + '</div>';
+
+    if (instances.length === 0) {
+      html += '<div class="empty-state">'
+        + '<svg class="empty-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="2" y1="9" x2="22" y2="9"/><circle cx="7" cy="6" r="1"/><circle cx="11" cy="6" r="1"/></svg>'
+        + '<div class="empty-title">Provision your first assistant</div>'
+        + '<div class="empty-desc">Create an instance to start managing AI assistants for your team.</div>'
+        + '<button class="btn btn-primary" id="btn-provision-empty">Create Instance</button>'
+        + '</div>';
+    } else {
+      html += '<div class="grid">';
+      for (var i = 0; i < instances.length; i++) {
+        var inst = instances[i];
+        var h = inst.health;
+        var dot = h ? (h.healthy ? "healthy" : "unhealthy") : "unknown";
+        var statusBadge = inst.status || "unknown";
+        html += '<div class="card" data-action="detail" data-id="' + esc(inst.id) + '">'
+          + '<div class="card-header">'
+          + '<span class="card-id">' + esc(inst.id) + '</span>'
+          + '<span class="dot ' + dot + '"></span></div>'
+          + '<div class="card-meta">'
+          + '<span><span class="badge badge-' + esc(statusBadge) + '">' + esc(statusBadge) + '</span></span>'
+          + '<span>Port ' + esc(String(inst.port)) + '</span>'
+          + '<span>' + formatDate(inst.created_at) + '</span>'
+          + '</div></div>';
+      }
+      html += '</div>';
     }
-  }
+    content.innerHTML = html;
+  }).catch(function(e) {
+    if (e.message !== "Unauthorized") showToast("Failed to load instances: " + e.message);
+  });
 }
 
-function renderTabs() {
-  return '<div class="tabs">'
-    + '<button class="tab' + (activeTab === "instances" ? " active" : "") + '" data-action="tab" data-tab="instances">Instances</button>'
-    + '<button class="tab' + (activeTab === "sources" ? " active" : "") + '" data-action="tab" data-tab="sources">Sources</button>'
+/* ── Provision Modal ───────────────────────────────────────────────── */
+
+function showProvisionModal() {
+  showModal(
+    '<div class="modal">'
+    + '<div class="modal-title">Provision Instance</div>'
+    + '<div class="modal-desc">Create a new managed Fox assistant instance.</div>'
+    + '<div class="modal-field">'
+    + '<label class="modal-label" for="m-id">Instance ID</label>'
+    + '<input class="input" id="m-id" style="width:100%" placeholder="e.g. alice, support-bot" autocomplete="off">'
+    + '</div>'
+    + '<div class="modal-field">'
+    + '<label class="modal-label" for="m-skillset">Skillset Path (optional)</label>'
+    + '<input class="input" id="m-skillset" style="width:100%" placeholder="/path/to/skillset.yaml">'
+    + '</div>'
+    + '<div class="modal-field">'
+    + '<label class="modal-label" for="m-role">Role (optional)</label>'
+    + '<input class="input" id="m-role" style="width:100%" placeholder="e.g. assistant, support">'
+    + '</div>'
+    + '<div class="modal-actions">'
+    + '<button class="btn btn-ghost" id="m-cancel">Cancel</button>'
+    + '<button class="btn btn-primary" id="m-create">Create</button>'
+    + '</div></div>'
+  );
+  document.getElementById("m-cancel").addEventListener("click", closeModal);
+  document.getElementById("m-create").addEventListener("click", doProvision);
+  document.getElementById("m-id").addEventListener("keydown", function(e) {
+    if (e.key === "Enter") doProvision();
+  });
+  document.getElementById("m-id").focus();
+}
+
+function doProvision() {
+  var id = document.getElementById("m-id").value.trim();
+  if (!id) return;
+  var payload = { id: id };
+  var skillset = document.getElementById("m-skillset").value.trim();
+  var role = document.getElementById("m-role").value.trim();
+  if (skillset) payload.skillset_path = skillset;
+  if (role) payload.role = role;
+  document.getElementById("m-create").disabled = true;
+
+  apiFetch("/api/instances", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  }).then(function(res) {
+    if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || "Failed"); });
+    closeModal();
+    showToast("Instance " + id + " provisioning started", "success");
+    refresh();
+  }).catch(function(e) {
+    document.getElementById("m-create").disabled = false;
+    if (e.message !== "Unauthorized") showToast(e.message);
+  });
+}
+
+/* ── Instance Detail ───────────────────────────────────────────────── */
+
+function showDetail(id) {
+  state.detailId = id;
+  document.getElementById("page-title").textContent = id;
+  document.getElementById("page-meta").textContent = "";
+  renderDetail(id);
+}
+
+function renderDetail(id) {
+  apiFetch("/api/instances/" + encodeURIComponent(id)).then(function(res) {
+    if (res.status === 404) { state.detailId = ""; navigate("instances"); return; }
+    return res.json();
+  }).then(function(inst) {
+    if (!inst) return;
+    var content = document.getElementById("content");
+    var h = inst.health;
+    var dot = h ? (h.healthy ? "healthy" : "unhealthy") : "unknown";
+    var label = h ? (h.healthy ? "Healthy" : "Unhealthy") : "Unknown";
+
+    var html = '<button class="back-link" data-action="back">&larr; Back to fleet</button>'
+      + '<div class="detail-card">'
+      + '<div class="detail-header">'
+      + '<div class="detail-title">' + esc(inst.id) + ' <span class="dot ' + dot + '"></span></div>'
+      + '<button class="btn btn-danger" data-action="destroy" data-id="' + esc(inst.id) + '">Destroy</button>'
+      + '</div>'
+      + '<dl class="detail-grid">'
+      + '<dt>Status</dt><dd><span class="badge badge-' + esc(inst.status) + '">' + esc(inst.status) + '</span></dd>'
+      + '<dt>Port</dt><dd>' + esc(String(inst.port)) + '</dd>'
+      + '<dt>Health</dt><dd>' + label + '</dd>';
+    if (h && h.checked_at) html += '<dt>Last Check</dt><dd>' + formatDate(h.checked_at) + '</dd>';
+    if (inst.skillset_name) html += '<dt>Skillset</dt><dd>' + esc(inst.skillset_name) + '</dd>';
+    if (inst.principal_role) html += '<dt>Role</dt><dd>' + esc(inst.principal_role) + '</dd>';
+    html += '<dt>Created</dt><dd>' + formatDate(inst.created_at) + '</dd>'
+      + '</dl>';
+    if (inst.logs) {
+      html += '<div class="logs-section"><h3>Container Logs</h3>'
+        + '<div class="logs">' + esc(inst.logs) + '</div></div>';
+    }
+    html += '</div>';
+    content.innerHTML = html;
+  }).catch(function(e) {
+    if (e.message !== "Unauthorized") showToast("Failed to load instance: " + e.message);
+  });
+}
+
+/* ── Destroy Modal ─────────────────────────────────────────────────── */
+
+function showDestroyModal(id) {
+  showModal(
+    '<div class="modal">'
+    + '<div class="modal-title">Destroy Instance</div>'
+    + '<div class="modal-desc">This will stop and remove the container for <strong>' + esc(id) + '</strong>. This action cannot be undone.</div>'
+    + '<div class="modal-field">'
+    + '<label class="modal-label"><input type="checkbox" id="m-remove-data"> Also remove instance data</label>'
+    + '</div>'
+    + '<div class="modal-field">'
+    + '<label class="modal-label" for="m-confirm-id">Type the instance ID to confirm</label>'
+    + '<input class="input" id="m-confirm-id" style="width:100%" placeholder="' + esc(id) + '" autocomplete="off">'
+    + '</div>'
+    + '<div class="modal-actions">'
+    + '<button class="btn btn-ghost" id="m-cancel">Cancel</button>'
+    + '<button class="btn btn-danger" id="m-destroy" disabled>Destroy</button>'
+    + '</div></div>'
+  );
+  document.getElementById("m-cancel").addEventListener("click", closeModal);
+  document.getElementById("m-confirm-id").addEventListener("input", function() {
+    document.getElementById("m-destroy").disabled = this.value.trim() !== id;
+  });
+  document.getElementById("m-destroy").addEventListener("click", function() { doDestroy(id); });
+  document.getElementById("m-confirm-id").focus();
+}
+
+function doDestroy(id) {
+  var remove = document.getElementById("m-remove-data").checked;
+  var url = "/api/instances/" + encodeURIComponent(id) + (remove ? "?remove_data=true" : "");
+  document.getElementById("m-destroy").disabled = true;
+
+  apiFetch(url, { method: "DELETE" }).then(function(res) {
+    if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || "Failed"); });
+    closeModal();
+    showToast("Instance " + id + " destroyed", "success");
+    state.detailId = "";
+    navigate("instances");
+  }).catch(function(e) {
+    document.getElementById("m-destroy").disabled = false;
+    if (e.message !== "Unauthorized") showToast(e.message);
+  });
+}
+
+/* ── Sources View ──────────────────────────────────────────────────── */
+
+function renderSources() {
+  apiFetch("/api/sources").then(function(res) { return res.json(); }).then(function(sources) {
+    var content = document.getElementById("content");
+    document.getElementById("page-meta").textContent = sources.length + " source" + (sources.length !== 1 ? "s" : "");
+
+    if (sources.length === 0) {
+      content.innerHTML = '<div class="empty-state">'
+        + '<svg class="empty-icon" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4.03 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/></svg>'
+        + '<div class="empty-title">Connect your knowledge</div>'
+        + '<div class="empty-desc">Add file or REST sources to give your assistants access to organizational knowledge.</div>'
+        + '</div>';
+      return;
+    }
+
+    var html = '<table class="data-table"><thead><tr>'
+      + '<th>Name</th><th>Type</th><th>Status</th>'
+      + '<th>Docs</th><th>Chunks</th><th>Error</th>'
+      + '</tr></thead><tbody>';
+    for (var i = 0; i < sources.length; i++) {
+      var s = sources[i];
+      var badge = s.status || "pending";
+      html += '<tr>'
+        + '<td style="font-weight:500">' + esc(s.name || s.id) + '</td>'
+        + '<td>' + esc(s.type) + '</td>'
+        + '<td><span class="badge badge-' + esc(badge) + '">' + esc(badge) + '</span></td>'
+        + '<td>' + (s.doc_count || 0) + '</td>'
+        + '<td>' + (s.chunk_count || 0) + '</td>'
+        + '<td style="color:var(--color-text-muted)">' + esc(s.error_detail || "—") + '</td>'
+        + '</tr>';
+    }
+    html += '</tbody></table>';
+    content.innerHTML = html;
+  }).catch(function(e) {
+    if (e.message !== "Unauthorized") showToast("Failed to load sources: " + e.message);
+  });
+}
+
+/* ── Placeholder Pages ─────────────────────────────────────────────── */
+
+function renderPlaceholder(page) {
+  var descs = {
+    skillsets: "Manage skillset manifests that define assistant capabilities and behavior.",
+    query: "Test knowledge retrieval by querying the data plane directly.",
+    activity: "View a chronological feed of fleet events and state changes.",
+    settings: "Configure fleet defaults, data plane connection, and panel preferences."
+  };
+  document.getElementById("page-meta").textContent = "";
+  document.getElementById("content").innerHTML =
+    '<div class="placeholder-page">'
+    + '<h2>Coming Soon</h2>'
+    + '<p>' + (descs[page] || "") + '</p>'
     + '</div>';
 }
 
-async function renderSources() {
-  const res = await apiFetch("/api/sources");
-  const sources = await res.json();
-  const app = document.getElementById("app");
+/* ── Event Delegation ──────────────────────────────────────────────── */
 
-  let html = renderTabs();
-
-  if (sources.length === 0) {
-    html += '<div class="empty">No knowledge sources configured.</div>';
-  } else {
-    html += '<table class="src-table"><thead><tr><th>Name</th><th>Type</th><th>Status</th><th>Docs</th><th>Chunks</th><th>Error</th></tr></thead><tbody>';
-    for (const s of sources) {
-      const badge = s.status || "pending";
-      html += '<tr>';
-      html += '<td>' + escapeHtml(s.name || s.id) + '</td>';
-      html += '<td>' + escapeHtml(s.type) + '</td>';
-      html += '<td><span class="badge ' + escapeHtml(badge) + '">' + escapeHtml(badge) + '</span></td>';
-      html += '<td>' + (s.doc_count || 0) + '</td>';
-      html += '<td>' + (s.chunk_count || 0) + '</td>';
-      html += '<td>' + escapeHtml(s.error_detail || "-") + '</td>';
-      html += '</tr>';
-    }
-    html += '</tbody></table>';
-  }
-  app.innerHTML = html;
-}
-
-async function renderList() {
-  const res = await apiFetch("/api/instances");
-  const instances = await res.json();
-  const app = document.getElementById("app");
-
-  let html = renderTabs();
-  html += '<div class="toolbar">';
-  html += '<input type="text" id="new-id" placeholder="Instance ID">';
-  html += '<input type="text" id="new-skillset" placeholder="Skillset path (optional)" style="width:220px">';
-  html += '<input type="text" id="new-role" placeholder="Role (optional)" style="width:140px">';
-  html += '<button onclick="createInstance()">Create</button>';
-  html += '</div>';
-
-  if (instances.length === 0) {
-    html += '<div class="empty">No instances. Create one to get started.</div>';
-  } else {
-    html += '<div class="grid">';
-    for (const inst of instances) {
-      const h = inst.health;
-      const dot = h ? (h.healthy ? "healthy" : "unhealthy") : "unknown";
-      html += '<div class="card" data-action="detail" data-id="' + escapeHtml(inst.id) + '">';
-      html += '<div class="card-header"><span class="card-id">' + escapeHtml(inst.id) + '</span><span class="dot ' + dot + '"></span></div>';
-      html += '<div class="card-meta">';
-      html += '<span>Port ' + escapeHtml(String(inst.port)) + '</span>';
-      html += '<span>Status: ' + escapeHtml(inst.status) + '</span>';
-      html += '<span>' + escapeHtml(inst.created_at || "") + '</span>';
-      html += '</div></div>';
-    }
-    html += '</div>';
-  }
-  app.innerHTML = html;
-}
-
-async function renderDetail(id) {
-  const res = await apiFetch("/api/instances/" + encodeURIComponent(id));
-  if (res.status === 404) { view = "list"; await renderList(); return; }
-  const inst = await res.json();
-  const app = document.getElementById("app");
-  const h = inst.health;
-  const dot = h ? (h.healthy ? "healthy" : "unhealthy") : "unknown";
-  const label = h ? (h.healthy ? "Healthy" : "Unhealthy") : "Unknown";
-
-  let html = '<button class="btn-back" onclick="showList()">&larr; Back to fleet</button>';
-  html += '<div class="detail">';
-  html += '<h2><span>' + escapeHtml(inst.id) + ' <span class="dot ' + dot + '"></span></span>';
-  html += '<button class="btn-destroy" data-action="destroy" data-id="' + escapeHtml(inst.id) + '">Destroy</button></h2>';
-  html += '<dl class="detail-grid">';
-  html += '<dt>Status</dt><dd>' + escapeHtml(inst.status) + '</dd>';
-  html += '<dt>Port</dt><dd>' + escapeHtml(String(inst.port)) + '</dd>';
-  html += '<dt>Health</dt><dd>' + label + '</dd>';
-  if (h && h.checked_at) html += '<dt>Last Check</dt><dd>' + escapeHtml(h.checked_at) + '</dd>';
-  if (inst.skillset_name) html += '<dt>Skillset</dt><dd>' + escapeHtml(inst.skillset_name) + '</dd>';
-  if (inst.principal_role) html += '<dt>Role</dt><dd>' + escapeHtml(inst.principal_role) + '</dd>';
-  html += '<dt>Created</dt><dd>' + escapeHtml(inst.created_at || "-") + '</dd>';
-  html += '</dl>';
-  if (inst.logs) {
-    html += '<h3 style="font-size:.875rem;margin-bottom:.5rem">Logs</h3>';
-    html += '<div class="logs">' + escapeHtml(inst.logs) + '</div>';
-  }
-  html += '</div>';
-  app.innerHTML = html;
-}
-
-function showDetail(id) { view = "detail"; selectedId = id; refresh(); }
-function showList() { view = "list"; selectedId = ""; refresh(); }
-
-async function createInstance() {
-  const input = document.getElementById("new-id");
-  const id = input.value.trim();
-  if (!id) return;
-  input.disabled = true;
-  try {
-    const payload = { id: id };
-    const skillset = document.getElementById("new-skillset").value.trim();
-    const role = document.getElementById("new-role").value.trim();
-    if (skillset) payload.skillset_path = skillset;
-    if (role) payload.role = role;
-    const res = await apiFetch("/api/instances", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) {
-      try { const err = await res.json(); alert(err.message || err.error || "Failed to create instance"); }
-      catch (_) { alert("Failed to create instance"); }
-      return;
-    }
-    input.value = "";
-    document.getElementById("new-skillset").value = "";
-    document.getElementById("new-role").value = "";
-    await refresh();
-  } finally {
-    input.disabled = false;
-  }
-}
-
-async function destroyInstance(id) {
-  if (!confirm("Destroy instance " + id + "? This cannot be undone.")) return;
-  const remove = confirm("Also remove instance data?");
-  const url = "/api/instances/" + encodeURIComponent(id) + (remove ? "?remove_data=true" : "");
-  const res = await apiFetch(url, { method: "DELETE" });
-  if (!res.ok) {
-    try { const err = await res.json(); alert(err.message || err.error || "Failed to destroy instance"); }
-    catch (_) { alert("Failed to destroy instance"); }
-    return;
-  }
-  showList();
-}
-
-function escapeHtml(s) {
-  if (s == null) return "";
-  const d = document.createElement("div");
-  d.textContent = s;
-  return d.innerHTML;
-}
-
-function switchTab(tab) {
-  activeTab = tab;
-  view = "list";
-  selectedId = "";
-  refresh();
-}
-
-document.getElementById("app").addEventListener("click", function(e) {
-  const tab = e.target.closest("[data-action='tab']");
-  if (tab) { switchTab(tab.dataset.tab); return; }
-  const card = e.target.closest("[data-action='detail']");
+document.getElementById("content").addEventListener("click", function(e) {
+  var card = e.target.closest("[data-action='detail']");
   if (card) { showDetail(card.dataset.id); return; }
-  const btn = e.target.closest("[data-action='destroy']");
-  if (btn) { destroyInstance(btn.dataset.id); return; }
+  var back = e.target.closest("[data-action='back']");
+  if (back) { navigate("instances"); return; }
+  var destroy = e.target.closest("[data-action='destroy']");
+  if (destroy) { showDestroyModal(destroy.dataset.id); return; }
+  var prov = e.target.closest("#btn-provision, #btn-provision-empty");
+  if (prov) { showProvisionModal(); return; }
 });
+
+/* ── Utilities ─────────────────────────────────────────────────────── */
+
+function esc(s) {
+  if (s == null) return "";
+  var d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function formatDate(s) {
+  if (!s) return "—";
+  try {
+    var d = new Date(s);
+    if (isNaN(d.getTime())) return esc(s);
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+      + " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  } catch (_) { return esc(s); }
+}
+
+/* ── Init ──────────────────────────────────────────────────────────── */
+
+initAuth();
 </script>
 </body>
 </html>
