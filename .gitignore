@@ -24,13 +24,16 @@ coverage.txt
 # Secrets and credentials
 .env
 .env.*
+!.env.example
 *.key
 *.pem
 *.p12
 *.pfx
 *.jks
-credentials*
-secrets*
+/credentials*.json
+/secrets*.json
+/secrets*.yaml
+/secrets*.yml
 docker-compose.override.yml
 
 # Go
