@@ -1,0 +1,19 @@
+Fox Control has been deployed.
+
+1. Access the dashboard:
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+   https://{{ .host }}
+{{- end }}
+{{- else }}
+   kubectl port-forward svc/{{ include "fox-control.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+   Then open http://localhost:{{ .Values.service.port }}
+{{- end }}
+
+2. Authenticate with the admin secret you provided during install.
+
+3. This chart does NOT deploy Qdrant. If you enabled the data plane,
+   ensure a Qdrant instance is reachable at the configured ports.
+
+4. The Docker socket is mounted from the host. The pod requires access
+   to the container runtime to manage Fox instances.

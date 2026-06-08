@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **UI-01:** Branded panel redesign — Fox palette, Sora/Manrope typography, card-based dashboard (#57)
+- **UI-02:** Skillset management UI — create, view, delete skillsets from the panel (#58)
+- **UI-03:** Knowledge query playground — interactive query interface with data plane proxy (#59)
+- **UI-04:** Source detail view — clickable source rows, full field display with status badges (#60)
+- **UI-05:** Activity feed — event log with ring buffer, newest-first event table (#61)
+- **DEPLOY-01:** Container image — multi-stage Alpine Dockerfile, multi-arch (amd64/arm64), GHCR release workflow (#62)
+- **DEPLOY-02:** Docker Compose stack — fox-control + Qdrant, health checks, env-based secrets (#63)
+- **DEPLOY-03:** Helm chart — full Kubernetes deployment with ConfigMap, Secret (existingSecret support), PVC, Ingress, security context, `/healthz` probe endpoint (#64)
+- `/healthz` unauthenticated health endpoint for Kubernetes probes
+- Environment variable overrides for `FOX_ADMIN_SECRET` and `FOX_INSTANCE_PASSWORD` (takes precedence over TOML config)
+
 ## [0.2.0-alpha] - 2026-06-08
 
 ### Added

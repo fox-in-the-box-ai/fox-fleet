@@ -101,6 +101,7 @@ func NewServer(d Deps) *Server {
 	apiMux.HandleFunc("GET /api/events", s.handleEvents)
 
 	s.mux = http.NewServeMux()
+	s.mux.HandleFunc("GET /healthz", s.handleHealthz)
 	s.mux.Handle("/api/", s.requireAuth(apiMux))
 
 	if d.WebFS != nil {
