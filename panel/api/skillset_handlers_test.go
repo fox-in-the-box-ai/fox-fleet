@@ -313,7 +313,7 @@ func TestDownloadSkillset_NotFound(t *testing.T) {
 
 func TestSkillsetAuth_Required(t *testing.T) {
 	env, _ := newSkillsetTestEnv(t)
-	for _, path := range []string{"/api/skillsets", "/api/skillsets/test"} {
+	for _, path := range []string{"/api/skillsets", "/api/skillsets/test", "/api/skillsets/test/download"} {
 		w := env.doRequestNoAuth("GET", path)
 		if w.Code != http.StatusUnauthorized {
 			t.Errorf("GET %s without auth: expected 401, got %d", path, w.Code)

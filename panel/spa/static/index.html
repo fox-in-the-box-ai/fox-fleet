@@ -1948,9 +1948,10 @@ document.getElementById("content").addEventListener("change", function(e) {
     var inp = e.target;
     if (inp.files.length === 0) return;
     var skName = inp.dataset.name;
-    uploadSkillset(inp.files[0], function() {
-      showToast(t("sk.replaced", { name: skName }), "success");
-      renderSkillsetDetail(skName);
+    uploadSkillset(inp.files[0], function(sk) {
+      showToast(t("sk.replaced", { name: sk.name }), "success");
+      if (sk.name !== skName) { showSkillsetDetail(sk.name); }
+      else { renderSkillsetDetail(skName); }
     });
     inp.value = "";
   }
