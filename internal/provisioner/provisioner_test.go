@@ -55,7 +55,10 @@ func (f *fakePlugin) Logs(context.Context, string, plugins.LogOpts) (io.ReadClos
 }
 
 func (f *fakePlugin) Restart(context.Context, string) error { return nil }
-func (f *fakePlugin) Close() error                         { return nil }
+func (f *fakePlugin) Stats(context.Context, string) (plugins.ContainerStats, error) {
+	return plugins.ContainerStats{}, nil
+}
+func (f *fakePlugin) Close() error { return nil }
 
 func testRegistry(t *testing.T) *registry.Registry {
 	t.Helper()

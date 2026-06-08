@@ -121,6 +121,7 @@ func NewServer(d Deps) *Server {
 	apiMux.HandleFunc("GET /api/instances", s.handleList)
 	apiMux.HandleFunc("GET /api/instances/{id}", s.handleDetail)
 	apiMux.HandleFunc("POST /api/instances", s.handleCreate)
+	apiMux.HandleFunc("GET /api/instances/{id}/stats", s.handleInstanceStats)
 	apiMux.HandleFunc("DELETE /api/instances/{id}", s.handleDestroy)
 	apiMux.HandleFunc("GET /api/sources", s.handleListSources)
 	apiMux.HandleFunc("GET /api/sources/{id}", s.handleGetSource)

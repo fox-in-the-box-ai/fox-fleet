@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -269,6 +270,46 @@ func (p *Plugin) Restart(ctx context.Context, instanceID string) error {
 		return fmt.Errorf("docker: stop %s for restart: %w", cname, err)
 	}
 	return p.cli.ContainerStart(ctx, cname, container.StartOptions{})
+}
+
+func (p *Plugin) Stats(ctx context.Context, instanceID string) (plugins.ContainerStats, error) {
+	cname := containerPrefix + instanceID
+
+	resp, err := p.cli.ContainerStatsOneShot(ctx, cname)
+	if err != nil {
+		return plugins.ContainerStats{}, fmt.Errorf("docker: stats %s: %w", cname, err)
+	}
+	defer resp.Body.Close()
+
+	var statsJSON container.StatsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&statsJSON); err != nil {
+		return plugins.ContainerStats{}, fmt.Errorf("docker: stats %s: decode: %w", cname, err)
+	}
+
+	cpuPercent := calculateCPUPercent(statsJSON)
+
+	var rxBytes, txBytes uint64
+	for _, netStats := range statsJSON.Networks {
+		rxBytes += netStats.RxBytes
+		txBytes += netStats.TxBytes
+	}
+
+	return plugins.ContainerStats{
+		CPUPercent:  cpuPercent,
+		MemoryUsed:  statsJSON.MemoryStats.Usage,
+		MemoryLimit: statsJSON.MemoryStats.Limit,
+		NetRxBytes:  rxBytes,
+		NetTxBytes:  txBytes,
+	}, nil
+}
+
+func calculateCPUPercent(s container.StatsResponse) float64 {
+	cpuDelta := float64(s.CPUStats.CPUUsage.TotalUsage) - float64(s.PreCPUStats.CPUUsage.TotalUsage)
+	systemDelta := float64(s.CPUStats.SystemUsage) - float64(s.PreCPUStats.SystemUsage)
+	if systemDelta <= 0 || cpuDelta < 0 {
+		return 0
+	}
+	return (cpuDelta / systemDelta) * float64(s.CPUStats.OnlineCPUs) * 100.0
 }
 
 func (p *Plugin) Close() error {

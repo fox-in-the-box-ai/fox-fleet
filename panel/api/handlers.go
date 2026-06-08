@@ -284,6 +284,24 @@ func (s *Server) handleDestroy(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (s *Server) handleInstanceStats(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if !validInstanceID.MatchString(id) {
+		writeError(w, http.StatusBadRequest, "bad_request",
+			fmt.Sprintf("invalid instance ID %q", id))
+		return
+	}
+
+	stats, err := s.plugin.Stats(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, "stats_unavailable",
+			fmt.Sprintf("cannot retrieve stats for instance %s", id))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, stats)
+}
+
 func (s *Server) clearInFlight(id string) {
 	s.inFlightMu.Lock()
 	delete(s.inFlight, id)

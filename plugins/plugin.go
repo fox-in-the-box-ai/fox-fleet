@@ -17,6 +17,7 @@ type DeploymentPlugin interface {
 	Destroy(ctx context.Context, instanceID string) error
 	Logs(ctx context.Context, instanceID string, opts LogOpts) (io.ReadCloser, error)
 	Restart(ctx context.Context, instanceID string) error
+	Stats(ctx context.Context, instanceID string) (ContainerStats, error)
 }
 
 // ImageRef identifies a container image by digest (never tag).
@@ -51,6 +52,15 @@ type HealthStatus struct {
 	Ready     bool            `json:"ready"`
 	Checks    map[string]bool `json:"checks,omitempty"`
 	CheckedAt time.Time       `json:"checked_at"`
+}
+
+// ContainerStats holds point-in-time resource usage for a container.
+type ContainerStats struct {
+	CPUPercent  float64 `json:"cpu_percent"`
+	MemoryUsed uint64  `json:"memory_used"`
+	MemoryLimit uint64  `json:"memory_limit"`
+	NetRxBytes  uint64  `json:"net_rx_bytes"`
+	NetTxBytes  uint64  `json:"net_tx_bytes"`
 }
 
 // LogOpts configures log retrieval.
