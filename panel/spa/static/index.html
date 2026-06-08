@@ -46,7 +46,14 @@
   --transition: 0.15s ease;
 
   --toast-error-bg: #fef2f2;
+  --toast-error-border: rgb(198 40 40 / 20%);
   --toast-success-bg: #f0fdf4;
+  --toast-success-border: rgb(61 139 64 / 20%);
+  --toast-shadow: 0 4px 20px rgb(0 0 0 / 12%);
+  --overlay-bg: rgb(0 0 0 / 40%);
+  --badge-error-bg: rgb(198 40 40 / 8%);
+  --badge-success-bg: rgb(61 139 64 / 10%);
+  --badge-warning-bg: rgb(230 138 0 / 10%);
   --code-bg: #171513;
   --code-text: #f5f2ec;
 }
@@ -80,7 +87,14 @@
   --shadow-modal: 0 20px 60px rgb(0 0 0 / 40%);
 
   --toast-error-bg: rgb(229 115 115 / 10%);
+  --toast-error-border: rgb(229 115 115 / 20%);
   --toast-success-bg: rgb(92 184 95 / 10%);
+  --toast-success-border: rgb(92 184 95 / 20%);
+  --toast-shadow: 0 4px 20px rgb(0 0 0 / 30%);
+  --overlay-bg: rgb(0 0 0 / 60%);
+  --badge-error-bg: rgb(229 115 115 / 10%);
+  --badge-success-bg: rgb(92 184 95 / 10%);
+  --badge-warning-bg: rgb(255 183 77 / 10%);
   --code-bg: #0d0c0b;
   --code-text: #d4d0c9;
 }
@@ -150,8 +164,8 @@ body {
 .auth-btn:hover { background: var(--color-accent); }
 .auth-error {
   margin-top: 12px; padding: 8px 12px;
-  background: rgb(198 40 40 / 8%);
-  border: 1px solid rgb(198 40 40 / 20%);
+  background: var(--badge-error-bg);
+  border: 1px solid var(--toast-error-border);
   border-radius: var(--radius-sm);
   font-size: 13px;
   color: var(--color-error);
@@ -234,6 +248,7 @@ body {
   font-size: 11px;
   color: var(--sidebar-muted);
 }
+.sb-footer-row { display: flex; gap: 8px; margin-bottom: 8px; }
 #lang-select, #theme-select {
   background: transparent;
   color: var(--sidebar-muted);
@@ -302,13 +317,13 @@ body {
 }
 .btn-primary:hover:not(:disabled) { background: var(--color-accent); }
 .btn-danger {
-  background: rgb(198 40 40 / 8%);
-  border-color: rgb(198 40 40 / 25%);
+  background: var(--badge-error-bg);
+  border-color: var(--toast-error-border);
   color: var(--color-error);
 }
 .btn-danger:hover:not(:disabled) {
   background: var(--color-error);
-  color: #fff;
+  color: var(--color-bg);
   border-color: var(--color-error);
 }
 .btn-ghost {
@@ -459,15 +474,15 @@ body {
   letter-spacing: 0.03em;
 }
 .badge-active, .badge-running {
-  background: rgb(61 139 64 / 10%);
+  background: var(--badge-success-bg);
   color: var(--color-success);
 }
 .badge-ingesting, .badge-provisioning {
-  background: rgb(230 138 0 / 10%);
+  background: var(--badge-warning-bg);
   color: var(--color-warning);
 }
 .badge-error {
-  background: rgb(198 40 40 / 8%);
+  background: var(--badge-error-bg);
   color: var(--color-error);
 }
 .badge-pending, .badge-unknown {
@@ -532,7 +547,7 @@ body {
   padding: 12px 16px;
   border-radius: var(--radius-md);
   font-size: 13px; font-weight: 500;
-  box-shadow: 0 4px 20px rgb(0 0 0 / 12%);
+  box-shadow: var(--toast-shadow);
   display: flex; align-items: center; gap: 10px;
   pointer-events: auto;
   animation: toast-in 0.25s ease;
@@ -540,12 +555,12 @@ body {
 }
 .toast-error {
   background: var(--toast-error-bg);
-  border: 1px solid rgb(198 40 40 / 20%);
+  border: 1px solid var(--toast-error-border);
   color: var(--color-error);
 }
 .toast-success {
   background: var(--toast-success-bg);
-  border: 1px solid rgb(61 139 64 / 20%);
+  border: 1px solid var(--toast-success-border);
   color: var(--color-success);
 }
 .toast-dismiss {
@@ -564,7 +579,7 @@ body {
 /* ── Modal ─────────────────────────────────────────────────────────── */
 #modal-overlay {
   position: fixed; inset: 0; z-index: 150;
-  background: rgb(0 0 0 / 40%);
+  background: var(--overlay-bg);
   display: none; align-items: center; justify-content: center;
   padding: 24px;
 }
@@ -690,6 +705,7 @@ body {
   margin: 0 auto;
 }
 </style>
+<script>(function(){var t=localStorage.getItem("fox_theme")||"system";var d=t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme:dark)").matches);if(d)document.documentElement.setAttribute("data-theme","dark")})()</script>
 </head>
 <body>
 
@@ -748,7 +764,7 @@ body {
     </ul>
 
     <div class="sb-footer">
-      <div style="display:flex;gap:8px;margin-bottom:8px">
+      <div class="sb-footer-row">
         <select id="lang-select">
           <option value="en">English</option>
           <option value="es">Español</option>
