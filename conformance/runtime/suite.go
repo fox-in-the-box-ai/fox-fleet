@@ -38,6 +38,7 @@ func (s *Suite) Run(ctx context.Context) (*report.Suite, error) {
 	s.runManaged(ctx, cli, result, secret, password)
 	s.runSSE(ctx, cli, result, secret, password)
 	s.runContractVersion(ctx, cli, result, secret, password)
+	s.runSecurity(ctx, cli, result, secret, password)
 
 	result.Elapsed = time.Since(start)
 	return result, nil
@@ -169,6 +170,42 @@ func (s *Suite) runContractVersion(ctx context.Context, cli *client.Client, resu
 	result.Add(check16ContractVersion(ctx, h))
 	result.Add(check17VersionV2Schema(ctx, h))
 	result.Add(check18CapabilitiesV2Schema(ctx, h))
+}
+
+func (s *Suite) runSecurity(ctx context.Context, cli *client.Client, result *report.Suite, secret, password string) {
+	h, err := sut.Start(ctx, cli, sut.Config{
+		Image:      s.Image,
+		Mode:       sut.Managed,
+		AuthSecret: secret,
+		Password:   password,
+	})
+	if err != nil {
+		for _, num := range []int{21, 22, 23, 24} {
+			result.Add(report.Result{
+				Number: num,
+				Name:   securityCheckName(num),
+				Status: report.Fail,
+				Detail: fmt.Sprintf("security SUT failed to start: %v", err),
+			})
+		}
+		return
+	}
+	defer h.Cleanup(ctx)
+
+	result.Add(check21SecurityHeaders(ctx, h))
+	result.Add(check22PathTraversal(ctx, h))
+	result.Add(check23AuthTimingConsistency(ctx, h))
+	result.Add(check24MethodNotAllowed(ctx, h))
+}
+
+func securityCheckName(num int) string {
+	names := map[int]string{
+		21: "Security headers present",
+		22: "Path traversal rejected",
+		23: "Auth rejects don't leak timing",
+		24: "Unsupported HTTP methods rejected",
+	}
+	return names[num]
 }
 
 func standaloneCheckName(num int) string {

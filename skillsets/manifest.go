@@ -93,3 +93,44 @@ func Validate(m *Manifest) error {
 	}
 	return nil
 }
+
+type ToolManifest struct {
+	Tools []struct {
+		Name string `json:"name" yaml:"name"`
+		Type string `json:"type" yaml:"type"`
+	} `json:"tools" yaml:"tools"`
+}
+
+type ToolValidationResult struct {
+	Missing []string
+	Extra   []string
+}
+
+func ValidateAgainstManifest(skillset *Manifest, available ToolManifest) ToolValidationResult {
+	have := make(map[string]bool, len(available.Tools))
+	for _, t := range available.Tools {
+		have[t.Name] = true
+	}
+
+	var result ToolValidationResult
+	for _, t := range skillset.Tools {
+		if !have[t.Name] {
+			result.Missing = append(result.Missing, t.Name)
+		}
+	}
+
+	declared := make(map[string]bool, len(skillset.Tools))
+	for _, t := range skillset.Tools {
+		declared[t.Name] = true
+	}
+	for _, t := range available.Tools {
+		if !declared[t.Name] {
+			result.Extra = append(result.Extra, t.Name)
+		}
+	}
+	return result
+}
+
+func (r ToolValidationResult) OK() bool {
+	return len(r.Missing) == 0
+}

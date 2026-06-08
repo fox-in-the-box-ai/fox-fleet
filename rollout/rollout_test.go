@@ -61,6 +61,8 @@ func (f *fakePlugin) Rollback(_ context.Context, id string, _ plugins.ImageRef) 
 	return nil
 }
 
+func (f *fakePlugin) Restart(_ context.Context, _ string) error { return nil }
+
 func (f *fakePlugin) HealthCheck(_ context.Context, id string) (plugins.HealthStatus, error) {
 	if err, ok := f.healthErr[id]; ok {
 		return plugins.HealthStatus{}, err

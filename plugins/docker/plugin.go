@@ -262,6 +262,15 @@ func (p *Plugin) Logs(ctx context.Context, instanceID string, opts plugins.LogOp
 	return reader, nil
 }
 
+func (p *Plugin) Restart(ctx context.Context, instanceID string) error {
+	cname := containerPrefix + instanceID
+	timeout := stopTimeout
+	if err := p.cli.ContainerStop(ctx, cname, container.StopOptions{Timeout: &timeout}); err != nil {
+		return fmt.Errorf("docker: stop %s for restart: %w", cname, err)
+	}
+	return p.cli.ContainerStart(ctx, cname, container.StartOptions{})
+}
+
 func (p *Plugin) Close() error {
 	return p.cli.Close()
 }

@@ -620,6 +620,107 @@ func check20ReadyzV2Schema(ctx context.Context, h *sut.Handle) report.Result {
 	})
 }
 
+// --- security conformance checks (CONF-02) ---
+
+func check21SecurityHeaders(ctx context.Context, h *sut.Handle) report.Result {
+	return timedCheck(21, "Security headers present", func() (report.Status, string) {
+		headers := map[string]string{}
+		if h.AuthSecret != "" {
+			headers["X-Fox-Auth"] = h.AuthSecret
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, h.BaseURL+"/health", nil)
+		if err != nil {
+			return report.Fail, err.Error()
+		}
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		c := &http.Client{Timeout: 10 * time.Second, CheckRedirect: noFollow}
+		resp, err := c.Do(req)
+		if err != nil {
+			return report.Fail, err.Error()
+		}
+		resp.Body.Close()
+
+		var missing []string
+		if resp.Header.Get("X-Content-Type-Options") != "nosniff" {
+			missing = append(missing, "X-Content-Type-Options")
+		}
+		if len(missing) > 0 {
+			return report.Fail, fmt.Sprintf("missing or wrong headers: %s", strings.Join(missing, ", "))
+		}
+		return report.Pass, ""
+	})
+}
+
+func check22PathTraversal(ctx context.Context, h *sut.Handle) report.Result {
+	return timedCheck(22, "Path traversal rejected", func() (report.Status, string) {
+		headers := map[string]string{}
+		if h.AuthSecret != "" {
+			headers["X-Fox-Auth"] = h.AuthSecret
+		}
+		paths := []string{
+			"/../../etc/passwd",
+			"/%2e%2e/%2e%2e/etc/passwd",
+		}
+		for _, p := range paths {
+			status, body, err := httpGet(ctx, h.BaseURL+p, headers)
+			if err != nil {
+				continue
+			}
+			if status == 200 && len(body) > 0 && strings.Contains(string(body), "root:") {
+				return report.Fail, fmt.Sprintf("path traversal succeeded: %s", p)
+			}
+		}
+		return report.Pass, ""
+	})
+}
+
+func check23AuthTimingConsistency(ctx context.Context, h *sut.Handle) report.Result {
+	return timedCheck(23, "Auth rejects don't leak timing", func() (report.Status, string) {
+		if h.AuthSecret == "" {
+			return report.Skip, "requires managed-mode SUT"
+		}
+		status1, _, err := httpGet(ctx, h.BaseURL+"/version", map[string]string{
+			"X-Fox-Auth": "wrong-short",
+		})
+		if err != nil {
+			return report.Fail, err.Error()
+		}
+		status2, _, err := httpGet(ctx, h.BaseURL+"/version", map[string]string{
+			"X-Fox-Auth": "wrong-with-a-very-long-value-that-differs-in-length-from-the-actual-secret",
+		})
+		if err != nil {
+			return report.Fail, err.Error()
+		}
+		if status1 != status2 {
+			return report.Fail, fmt.Sprintf("different status codes: short=%d long=%d", status1, status2)
+		}
+		return report.Pass, ""
+	})
+}
+
+func check24MethodNotAllowed(ctx context.Context, h *sut.Handle) report.Result {
+	return timedCheck(24, "Unsupported HTTP methods rejected", func() (report.Status, string) {
+		for _, method := range []string{http.MethodDelete, http.MethodPut, http.MethodPatch} {
+			req, err := http.NewRequestWithContext(ctx, method, h.BaseURL+"/health", nil)
+			if err != nil {
+				continue
+			}
+			c := &http.Client{Timeout: 10 * time.Second, CheckRedirect: noFollow}
+			resp, err := c.Do(req)
+			if err != nil {
+				continue
+			}
+			resp.Body.Close()
+			if resp.StatusCode == 200 {
+				return report.Fail, fmt.Sprintf("%s /health returned 200 (expected 405 or non-200)", method)
+			}
+		}
+		return report.Pass, ""
+	})
+}
+
 type sseEvent struct {
 	event string
 	data  string

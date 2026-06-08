@@ -16,6 +16,7 @@ type DeploymentPlugin interface {
 	Rollback(ctx context.Context, instanceID string, previous ImageRef) error
 	Destroy(ctx context.Context, instanceID string) error
 	Logs(ctx context.Context, instanceID string, opts LogOpts) (io.ReadCloser, error)
+	Restart(ctx context.Context, instanceID string) error
 }
 
 // ImageRef identifies a container image by digest (never tag).
