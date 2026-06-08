@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **REL-02:** Cosign keyless signing — Sigstore cosign signs every release binary, checksums file, and container image via GitHub Actions OIDC; `fox-control verify` subcommand validates signatures locally
 - **REL-03:** SBOM generation — CycloneDX JSON SBOMs for binary releases (Go module dependencies) and container images (full image contents), signed with cosign; container SBOM attested via `cosign attest`
+- **CONF-03:** Conformance suite in CI — runtime and plugin conformance checks run on every push and PR against a locally-built Docker image
 
 ## [0.3.0-alpha] - 2026-06-08
 
