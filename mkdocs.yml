@@ -4,6 +4,7 @@ site_url: https://fox-in-the-box-ai.github.io/fox-fleet
 repo_url: https://github.com/fox-in-the-box-ai/fox-fleet
 repo_name: fox-in-the-box-ai/fox-fleet
 edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2026 Fox in the Box AI
 
 theme:
   name: material

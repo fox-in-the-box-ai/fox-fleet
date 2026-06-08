@@ -13,7 +13,7 @@ curl -fsSL https://raw.githubusercontent.com/fox-in-the-box-ai/fox-fleet/main/in
 Pin a specific version:
 
 ```bash
-FOX_VERSION=1.0.0 curl -fsSL https://raw.githubusercontent.com/fox-in-the-box-ai/fox-fleet/main/install.sh | bash
+FOX_VERSION=x.y.z curl -fsSL https://raw.githubusercontent.com/fox-in-the-box-ai/fox-fleet/main/install.sh | bash
 ```
 
 The script auto-detects OS and architecture, downloads the release tarball, verifies the SHA-256 checksum, and installs to `/usr/local/bin`. Override the install directory with `FOX_INSTALL_DIR`.
@@ -36,11 +36,11 @@ The tap is updated automatically on each stable release.
 Download the `.deb` from the [GitHub Releases](https://github.com/fox-in-the-box-ai/fox-fleet/releases) page:
 
 ```bash
-curl -fsSLO https://github.com/fox-in-the-box-ai/fox-fleet/releases/latest/download/fox-control_1.0.0_amd64.deb
-sudo dpkg -i fox-control_1.0.0_amd64.deb
+curl -fsSLO https://github.com/fox-in-the-box-ai/fox-fleet/releases/latest/download/fox-control_VERSION_amd64.deb
+sudo dpkg -i fox-control_VERSION_amd64.deb
 ```
 
-Replace `1.0.0` and `amd64` with the desired version and architecture (`amd64` or `arm64`).
+Replace `VERSION` and `amd64` with the desired version and architecture (`amd64` or `arm64`).
 
 ---
 
@@ -59,8 +59,8 @@ Download a pre-built tarball from [GitHub Releases](https://github.com/fox-in-th
 Extract and move to your PATH:
 
 ```bash
-tar xzf fox-control-v1.0.0-linux-amd64.tar.gz
-sudo install -m 755 fox-control-v1.0.0-linux-amd64/fox-control /usr/local/bin/
+tar xzf fox-control-vVERSION-linux-amd64.tar.gz
+sudo install -m 755 fox-control-vVERSION-linux-amd64/fox-control /usr/local/bin/
 ```
 
 Verify the download with the signed checksums file. See [Release Signing](security/signing.md) for details.
@@ -70,7 +70,7 @@ Verify the download with the signed checksums file. See [Release Signing](securi
 ## Container image
 
 ```bash
-docker pull ghcr.io/fox-in-the-box-ai/fox-control:1.0.0
+docker pull ghcr.io/fox-in-the-box-ai/fox-control:latest
 ```
 
 All container images are signed with Sigstore cosign. See [Release Signing](security/signing.md) for verification.
