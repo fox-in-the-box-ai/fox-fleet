@@ -14,8 +14,9 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 	"syscall"
-	"text/tabwriter"
 	"time"
 
 	"github.com/docker/docker/client"
@@ -27,6 +28,7 @@ import (
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/source"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/config"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/events"
+	"github.com/fox-in-the-box-ai/fox-fleet/internal/output"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/provisioner"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
 	"github.com/fox-in-the-box-ai/fox-fleet/panel/api"
@@ -42,7 +44,10 @@ var (
 	buildDate    = "unknown"
 )
 
-var cfgPath string
+var (
+	cfgPath      string
+	outputFormat string
+)
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -61,6 +66,7 @@ func newRootCmd() *cobra.Command {
 		SilenceUsage: true,
 	}
 	cmd.PersistentFlags().StringVar(&cfgPath, "config", "/etc/fox-control/fox-control.toml", "path to config file")
+	cmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "table", "output format: table, json, quiet")
 	cmd.AddCommand(
 		newServeCmd(),
 		newProvisionCmd(),
@@ -71,6 +77,9 @@ func newRootCmd() *cobra.Command {
 		newConformanceCmd(),
 		newVerifyCmd(),
 		newSecCmd(),
+		newBackupCmd(),
+		newRestoreCmd(),
+		newDiagnosticsCmd(),
 		newGenerateSecretCmd(),
 	)
 	return cmd
@@ -97,6 +106,8 @@ func newServeCmd() *cobra.Command {
 				return err
 			}
 
+			configureLogging(cfg)
+
 			reg, plug, err := openRegistryAndPlugin(cfg)
 			if err != nil {
 				return err
@@ -122,7 +133,11 @@ func newServeCmd() *cobra.Command {
 			var srcReg *source.Registry
 			var dpURL string
 			if cfg.DataPlane.Enabled {
-				dpURL = "http://" + cfg.DataPlane.Listen
+				if cfg.TLS.CertFile != "" {
+					dpURL = "https://" + cfg.DataPlane.Listen
+				} else {
+					dpURL = "http://" + cfg.DataPlane.Listen
+				}
 				srcDB, err := sql.Open("sqlite", filepath.Join(cfg.Control.DataRoot, "sources.db"))
 				if err != nil {
 					return fmt.Errorf("cannot open sources database: %w", err)
@@ -154,11 +169,25 @@ func newServeCmd() *cobra.Command {
 			}
 			eventLog := events.NewPersistentLog(200, eventStore)
 
+			if len(cfg.Webhooks) > 0 {
+				targets := make([]events.WebhookTarget, len(cfg.Webhooks))
+				for i, wh := range cfg.Webhooks {
+					targets[i] = events.WebhookTarget{
+						URL:    wh.URL,
+						Events: wh.Events,
+						Secret: wh.Secret,
+					}
+				}
+				eventLog.SetWebhooks(events.NewWebhookDispatcher(targets))
+			}
+
 			imageRef := parseImageRef(cfg.Docker.Image)
 			if imageRef.Digest == "" {
 				slog.Warn("docker.image uses a tag without a digest — pin to a digest for reproducible deployments (repo@sha256:...)",
 					"image", cfg.Docker.Image)
 			}
+
+			metricsEnabled := cfg.Control.MetricsEnabled == nil || *cfg.Control.MetricsEnabled
 
 			apiServer := api.NewServer(api.Deps{
 				Registry:        reg,
@@ -178,6 +207,7 @@ func newServeCmd() *cobra.Command {
 				EventLog:        eventLog,
 				SigningKey:      signingKey,
 				SessionTokenTTL: sessionTTL,
+				MetricsEnabled:  metricsEnabled,
 			})
 
 			ctx := cmd.Context()
@@ -203,9 +233,16 @@ func newServeCmd() *cobra.Command {
 				}
 			}()
 
-			slog.Info("panel server listening", "addr", cfg.Control.Listen)
-			if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				return err
+			if cfg.TLS.CertFile != "" {
+				slog.Info("panel server listening (TLS)", "addr", cfg.Control.Listen)
+				if err := srv.ListenAndServeTLS(cfg.TLS.CertFile, cfg.TLS.KeyFile); err != nil && !errors.Is(err, http.ErrServerClosed) {
+					return err
+				}
+			} else {
+				slog.Info("panel server listening", "addr", cfg.Control.Listen)
+				if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+					return err
+				}
 			}
 			slog.Info("waiting for in-flight provisions to complete")
 			apiServer.Wait()
@@ -235,13 +272,23 @@ func newListCmd() *cobra.Command {
 				return err
 			}
 
-			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
-			fmt.Fprintln(w, "ID\tPORT\tSTATUS\tIMAGE\tCREATED")
-			for _, inst := range instances {
-				fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%s\n",
-					inst.ID, inst.Port, inst.Status, inst.ImageDigest, inst.CreatedAt)
+			ofmt, ferr := output.ParseFormat(outputFormat)
+			if ferr != nil {
+				return ferr
 			}
-			return w.Flush()
+			w := output.NewWriter(cmd.OutOrStdout(), ofmt)
+			headers := []string{"ID", "PORT", "STATUS", "IMAGE", "CREATED"}
+			rows := make([][]string, len(instances))
+			for i, inst := range instances {
+				rows[i] = []string{
+					inst.ID,
+					fmtInt(inst.Port),
+					inst.Status,
+					inst.ImageDigest,
+					inst.CreatedAt,
+				}
+			}
+			return w.WriteTable(headers, rows)
 		},
 	}
 }
@@ -563,6 +610,30 @@ func openRegistryAndPlugin(cfg *Config) (*registry.Registry, *docker.Plugin, err
 	}
 
 	return reg, docker.NewWithClient(cli), nil
+}
+
+func fmtInt(n int) string { return strconv.Itoa(n) }
+
+func configureLogging(cfg *Config) {
+	var level slog.Level
+	switch strings.ToLower(cfg.Control.LogLevel) {
+	case "debug":
+		level = slog.LevelDebug
+	case "warn":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	default:
+		level = slog.LevelInfo
+	}
+	opts := &slog.HandlerOptions{Level: level}
+	var handler slog.Handler
+	if cfg.Control.LogFormat == "json" {
+		handler = slog.NewJSONHandler(os.Stderr, opts)
+	} else {
+		handler = slog.NewTextHandler(os.Stderr, opts)
+	}
+	slog.SetDefault(slog.New(handler))
 }
 
 func newGenerateSecretCmd() *cobra.Command {
