@@ -185,6 +185,9 @@ jobs:
     name: Sign Container Image
     needs: container
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      packages: write
     steps:
       - uses: sigstore/cosign-installer@v3
 

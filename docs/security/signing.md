@@ -79,10 +79,12 @@ Container images pushed to `ghcr.io/fox-in-the-box-ai/fox-control` are signed wi
 
 ```bash
 cosign verify \
-  --certificate-identity-regexp "https://github.com/fox-in-the-box-ai/fox-fleet/" \
+  --certificate-identity "https://github.com/fox-in-the-box-ai/fox-fleet/.github/workflows/release.yml@refs/tags/v1.0.0" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
   ghcr.io/fox-in-the-box-ai/fox-control:1.0.0
 ```
+
+Replace `v1.0.0` with the version you are verifying.
 
 ---
 
@@ -99,4 +101,4 @@ A valid signature does **not** prove:
 
 - That the source code is free of vulnerabilities.
 - That the tag was created by a specific person (tags are not signed with GPG by default).
-- That the binary matches a specific commit (use the SBOM for dependency-level traceability).
+- That the binary matches a specific commit (use the SBOM, when available, for dependency-level traceability).

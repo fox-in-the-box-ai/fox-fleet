@@ -38,6 +38,21 @@ func TestExtractTag(t *testing.T) {
 			filename: "/tmp/downloads/fox-control-v1.0.0-beta.2-darwin-amd64.tar.gz",
 			want:     "v1.0.0-beta.2",
 		},
+		{
+			name:     "checksums file falls back to buildVersion",
+			filename: "checksums-sha256.txt",
+			want:     buildVersion,
+		},
+		{
+			name:     "no os-arch suffix",
+			filename: "fox-control-v1.0.0.tar.gz",
+			want:     "v1.0.0",
+		},
+		{
+			name:     "unrecognized prefix falls back to buildVersion",
+			filename: "something-else.tar.gz",
+			want:     buildVersion,
+		},
 	}
 
 	for _, tt := range tests {

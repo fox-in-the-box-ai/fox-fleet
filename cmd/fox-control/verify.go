@@ -54,6 +54,9 @@ Override with --signature and --certificate flags.`,
 			}
 
 			tag := extractTag(artifact)
+			if tag == "dev" || tag == "unknown" || tag == "" {
+				return fmt.Errorf("cannot determine release tag from filename %q — use cosign verify-blob directly with --certificate-identity", filepath.Base(artifact))
+			}
 			identity := certIdentity + tag
 
 			verifyCmd := exec.CommandContext(cmd.Context(), cosignPath,
@@ -68,7 +71,7 @@ Override with --signature and --certificate flags.`,
 			verifyCmd.Stderr = cmd.ErrOrStderr()
 
 			if err := verifyCmd.Run(); err != nil {
-				return fmt.Errorf("signature verification failed")
+				return fmt.Errorf("signature verification failed: %w", err)
 			}
 
 			fmt.Fprintf(cmd.OutOrStdout(), "Verified: %s\n", artifact)
