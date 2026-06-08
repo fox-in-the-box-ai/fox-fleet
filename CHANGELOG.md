@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-06-08
+
+### Security
+
+- **SEC-01:** File permissions hardened — secret files (`hermes.env`, `tools.json`) written with 0600, non-secret config (`config.yaml`, `settings.json`) with 0644
+- **SEC-02:** SSRF protection — REST ingestion connector uses a custom `net.Dialer` that blocks private, loopback, link-local, and CGNAT addresses
+- **SEC-03:** Path traversal guard — file ingestion connector resolves symlinks and enforces `AllowedFileDir` with `filepath.Separator` prefix check
+- **SEC-04:** Panel write timeout — `WriteTimeout: 30s` on panel HTTP server; SSE handler extends deadline per-flush via `ResponseController`
+- **SEC-05:** Env key blocklist — user-supplied `InstanceConfig.Env` keys validated against a blocklist of reserved names (`FOX_PLANE_AUTH_SECRET`, `PATH`, `LD_PRELOAD`, etc.)
+- **SEC-06:** Admin secret minimum length — `admin_secret` must be at least 16 characters; `fox-control generate-secret` command added for secure key generation
+- **SEC-07:** Instance ID validation — `handleDetail` and `handleDestroy` now validate instance ID format (was only checked in `handleCreate`)
+- **SEC-08:** Digest-only image warning — startup logs a warning when `docker.image` uses a tag without a pinned digest
+- **SEC-09:** Security headers — `Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy` on embedded SPA responses
+- **SEC-10:** YAML injection prevention — `config.yaml` rendering switched from `fmt.Fprintf` to `yaml.Marshal` to prevent special-character injection
+- **SEC-11:** Qdrant URL encoding — collection names URL-escaped in all Qdrant REST client calls
+
+### Added
+
+- `internal/safedialer` package — reusable SSRF-safe `net.Dialer` with private-IP blocklist
+- `fox-control generate-secret` CLI command — generates cryptographically random hex secrets
+- `internal/events.Store` — SQLite-backed persistent event storage
+- `events.NewPersistentLog` — event log constructor with SQLite persistence; events survive restarts
+- Versioned schema migration system for the instance registry (`schema_version` table, per-migration transactions with rollback)
+
+### Changed
+
+- **DP-05:** Data plane write timeout — `WriteTimeout: 300s` added to data plane HTTP server
+- **PANEL-03:** Create race fix — in-flight provisioning guard prevents duplicate 201 responses for concurrent requests with the same instance ID
+- **PLAT-02:** Graceful shutdown — background provisions tracked with `sync.WaitGroup`; server waits for completion after HTTP shutdown; shutdown timeout increased to 10s
+- **PLAT-04:** Registry migrations — replaced ad-hoc `ALTER TABLE` with versioned migration system; each migration runs in its own transaction
+
+### Verified
+
+- **OPS-01:** Port reclamation works correctly — `Destroy` removes registry entry, `UsedPorts` excludes it, `allocatePort` reuses it on next provision. No code change needed.
+
 ## [1.0.1] - 2026-06-08
 
 ### Security
