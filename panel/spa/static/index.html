@@ -682,7 +682,7 @@ body {
       </button></li>
       <li><button class="sb-link" data-page="activity">
         <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        Activity<span class="soon">Soon</span>
+        Activity
       </button></li>
     </ul>
 
@@ -798,6 +798,7 @@ function refresh() {
   else if (p === "skillsets" && state.skillsetDetail) { renderSkillsetDetail(state.skillsetDetail); }
   else if (p === "skillsets") { renderSkillsets(); }
   else if (p === "query") { return; }
+  else if (p === "activity") { renderActivity(); }
   else { renderPlaceholder(p); }
   document.getElementById("last-updated").textContent = "Updated " + new Date().toLocaleTimeString();
 }
@@ -1415,11 +1416,46 @@ function doQuery() {
   });
 }
 
+/* ── Activity Feed ────────────────────────────────────────────────── */
+
+function renderActivity() {
+  apiFetch("/api/events").then(function(res) { return res.json(); }).then(function(evts) {
+    var content = document.getElementById("content");
+    document.getElementById("page-meta").textContent = evts.length + " event" + (evts.length !== 1 ? "s" : "");
+
+    if (evts.length === 0) {
+      content.innerHTML = '<div class="empty-state">'
+        + '<svg class="empty-icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>'
+        + '<div class="empty-title">No activity yet</div>'
+        + '<div class="empty-desc">Events from provisioning, destruction, and health changes will appear here.</div>'
+        + '</div>';
+      return;
+    }
+
+    var html = '<table class="data-table"><thead><tr>'
+      + '<th>Time</th><th>Type</th><th>Instance</th><th>Message</th>'
+      + '</tr></thead><tbody>';
+    for (var i = 0; i < evts.length; i++) {
+      var ev = evts[i];
+      var badge = ev.type === "error" ? "error" : (ev.type === "destroy" ? "pending" : "active");
+      html += '<tr>'
+        + '<td style="white-space:nowrap">' + formatDate(ev.created_at) + '</td>'
+        + '<td><span class="badge badge-' + badge + '">' + esc(ev.type) + '</span></td>'
+        + '<td style="font-family:var(--font-mono);font-size:12px">' + esc(ev.instance || "—") + '</td>'
+        + '<td>' + esc(ev.message) + '</td>'
+        + '</tr>';
+    }
+    html += '</tbody></table>';
+    content.innerHTML = html;
+  }).catch(function(e) {
+    if (e.message !== "Unauthorized") showToast("Failed to load events: " + e.message);
+  });
+}
+
 /* ── Placeholder Pages ─────────────────────────────────────────────── */
 
 function renderPlaceholder(page) {
   var descs = {
-    activity: "View a chronological feed of fleet events and state changes.",
     settings: "Configure fleet defaults, data plane connection, and panel preferences."
   };
   document.getElementById("page-meta").textContent = "";

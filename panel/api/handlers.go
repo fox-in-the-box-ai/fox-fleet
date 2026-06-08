@@ -160,6 +160,10 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 		role = s.defaultRole
 	}
 
+	if s.events != nil {
+		s.events.Emitf("provision", body.ID, "provisioning instance %s", body.ID)
+	}
+
 	go func() {
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), provisionTimeout)
 		defer cancel()
@@ -176,6 +180,9 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 			s.log.Error("background provision failed",
 				"instance", body.ID,
 				"error", err)
+			if s.events != nil {
+				s.events.Emitf("error", body.ID, "provision failed: %v", err)
+			}
 		}
 	}()
 
@@ -220,6 +227,14 @@ func (s *Server) handleGetSource(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, src)
 }
 
+func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
+	if s.events == nil {
+		writeJSON(w, http.StatusOK, []any{})
+		return
+	}
+	writeJSON(w, http.StatusOK, s.events.Recent(50))
+}
+
 func (s *Server) handleDestroy(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	removeData := r.URL.Query().Get("remove_data") == "true"
@@ -235,5 +250,8 @@ func (s *Server) handleDestroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if s.events != nil {
+		s.events.Emitf("destroy", id, "destroyed instance %s", id)
+	}
 	w.WriteHeader(http.StatusNoContent)
 }

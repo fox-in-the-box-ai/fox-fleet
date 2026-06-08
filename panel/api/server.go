@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/source"
+	"github.com/fox-in-the-box-ai/fox-fleet/internal/events"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/provisioner"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
 	"github.com/fox-in-the-box-ai/fox-fleet/plugins"
@@ -30,6 +31,7 @@ type Deps struct {
 	DefaultSkillset string
 	DefaultRole     string
 	SkillsetsDir    string
+	EventLog        *events.Log
 }
 
 type Server struct {
@@ -48,6 +50,7 @@ type Server struct {
 	defaultSkillset string
 	defaultRole     string
 	skillsetsDir    string
+	events          *events.Log
 }
 
 func NewServer(d Deps) *Server {
@@ -72,6 +75,7 @@ func NewServer(d Deps) *Server {
 		defaultSkillset: d.DefaultSkillset,
 		defaultRole:     d.DefaultRole,
 		skillsetsDir:    d.SkillsetsDir,
+		events:          d.EventLog,
 	}
 
 	s.poller = &HealthPoller{
@@ -94,6 +98,7 @@ func NewServer(d Deps) *Server {
 	apiMux.HandleFunc("POST /api/skillsets", s.handleUploadSkillset)
 	apiMux.HandleFunc("DELETE /api/skillsets/{name}", s.handleDeleteSkillset)
 	apiMux.HandleFunc("POST /api/query", s.handleQuery)
+	apiMux.HandleFunc("GET /api/events", s.handleEvents)
 
 	s.mux = http.NewServeMux()
 	s.mux.Handle("/api/", s.requireAuth(apiMux))

@@ -23,6 +23,7 @@ import (
 	plugconf "github.com/fox-in-the-box-ai/fox-fleet/conformance/plugin"
 	conformance "github.com/fox-in-the-box-ai/fox-fleet/conformance/runtime"
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/source"
+	"github.com/fox-in-the-box-ai/fox-fleet/internal/events"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/provisioner"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
 	"github.com/fox-in-the-box-ai/fox-fleet/panel/api"
@@ -127,6 +128,8 @@ func newServeCmd() *cobra.Command {
 				}
 			}
 
+			eventLog := events.NewLog(200)
+
 			apiServer := api.NewServer(api.Deps{
 				Registry:        reg,
 				Provisioner:     prov,
@@ -142,6 +145,7 @@ func newServeCmd() *cobra.Command {
 				DefaultSkillset: cfg.Instances.DefaultSkillset,
 				DefaultRole:     cfg.Instances.DefaultRole,
 				SkillsetsDir:    filepath.Join(cfg.Control.DataRoot, "skillsets"),
+				EventLog:        eventLog,
 			})
 
 			ctx := cmd.Context()
