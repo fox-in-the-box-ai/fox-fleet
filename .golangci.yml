@@ -1,10 +1,19 @@
+version: "2"
+
 linters:
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - os.RemoveAll
+  exclusions:
+    rules:
+      - linters: [errcheck]
+        text: '`.*\.Close`'
+
+formatters:
   enable:
-    - errcheck
-    - gosimple
-    - govet
-    - ineffassign
-    - staticcheck
-    - unused
     - gofmt
     - goimports
