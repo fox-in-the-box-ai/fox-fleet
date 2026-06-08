@@ -258,7 +258,6 @@ jobs:
            Provision and manage Fox AI assistant instances on Docker.
           CTRL
           dpkg-deb --build --root-owner-group "${PKG}"
-          mv "${PKG}.deb" "fox-control_${VERSION}_${DEBARCH}.deb"
 
       - name: Upload .deb to release
         env:

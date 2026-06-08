@@ -92,6 +92,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Not yet included
 
-- Container image publishing (deferred to v0.1.0 stable)
-- cosign signature verification (REL-02, deferred to v1.0)
-- SBOM generation (REL-03, deferred to v1.0)
+- Container image publishing (DEPLOY-01, shipped in v0.3.0-alpha)
+- cosign signature verification (REL-02, shipped in v1.0.0)
+- SBOM generation (REL-03, shipped in v1.0.0)
