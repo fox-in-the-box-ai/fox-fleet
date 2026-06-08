@@ -142,6 +142,25 @@ func (s *Server) handleUploadSkillset(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) handleDownloadSkillset(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	path := filepath.Join(s.skillsetsDir, name+".yaml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			path = filepath.Join(s.skillsetsDir, name+".yml")
+			data, err = os.ReadFile(path)
+		}
+		if err != nil {
+			writeError(w, http.StatusNotFound, "not_found", fmt.Sprintf("skillset %s not found", name))
+			return
+		}
+	}
+	w.Header().Set("Content-Type", "application/x-yaml")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", name+".yaml"))
+	_, _ = w.Write(data)
+}
+
 func (s *Server) handleDeleteSkillset(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	path := filepath.Join(s.skillsetsDir, name+".yaml")

@@ -276,6 +276,41 @@ tools:
 	}
 }
 
+func TestDownloadSkillset(t *testing.T) {
+	env, _ := newSkillsetTestEnv(t)
+
+	w := uploadMultipart(t, env, validSkillsetYAML)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("upload: expected 201, got %d", w.Code)
+	}
+
+	w = env.doRequest("GET", "/api/skillsets/test-skillset/download", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("download: expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	ct := w.Header().Get("Content-Type")
+	if ct != "application/x-yaml" {
+		t.Errorf("Content-Type = %q, want application/x-yaml", ct)
+	}
+	cd := w.Header().Get("Content-Disposition")
+	if cd == "" {
+		t.Error("expected Content-Disposition header")
+	}
+	body := w.Body.String()
+	if body == "" || len(body) < 10 {
+		t.Error("expected non-empty YAML body")
+	}
+}
+
+func TestDownloadSkillset_NotFound(t *testing.T) {
+	env, _ := newSkillsetTestEnv(t)
+	w := env.doRequest("GET", "/api/skillsets/nonexistent/download", "")
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
+}
+
 func TestSkillsetAuth_Required(t *testing.T) {
 	env, _ := newSkillsetTestEnv(t)
 	for _, path := range []string{"/api/skillsets", "/api/skillsets/test"} {
