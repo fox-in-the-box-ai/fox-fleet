@@ -88,6 +88,7 @@ func NewServer(d Deps) *Server {
 	apiMux.HandleFunc("POST /api/instances", s.handleCreate)
 	apiMux.HandleFunc("DELETE /api/instances/{id}", s.handleDestroy)
 	apiMux.HandleFunc("GET /api/sources", s.handleListSources)
+	apiMux.HandleFunc("GET /api/sources/{id}", s.handleGetSource)
 	apiMux.HandleFunc("GET /api/skillsets", s.handleListSkillsets)
 	apiMux.HandleFunc("GET /api/skillsets/{name}", s.handleGetSkillset)
 	apiMux.HandleFunc("POST /api/skillsets", s.handleUploadSkillset)
