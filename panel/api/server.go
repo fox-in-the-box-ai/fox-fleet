@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/source"
@@ -58,6 +59,9 @@ type Server struct {
 	events          *events.Log
 	signer          *sessiontoken.Signer
 	sessionTTL      time.Duration
+	inFlightMu      sync.Mutex
+	inFlight        map[string]bool
+	wg              sync.WaitGroup
 }
 
 func NewServer(d Deps) *Server {
@@ -94,6 +98,7 @@ func NewServer(d Deps) *Server {
 		events:          d.EventLog,
 		signer:          sessiontoken.NewSigner(d.SigningKey),
 		sessionTTL:      ttl,
+		inFlight:        make(map[string]bool),
 	}
 
 	s.poller = &HealthPoller{
@@ -148,4 +153,8 @@ func (s *Server) Handler() http.Handler {
 
 func (s *Server) Poller() *HealthPoller {
 	return s.poller
+}
+
+func (s *Server) Wait() {
+	s.wg.Wait()
 }

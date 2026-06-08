@@ -19,10 +19,11 @@ import (
 )
 
 type Config struct {
-	Listen      string
-	AdminSecret string
-	Collection  string
-	VectorSize  int
+	Listen         string
+	AdminSecret    string
+	Collection     string
+	VectorSize     int
+	AllowedFileDir string
 }
 
 type QueryTokenValidator interface {
@@ -45,7 +46,7 @@ func New(cfg Config, sources *source.Registry, embedder *embedding.Client, vecto
 	if log == nil {
 		log = slog.Default()
 	}
-	fc := fileconn.New(embedder, vector)
+	fc := fileconn.New(embedder, vector, cfg.AllowedFileDir)
 	rc := restconn.New(embedder, vector)
 
 	s := &Server{

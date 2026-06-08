@@ -139,7 +139,18 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.inFlightMu.Lock()
+	if s.inFlight[body.ID] {
+		s.inFlightMu.Unlock()
+		writeError(w, http.StatusConflict, "conflict",
+			fmt.Sprintf("instance %s is already being provisioned", body.ID))
+		return
+	}
+	s.inFlight[body.ID] = true
+	s.inFlightMu.Unlock()
+
 	if _, err := s.registry.Get(body.ID); err == nil {
+		s.clearInFlight(body.ID)
 		writeError(w, http.StatusConflict, "conflict",
 			fmt.Sprintf("instance %s already exists", body.ID))
 		return
@@ -147,10 +158,12 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 
 	instances, err := s.registry.List()
 	if err != nil {
+		s.clearInFlight(body.ID)
 		writeError(w, http.StatusInternalServerError, "internal_error", "cannot list instances")
 		return
 	}
 	if len(instances) >= s.maxInst {
+		s.clearInFlight(body.ID)
 		writeError(w, http.StatusTooManyRequests, "cap_reached",
 			fmt.Sprintf("maximum instance count reached (%d)", s.maxInst))
 		return
@@ -169,7 +182,10 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 		s.events.Emitf("provision", body.ID, "provisioning instance %s", body.ID)
 	}
 
+	s.wg.Add(1)
 	go func() {
+		defer s.wg.Done()
+		defer s.clearInFlight(body.ID)
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), provisionTimeout)
 		defer cancel()
 		_, err := s.provisioner.Provision(ctx, provisioner.Request{
@@ -265,6 +281,12 @@ func (s *Server) handleDestroy(w http.ResponseWriter, r *http.Request) {
 		s.events.Emitf("destroy", id, "destroyed instance %s", id)
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) clearInFlight(id string) {
+	s.inFlightMu.Lock()
+	delete(s.inFlight, id)
+	s.inFlightMu.Unlock()
 }
 
 func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {

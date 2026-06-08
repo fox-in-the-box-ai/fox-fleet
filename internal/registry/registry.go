@@ -55,36 +55,86 @@ func Open(path string) (*Registry, error) {
 	return &Registry{db: db}, nil
 }
 
-func migrate(db *sql.DB) error {
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS instances (
-		id              TEXT PRIMARY KEY,
-		image_digest    TEXT NOT NULL,
-		port            INTEGER NOT NULL UNIQUE,
-		data_dir        TEXT NOT NULL,
-		status          TEXT NOT NULL DEFAULT 'provisioning',
-		created_at      TEXT NOT NULL,
-		skillset_name   TEXT NOT NULL DEFAULT '',
-		principal_role  TEXT NOT NULL DEFAULT ''
-	)`)
+func schemaVersion(db *sql.DB) (int, error) {
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)`)
 	if err != nil {
-		return fmt.Errorf("registry: migrate: %w", err)
+		return 0, fmt.Errorf("registry: create schema_version: %w", err)
 	}
-	for _, col := range []string{"skillset_name", "principal_role", "query_token"} {
-		_, _ = db.Exec(fmt.Sprintf(`ALTER TABLE instances ADD COLUMN %s TEXT NOT NULL DEFAULT ''`, col))
+	var v int
+	err = db.QueryRow(`SELECT version FROM schema_version`).Scan(&v)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	return v, err
+}
+
+func setSchemaVersion(tx *sql.Tx, v int) error {
+	_, err := tx.Exec(`DELETE FROM schema_version`)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec(`INSERT INTO schema_version (version) VALUES (?)`, v)
+	return err
+}
+
+var migrations = []func(tx *sql.Tx) error{
+	func(tx *sql.Tx) error {
+		_, err := tx.Exec(`CREATE TABLE IF NOT EXISTS instances (
+			id              TEXT PRIMARY KEY,
+			image_digest    TEXT NOT NULL,
+			port            INTEGER NOT NULL UNIQUE,
+			data_dir        TEXT NOT NULL,
+			status          TEXT NOT NULL DEFAULT 'provisioning',
+			created_at      TEXT NOT NULL,
+			skillset_name   TEXT NOT NULL DEFAULT '',
+			principal_role  TEXT NOT NULL DEFAULT ''
+		)`)
+		return err
+	},
+	func(tx *sql.Tx) error {
+		for _, col := range []string{"skillset_name", "principal_role", "query_token"} {
+			_, _ = tx.Exec(fmt.Sprintf(`ALTER TABLE instances ADD COLUMN %s TEXT NOT NULL DEFAULT ''`, col))
+		}
+		return nil
+	},
+	func(tx *sql.Tx) error {
+		_, err := tx.Exec(`CREATE TABLE IF NOT EXISTS signing_keys (
+			id         INTEGER PRIMARY KEY AUTOINCREMENT,
+			key        BLOB NOT NULL,
+			active     INTEGER NOT NULL DEFAULT 1,
+			created_at TEXT NOT NULL
+		)`)
+		return err
+	},
+}
+
+func migrate(db *sql.DB) error {
+	current, err := schemaVersion(db)
+	if err != nil {
+		return fmt.Errorf("registry: read schema version: %w", err)
+	}
+
+	for i := current; i < len(migrations); i++ {
+		tx, err := db.Begin()
+		if err != nil {
+			return fmt.Errorf("registry: begin migration %d: %w", i+1, err)
+		}
+		if err := migrations[i](tx); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("registry: migration %d failed: %w", i+1, err)
+		}
+		if err := setSchemaVersion(tx, i+1); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("registry: set schema version %d: %w", i+1, err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("registry: commit migration %d: %w", i+1, err)
+		}
+		slog.Info("applied registry migration", "version", i+1)
 	}
 
 	if err := backfillQueryTokens(db); err != nil {
 		return fmt.Errorf("registry: backfill query tokens: %w", err)
-	}
-
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS signing_keys (
-		id         INTEGER PRIMARY KEY AUTOINCREMENT,
-		key        BLOB NOT NULL,
-		active     INTEGER NOT NULL DEFAULT 1,
-		created_at TEXT NOT NULL
-	)`)
-	if err != nil {
-		return fmt.Errorf("registry: migrate signing_keys: %w", err)
 	}
 
 	return nil

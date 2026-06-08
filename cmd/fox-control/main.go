@@ -142,7 +142,17 @@ func newServeCmd() *cobra.Command {
 
 			sessionTTL := time.Duration(cfg.Control.SessionTokenTTLSecs) * time.Second
 
-			eventLog := events.NewLog(200)
+			eventsDB, err := sql.Open("sqlite", filepath.Join(cfg.Control.DataRoot, "events.db"))
+			if err != nil {
+				return fmt.Errorf("cannot open events database: %w", err)
+			}
+			eventsDB.SetMaxOpenConns(1)
+			defer eventsDB.Close()
+			eventStore, err := events.OpenStore(eventsDB)
+			if err != nil {
+				return fmt.Errorf("cannot initialize event store: %w", err)
+			}
+			eventLog := events.NewPersistentLog(200, eventStore)
 
 			imageRef := parseImageRef(cfg.Docker.Image)
 			if imageRef.Digest == "" {
@@ -185,7 +195,8 @@ func newServeCmd() *cobra.Command {
 
 			go func() {
 				<-ctx.Done()
-				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				slog.Info("shutting down: stopping new requests")
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
 				if err := srv.Shutdown(shutdownCtx); err != nil {
 					slog.Error("server shutdown error", "error", err)
@@ -196,6 +207,8 @@ func newServeCmd() *cobra.Command {
 			if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				return err
 			}
+			slog.Info("waiting for in-flight provisions to complete")
+			apiServer.Wait()
 			return nil
 		},
 	}

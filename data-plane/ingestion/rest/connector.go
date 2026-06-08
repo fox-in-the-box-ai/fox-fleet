@@ -15,6 +15,7 @@ import (
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/embedding"
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/ingestion"
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/qdrant"
+	"github.com/fox-in-the-box-ai/fox-fleet/internal/safedialer"
 )
 
 const (
@@ -34,8 +35,11 @@ func New(embedder *embedding.Client, vector *qdrant.Client) *Connector {
 	return &Connector{
 		embedder: embedder,
 		vector:   vector,
-		http:     &http.Client{Timeout: 60 * time.Second},
-		sources:  make(map[string]ingestion.SourceConfig),
+		http: &http.Client{
+			Timeout:   60 * time.Second,
+			Transport: &http.Transport{DialContext: safedialer.New().DialContext},
+		},
+		sources: make(map[string]ingestion.SourceConfig),
 	}
 }
 

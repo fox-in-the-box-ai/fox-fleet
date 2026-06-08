@@ -2,6 +2,7 @@ package events
 
 import (
 	"fmt"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -16,12 +17,13 @@ type Event struct {
 }
 
 type Log struct {
-	mu   sync.RWMutex
-	buf  []Event
-	cap  int
-	pos  int
-	full bool
-	seq  atomic.Uint64
+	mu    sync.RWMutex
+	buf   []Event
+	cap   int
+	pos   int
+	full  bool
+	seq   atomic.Uint64
+	store *Store
 
 	subMu  sync.Mutex
 	subs   map[uint64]chan Event
@@ -35,14 +37,49 @@ func NewLog(capacity int) *Log {
 	return &Log{buf: make([]Event, capacity), cap: capacity}
 }
 
+func NewPersistentLog(capacity int, store *Store) *Log {
+	l := NewLog(capacity)
+	l.store = store
+	recent, err := store.Recent(capacity)
+	if err != nil {
+		slog.Warn("failed to load recent events from store", "error", err)
+		return l
+	}
+	for i := len(recent) - 1; i >= 0; i-- {
+		e := recent[i]
+		l.buf[l.pos] = e
+		l.pos = (l.pos + 1) % l.cap
+		if l.pos == 0 {
+			l.full = true
+		}
+		if e.ID > l.seq.Load() {
+			l.seq.Store(e.ID)
+		}
+	}
+	return l
+}
+
 func (l *Log) Emit(typ, instance, message string) {
 	e := Event{
-		ID:        l.seq.Add(1),
 		Type:      typ,
 		Instance:  instance,
 		Message:   message,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
+
+	if l.store != nil {
+		id, err := l.store.Insert(e)
+		if err != nil {
+			slog.Warn("failed to persist event", "error", err)
+			e.ID = l.seq.Add(1)
+		} else {
+			e.ID = id
+			l.seq.Store(id)
+		}
+	} else {
+		e.ID = l.seq.Add(1)
+	}
+
 	l.mu.Lock()
 	l.buf[l.pos] = e
 	l.pos = (l.pos + 1) % l.cap

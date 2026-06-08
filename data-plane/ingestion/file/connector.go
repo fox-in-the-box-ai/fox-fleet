@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,17 +19,19 @@ import (
 const maxFileSize = 50 << 20 // 50 MB
 
 type Connector struct {
-	mu       sync.RWMutex
-	embedder *embedding.Client
-	vector   *qdrant.Client
-	sources  map[string]ingestion.SourceConfig
+	mu         sync.RWMutex
+	embedder   *embedding.Client
+	vector     *qdrant.Client
+	allowedDir string
+	sources    map[string]ingestion.SourceConfig
 }
 
-func New(embedder *embedding.Client, vector *qdrant.Client) *Connector {
+func New(embedder *embedding.Client, vector *qdrant.Client, allowedDir string) *Connector {
 	return &Connector{
-		embedder: embedder,
-		vector:   vector,
-		sources:  make(map[string]ingestion.SourceConfig),
+		embedder:   embedder,
+		vector:     vector,
+		allowedDir: allowedDir,
+		sources:    make(map[string]ingestion.SourceConfig),
 	}
 }
 
@@ -37,13 +40,28 @@ func (c *Connector) Connect(_ context.Context, cfg ingestion.SourceConfig) error
 	if path == "" {
 		return fmt.Errorf("file connector: config.path is required")
 	}
-	info, err := os.Stat(path)
+	resolved, err := filepath.Abs(path)
 	if err != nil {
-		return fmt.Errorf("file connector: stat %s: %w", path, err)
+		return fmt.Errorf("file connector: resolve path %s: %w", path, err)
+	}
+	resolved, err = filepath.EvalSymlinks(resolved)
+	if err != nil {
+		return fmt.Errorf("file connector: eval symlinks %s: %w", path, err)
+	}
+	if c.allowedDir != "" {
+		prefix := c.allowedDir + string(filepath.Separator)
+		if resolved != c.allowedDir && !strings.HasPrefix(resolved, prefix) {
+			return fmt.Errorf("file connector: path %s is outside allowed directory %s", resolved, c.allowedDir)
+		}
+	}
+	info, err := os.Stat(resolved)
+	if err != nil {
+		return fmt.Errorf("file connector: stat %s: %w", resolved, err)
 	}
 	if !info.IsDir() && info.Size() > maxFileSize {
-		return fmt.Errorf("file connector: %s exceeds %d byte limit", path, maxFileSize)
+		return fmt.Errorf("file connector: %s exceeds %d byte limit", resolved, maxFileSize)
 	}
+	cfg.Config["path"] = resolved
 	c.mu.Lock()
 	c.sources[cfg.SourceID] = cfg
 	c.mu.Unlock()
