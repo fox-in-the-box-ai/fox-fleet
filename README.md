@@ -6,7 +6,7 @@
 
 Open-source management plane for [Fox in the Box](https://github.com/fox-in-the-box-ai/fox-in-the-box) AI assistants. One binary, one config file, one Docker host — provision, monitor, update, and destroy a fleet of Fox instances through a CLI and browser-based panel.
 
-> **Status: v0.3.0-alpha.** UI/UX overhaul (branded panel, i18n, dark mode, mobile responsive, SSE real-time updates), containerized deployment (Docker Compose, Helm, systemd, Caddy TLS), and end-to-end documentation. Not production-ready yet.
+> **Status: v1.0.0 GA.** Production-ready. Signed releases (cosign + SBOM), conformance in CI, full deployment paths (Compose / Helm / systemd / Homebrew / apt / container image).
 
 ---
 
@@ -78,16 +78,12 @@ graph TB
 
 ## Status and roadmap
 
-Fox Fleet ships in three milestones.
-
 | Milestone | Theme | Status |
 |-----------|-------|--------|
 | **v0.1** | Management plane MVP — provision, monitor, update, destroy through CLI and panel | Shipped (0.1.0-alpha) |
 | **v0.2** | Data plane — organizational knowledge (ingestion, vector search, query API, skillsets) | Shipped (0.2.0-alpha) |
 | **v0.3** | Product polish — branded UI, i18n, dark mode, mobile, SSE, deployment infra, docs | Shipped (0.3.0-alpha) |
-| **v1.0** | Apache GA — conformance CI, cosign + SBOM, all PRODUCTS.md promises shipped | Condition-gated |
-
-v1.0 ships when 3 operators have run Fleet with zero critical bugs for 2 consecutive releases.
+| **v1.0** | Apache GA — conformance CI, cosign + SBOM, full deployment paths, all PRODUCTS.md promises | Shipped (v1.0.0) |
 
 Full roadmap: [FLEET_BASE_ROADMAP.md](https://github.com/fox-in-the-box-ai/fox-in-the-box/blob/main/docs/architecture/FLEET_BASE_ROADMAP.md)
 
