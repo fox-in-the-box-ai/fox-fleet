@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/embedding"
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/ingestion"
@@ -51,7 +52,7 @@ func newTestServers(t *testing.T) (*embedding.Client, *qdrant.Client) {
 
 func TestConnect_MissingURL(t *testing.T) {
 	ec, qc := newTestServers(t)
-	c := New(ec, qc)
+	c := NewWithClient(ec, qc, &http.Client{Timeout: 10 * time.Second})
 
 	err := c.Connect(context.Background(), ingestion.SourceConfig{
 		SourceID:   "s1",
@@ -81,7 +82,7 @@ func TestIngestSinglePage(t *testing.T) {
 	}))
 	defer apiSrv.Close()
 
-	c := New(ec, qc)
+	c := NewWithClient(ec, qc, &http.Client{Timeout: 10 * time.Second})
 	cfg := ingestion.SourceConfig{
 		SourceID:    "s1",
 		Collection:  "docs",
@@ -124,7 +125,7 @@ func TestIngestPaginated(t *testing.T) {
 	}))
 	defer apiSrv.Close()
 
-	c := New(ec, qc)
+	c := NewWithClient(ec, qc, &http.Client{Timeout: 10 * time.Second})
 	cfg := ingestion.SourceConfig{
 		SourceID:   "s1",
 		Collection: "docs",
@@ -149,7 +150,7 @@ func TestIngestAPIError(t *testing.T) {
 	}))
 	defer apiSrv.Close()
 
-	c := New(ec, qc)
+	c := NewWithClient(ec, qc, &http.Client{Timeout: 10 * time.Second})
 	cfg := ingestion.SourceConfig{
 		SourceID:   "s1",
 		Collection: "docs",
@@ -168,7 +169,7 @@ func TestIngestAPIError(t *testing.T) {
 
 func TestIngestNotConnected(t *testing.T) {
 	ec, qc := newTestServers(t)
-	c := New(ec, qc)
+	c := NewWithClient(ec, qc, &http.Client{Timeout: 10 * time.Second})
 
 	_, err := c.Ingest(context.Background(), "unknown")
 	if err == nil {
@@ -178,7 +179,7 @@ func TestIngestNotConnected(t *testing.T) {
 
 func TestStatusAndDisconnect(t *testing.T) {
 	ec, qc := newTestServers(t)
-	c := New(ec, qc)
+	c := NewWithClient(ec, qc, &http.Client{Timeout: 10 * time.Second})
 
 	cfg := ingestion.SourceConfig{
 		SourceID:   "s1",

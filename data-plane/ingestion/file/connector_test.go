@@ -53,7 +53,7 @@ func newTestServers(t *testing.T) (*embedding.Client, *qdrant.Client) {
 
 func TestConnect_MissingPath(t *testing.T) {
 	ec, qc := newTestServers(t)
-	c := New(ec, qc)
+	c := New(ec, qc, "")
 
 	err := c.Connect(context.Background(), ingestion.SourceConfig{
 		SourceID:   "s1",
@@ -67,7 +67,7 @@ func TestConnect_MissingPath(t *testing.T) {
 
 func TestConnect_NonexistentPath(t *testing.T) {
 	ec, qc := newTestServers(t)
-	c := New(ec, qc)
+	c := New(ec, qc, "")
 
 	err := c.Connect(context.Background(), ingestion.SourceConfig{
 		SourceID:   "s1",
@@ -81,7 +81,7 @@ func TestConnect_NonexistentPath(t *testing.T) {
 
 func TestIngestSingleFile(t *testing.T) {
 	ec, qc := newTestServers(t)
-	c := New(ec, qc)
+	c := New(ec, qc, "")
 
 	dir := t.TempDir()
 	f := filepath.Join(dir, "test.txt")
@@ -113,7 +113,7 @@ func TestIngestSingleFile(t *testing.T) {
 
 func TestIngestDirectory(t *testing.T) {
 	ec, qc := newTestServers(t)
-	c := New(ec, qc)
+	c := New(ec, qc, "")
 
 	dir := t.TempDir()
 	_ = os.WriteFile(filepath.Join(dir, "a.txt"), []byte("document one"), 0644)
@@ -140,7 +140,7 @@ func TestIngestDirectory(t *testing.T) {
 
 func TestIngestNotConnected(t *testing.T) {
 	ec, qc := newTestServers(t)
-	c := New(ec, qc)
+	c := New(ec, qc, "")
 
 	_, err := c.Ingest(context.Background(), "unknown")
 	if err == nil {
@@ -150,7 +150,7 @@ func TestIngestNotConnected(t *testing.T) {
 
 func TestStatusAndDisconnect(t *testing.T) {
 	ec, qc := newTestServers(t)
-	c := New(ec, qc)
+	c := New(ec, qc, "")
 
 	dir := t.TempDir()
 	_ = os.WriteFile(filepath.Join(dir, "test.txt"), []byte("hello"), 0644)
@@ -179,7 +179,7 @@ func TestStatusAndDisconnect(t *testing.T) {
 
 func TestIngestEmptyFile(t *testing.T) {
 	ec, qc := newTestServers(t)
-	c := New(ec, qc)
+	c := New(ec, qc, "")
 
 	dir := t.TempDir()
 	f := filepath.Join(dir, "empty.txt")

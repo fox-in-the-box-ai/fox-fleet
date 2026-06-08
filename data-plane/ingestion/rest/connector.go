@@ -43,6 +43,15 @@ func New(embedder *embedding.Client, vector *qdrant.Client) *Connector {
 	}
 }
 
+func NewWithClient(embedder *embedding.Client, vector *qdrant.Client, httpClient *http.Client) *Connector {
+	return &Connector{
+		embedder: embedder,
+		vector:   vector,
+		http:     httpClient,
+		sources:  make(map[string]ingestion.SourceConfig),
+	}
+}
+
 func (c *Connector) Connect(_ context.Context, cfg ingestion.SourceConfig) error {
 	if cfg.Config["url"] == "" {
 		return fmt.Errorf("rest connector: config.url is required")
