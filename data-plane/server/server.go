@@ -25,18 +25,23 @@ type Config struct {
 	VectorSize  int
 }
 
-type Server struct {
-	cfg      Config
-	sources  *source.Registry
-	embedder *embedding.Client
-	vector   *qdrant.Client
-	fileConn *fileconn.Connector
-	restConn *restconn.Connector
-	log      *slog.Logger
-	mux      *http.ServeMux
+type QueryTokenValidator interface {
+	ValidQueryToken(token string) bool
 }
 
-func New(cfg Config, sources *source.Registry, embedder *embedding.Client, vector *qdrant.Client, log *slog.Logger) *Server {
+type Server struct {
+	cfg            Config
+	sources        *source.Registry
+	embedder       *embedding.Client
+	vector         *qdrant.Client
+	fileConn       *fileconn.Connector
+	restConn       *restconn.Connector
+	log            *slog.Logger
+	mux            *http.ServeMux
+	tokenValidator QueryTokenValidator
+}
+
+func New(cfg Config, sources *source.Registry, embedder *embedding.Client, vector *qdrant.Client, log *slog.Logger, opts ...Option) *Server {
 	if log == nil {
 		log = slog.Default()
 	}
@@ -52,14 +57,20 @@ func New(cfg Config, sources *source.Registry, embedder *embedding.Client, vecto
 		restConn: rc,
 		log:      log,
 	}
+	for _, o := range opts {
+		o(s)
+	}
 
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /v1/health", s.handleHealth)
 	mux.HandleFunc("GET /v1/readyz", s.handleReadyz)
 
-	mux.HandleFunc("GET /v1/sources", s.handleListSources)
-	mux.HandleFunc("POST /v1/query", s.handleQuery)
+	queryMux := http.NewServeMux()
+	queryMux.HandleFunc("GET /v1/sources", s.handleListSources)
+	queryMux.HandleFunc("POST /v1/query", s.handleQuery)
+	mux.Handle("/v1/sources", s.requireQueryAuth(queryMux))
+	mux.Handle("/v1/query", s.requireQueryAuth(queryMux))
 
 	adminMux := http.NewServeMux()
 	adminMux.HandleFunc("GET /v1/admin/sources", s.handleAdminListSources)
@@ -72,6 +83,44 @@ func New(cfg Config, sources *source.Registry, embedder *embedding.Client, vecto
 
 	s.mux = mux
 	return s
+}
+
+type Option func(*Server)
+
+func WithTokenValidator(v QueryTokenValidator) Option {
+	return func(s *Server) { s.tokenValidator = v }
+}
+
+func (s *Server) requireQueryAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token := extractBearerToken(r)
+		if token == "" {
+			token = r.Header.Get("X-Fox-Auth")
+		}
+		if token == "" {
+			s.log.Warn("query auth missing credentials", "remote_addr", r.RemoteAddr, "path", r.URL.Path)
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+			return
+		}
+		if subtle.ConstantTimeCompare([]byte(token), []byte(s.cfg.AdminSecret)) == 1 {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if s.tokenValidator != nil && s.tokenValidator.ValidQueryToken(token) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		s.log.Warn("query auth invalid token", "remote_addr", r.RemoteAddr, "path", r.URL.Path)
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+	})
+}
+
+func extractBearerToken(r *http.Request) string {
+	h := r.Header.Get("Authorization")
+	if strings.HasPrefix(h, "Bearer ") {
+		return h[len("Bearer "):]
+	}
+	return ""
 }
 
 func (s *Server) Handler() http.Handler {

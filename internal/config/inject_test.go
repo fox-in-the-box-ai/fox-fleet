@@ -229,11 +229,28 @@ func TestToolsJSONWithDataPlane(t *testing.T) {
 		`"url": "http://127.0.0.1:9091/v1/query"`,
 		`"method": "POST"`,
 		`"header": "X-Fox-Auth"`,
-		`"env": "FOX_PLANE_AUTH_SECRET"`,
+		`"env": "FOX_DATA_PLANE_TOKEN"`,
 	} {
 		if !strings.Contains(content, want) {
 			t.Errorf("tools.json missing %q, got:\n%s", want, content)
 		}
+	}
+}
+
+func TestHermesEnvQueryToken(t *testing.T) {
+	p := validParams(t)
+	p.QueryToken = "test-query-token-abc"
+	p.Config.DataPlaneURL = "http://127.0.0.1:9091"
+	if err := Inject(p); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(filepath.Join(p.DataDir, "hermes.env"))
+	content := string(data)
+	if !strings.Contains(content, "FOX_DATA_PLANE_TOKEN=test-query-token-abc") {
+		t.Errorf("hermes.env missing FOX_DATA_PLANE_TOKEN, got:\n%s", content)
+	}
+	if !strings.Contains(content, "FOX_DATA_PLANE_URL=http://127.0.0.1:9091") {
+		t.Errorf("hermes.env missing FOX_DATA_PLANE_URL, got:\n%s", content)
 	}
 }
 

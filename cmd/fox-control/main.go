@@ -23,11 +23,13 @@ import (
 	plugconf "github.com/fox-in-the-box-ai/fox-fleet/conformance/plugin"
 	conformance "github.com/fox-in-the-box-ai/fox-fleet/conformance/runtime"
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/source"
+	"github.com/fox-in-the-box-ai/fox-fleet/internal/config"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/events"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/provisioner"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
 	"github.com/fox-in-the-box-ai/fox-fleet/panel/api"
 	"github.com/fox-in-the-box-ai/fox-fleet/panel/spa"
+	"github.com/fox-in-the-box-ai/fox-fleet/plugins"
 	"github.com/fox-in-the-box-ai/fox-fleet/plugins/docker"
 	"github.com/fox-in-the-box-ai/fox-fleet/rollout"
 )
@@ -428,6 +430,7 @@ func newSecCmd() *cobra.Command {
 		Short: "Security operations",
 	}
 	cmd.AddCommand(newSecRotateSSEKeyCmd())
+	cmd.AddCommand(newSecRotateQueryTokenCmd())
 	return cmd
 }
 
@@ -457,6 +460,63 @@ func newSecRotateSSEKeyCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func newSecRotateQueryTokenCmd() *cobra.Command {
+	var instanceID string
+
+	cmd := &cobra.Command{
+		Use:   "rotate-query-token",
+		Short: "Rotate the data plane query token for an instance",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg, err := LoadConfig(cfgPath)
+			if err != nil {
+				return err
+			}
+
+			reg, err := registry.Open(filepath.Join(cfg.Control.DataRoot, "registry.db"))
+			if err != nil {
+				return err
+			}
+			defer reg.Close()
+
+			inst, err := reg.Get(instanceID)
+			if err != nil {
+				return fmt.Errorf("instance %s not found: %w", instanceID, err)
+			}
+
+			newToken, err := registry.GenerateQueryToken()
+			if err != nil {
+				return err
+			}
+
+			if err := reg.UpdateQueryToken(instanceID, newToken); err != nil {
+				return err
+			}
+
+			injectParams := config.InjectParams{
+				DataDir:          inst.DataDir,
+				InstancePassword: cfg.Auth.InstancePassword,
+				Config: plugins.InstanceConfig{
+					AuthSecret:   cfg.Auth.AdminSecret,
+					DataPlaneURL: "http://" + cfg.DataPlane.Listen,
+				},
+				QueryToken: newToken,
+			}
+			if err := config.Inject(injectParams); err != nil {
+				return fmt.Errorf("re-inject config: %w", err)
+			}
+
+			prefix := newToken[:8]
+			slog.Info("query token rotated", "instance", instanceID, "token_prefix", prefix)
+			fmt.Fprintf(cmd.OutOrStdout(), "Query token rotated for instance %s (prefix: %s).\n", instanceID, prefix)
+			fmt.Fprintln(cmd.OutOrStdout(), "Restart the instance for the new token to take effect.")
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&instanceID, "instance", "", "instance ID (required)")
+	_ = cmd.MarkFlagRequired("instance")
+	return cmd
 }
 
 func openRegistryAndPlugin(cfg *Config) (*registry.Registry, *docker.Plugin, error) {

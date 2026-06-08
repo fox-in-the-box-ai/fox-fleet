@@ -162,6 +162,12 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 	dataDir := filepath.Join(s.dataRoot, "instances", req.InstanceID)
 	now := time.Now().UTC()
 
+	queryToken, err := registry.GenerateQueryToken()
+	if err != nil {
+		s.mu.Unlock()
+		return nil, fmt.Errorf("provisioner: %w", err)
+	}
+
 	regInst := registry.Instance{
 		ID:            req.InstanceID,
 		ImageDigest:   req.Image.Digest,
@@ -171,6 +177,7 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 		CreatedAt:     now.Format(time.RFC3339),
 		SkillsetName:  skillsetName,
 		PrincipalRole: req.PrincipalRole,
+		QueryToken:    queryToken,
 	}
 	if err := s.registry.Create(regInst); err != nil {
 		s.mu.Unlock()
@@ -213,6 +220,7 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 		DataDir:          dataDir,
 		InstancePassword: req.InstancePassword,
 		Config:           instanceCfg,
+		QueryToken:       queryToken,
 	}); err != nil {
 		s.rollback(ctx, req.InstanceID, dataDir, false)
 		return nil, fmt.Errorf("provisioner: inject config: %w", err)

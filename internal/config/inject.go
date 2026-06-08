@@ -22,6 +22,7 @@ type InjectParams struct {
 	DataDir          string
 	InstancePassword string
 	Config           plugins.InstanceConfig
+	QueryToken       string
 }
 
 func Inject(p InjectParams) error {
@@ -61,6 +62,9 @@ func renderHermesEnv(p InjectParams) ([]byte, error) {
 	}
 	if p.Config.DataPlaneURL != "" {
 		env["FOX_DATA_PLANE_URL"] = p.Config.DataPlaneURL
+	}
+	if p.QueryToken != "" {
+		env["FOX_DATA_PLANE_TOKEN"] = p.QueryToken
 	}
 	if p.Config.SkillsetPath != "" {
 		env["FOX_SKILLSET_PATH"] = p.Config.SkillsetPath
@@ -151,7 +155,7 @@ func renderToolsJSON(p InjectParams) ([]byte, error) {
 			Description: "Search the knowledge base for relevant information",
 			URL:         p.Config.DataPlaneURL + "/v1/query",
 			Method:      "POST",
-			Auth:        &toolAuth{Header: "X-Fox-Auth", Env: "FOX_PLANE_AUTH_SECRET"},
+			Auth:        &toolAuth{Header: "X-Fox-Auth", Env: "FOX_DATA_PLANE_TOKEN"},
 			Parameters: map[string]toolParam{
 				"query":     {Type: "string", Required: true, Description: "Search query text"},
 				"top_k":     {Type: "integer", Default: 5, Description: "Maximum number of results to return"},

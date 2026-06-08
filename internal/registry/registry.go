@@ -3,8 +3,10 @@ package registry
 import (
 	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -22,6 +24,7 @@ type Instance struct {
 	CreatedAt     string `json:"created_at"`
 	SkillsetName  string `json:"skillset_name,omitempty"`
 	PrincipalRole string `json:"principal_role,omitempty"`
+	QueryToken    string `json:"-"`
 }
 
 // Registry is the SQLite-backed instance store.
@@ -65,8 +68,12 @@ func migrate(db *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("registry: migrate: %w", err)
 	}
-	for _, col := range []string{"skillset_name", "principal_role"} {
+	for _, col := range []string{"skillset_name", "principal_role", "query_token"} {
 		_, _ = db.Exec(fmt.Sprintf(`ALTER TABLE instances ADD COLUMN %s TEXT NOT NULL DEFAULT ''`, col))
+	}
+
+	if err := backfillQueryTokens(db); err != nil {
+		return fmt.Errorf("registry: backfill query tokens: %w", err)
 	}
 
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS signing_keys (
@@ -88,16 +95,17 @@ func (r *Registry) Create(inst Instance) error {
 	if inst.CreatedAt == "" {
 		inst.CreatedAt = time.Now().UTC().Format(time.RFC3339)
 	}
-	_, err := r.db.Exec(`INSERT INTO instances (id, image_digest, port, data_dir, status, created_at, skillset_name, principal_role)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	_, err := r.db.Exec(`INSERT INTO instances (id, image_digest, port, data_dir, status, created_at, skillset_name, principal_role, query_token)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			image_digest = excluded.image_digest,
 			port = excluded.port,
 			data_dir = excluded.data_dir,
 			status = excluded.status,
 			skillset_name = excluded.skillset_name,
-			principal_role = excluded.principal_role`,
-		inst.ID, inst.ImageDigest, inst.Port, inst.DataDir, inst.Status, inst.CreatedAt, inst.SkillsetName, inst.PrincipalRole)
+			principal_role = excluded.principal_role,
+			query_token = excluded.query_token`,
+		inst.ID, inst.ImageDigest, inst.Port, inst.DataDir, inst.Status, inst.CreatedAt, inst.SkillsetName, inst.PrincipalRole, inst.QueryToken)
 	if err != nil {
 		return fmt.Errorf("registry: create %s: %w", inst.ID, err)
 	}
@@ -108,8 +116,8 @@ func (r *Registry) Create(inst Instance) error {
 func (r *Registry) Get(id string) (Instance, error) {
 	var inst Instance
 	err := r.db.QueryRow(
-		`SELECT id, image_digest, port, data_dir, status, created_at, skillset_name, principal_role FROM instances WHERE id = ?`, id,
-	).Scan(&inst.ID, &inst.ImageDigest, &inst.Port, &inst.DataDir, &inst.Status, &inst.CreatedAt, &inst.SkillsetName, &inst.PrincipalRole)
+		`SELECT id, image_digest, port, data_dir, status, created_at, skillset_name, principal_role, query_token FROM instances WHERE id = ?`, id,
+	).Scan(&inst.ID, &inst.ImageDigest, &inst.Port, &inst.DataDir, &inst.Status, &inst.CreatedAt, &inst.SkillsetName, &inst.PrincipalRole, &inst.QueryToken)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Instance{}, ErrNotFound
 	}
@@ -122,7 +130,7 @@ func (r *Registry) Get(id string) (Instance, error) {
 // List returns all instances ordered by creation time.
 func (r *Registry) List() ([]Instance, error) {
 	rows, err := r.db.Query(
-		`SELECT id, image_digest, port, data_dir, status, created_at, skillset_name, principal_role FROM instances ORDER BY created_at`)
+		`SELECT id, image_digest, port, data_dir, status, created_at, skillset_name, principal_role, query_token FROM instances ORDER BY created_at`)
 	if err != nil {
 		return nil, fmt.Errorf("registry: list: %w", err)
 	}
@@ -130,7 +138,7 @@ func (r *Registry) List() ([]Instance, error) {
 	var out []Instance
 	for rows.Next() {
 		var inst Instance
-		if err := rows.Scan(&inst.ID, &inst.ImageDigest, &inst.Port, &inst.DataDir, &inst.Status, &inst.CreatedAt, &inst.SkillsetName, &inst.PrincipalRole); err != nil {
+		if err := rows.Scan(&inst.ID, &inst.ImageDigest, &inst.Port, &inst.DataDir, &inst.Status, &inst.CreatedAt, &inst.SkillsetName, &inst.PrincipalRole, &inst.QueryToken); err != nil {
 			return nil, fmt.Errorf("registry: list scan: %w", err)
 		}
 		out = append(out, inst)
@@ -193,6 +201,88 @@ func (r *Registry) UsedPorts() (map[int]bool, error) {
 		ports[p] = true
 	}
 	return ports, rows.Err()
+}
+
+// GenerateQueryToken produces a 32-byte random token as unpadded base64url.
+func GenerateQueryToken() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("registry: generate query token: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+// ValidQueryToken returns true if the token matches any instance's query_token.
+func (r *Registry) ValidQueryToken(token string) bool {
+	if token == "" {
+		return false
+	}
+	var count int
+	err := r.db.QueryRow(
+		`SELECT COUNT(*) FROM instances WHERE query_token = ? AND query_token != ''`,
+		token,
+	).Scan(&count)
+	return err == nil && count > 0
+}
+
+// UpdateQueryToken sets the query_token for an existing instance.
+func (r *Registry) UpdateQueryToken(id, token string) error {
+	res, err := r.db.Exec(`UPDATE instances SET query_token = ? WHERE id = ?`, token, id)
+	if err != nil {
+		return fmt.Errorf("registry: update query token %s: %w", id, err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// GetQueryToken returns the query_token for a given instance.
+func (r *Registry) GetQueryToken(id string) (string, error) {
+	var token string
+	err := r.db.QueryRow(`SELECT query_token FROM instances WHERE id = ?`, id).Scan(&token)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("registry: get query token %s: %w", id, err)
+	}
+	return token, nil
+}
+
+func backfillQueryTokens(db *sql.DB) error {
+	rows, err := db.Query(`SELECT id FROM instances WHERE query_token = ''`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for _, id := range ids {
+		token, err := GenerateQueryToken()
+		if err != nil {
+			return err
+		}
+		if _, err := db.Exec(`UPDATE instances SET query_token = ? WHERE id = ?`, token, id); err != nil {
+			return err
+		}
+	}
+	if len(ids) > 0 {
+		slog.Info("backfilled query tokens", "count", len(ids))
+	}
+	return nil
 }
 
 // ActiveSigningKey returns the currently active HMAC signing key.

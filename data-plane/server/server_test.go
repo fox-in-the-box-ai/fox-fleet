@@ -83,6 +83,17 @@ func adminReq(method, url string, body any) *http.Request {
 	return req
 }
 
+func queryReq(method, url string, body any) *http.Request {
+	var buf bytes.Buffer
+	if body != nil {
+		_ = json.NewEncoder(&buf).Encode(body)
+	}
+	req, _ := http.NewRequest(method, url, &buf)
+	req.Header.Set("Authorization", "Bearer "+testSecret)
+	req.Header.Set("Content-Type", "application/json")
+	return req
+}
+
 func TestHealthEndpoint(t *testing.T) {
 	_, ts := setup(t)
 
@@ -250,7 +261,7 @@ func TestCreateSourceValidation(t *testing.T) {
 func TestPublicSourcesList(t *testing.T) {
 	_, ts := setup(t)
 
-	resp, err := http.Get(ts.URL + "/v1/sources")
+	resp, err := http.DefaultClient.Do(queryReq("GET", ts.URL+"/v1/sources", nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -334,10 +345,7 @@ func TestQuerySuccess(t *testing.T) {
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
-	body := map[string]any{"query": "what is fox fleet?"}
-	var buf bytes.Buffer
-	_ = json.NewEncoder(&buf).Encode(body)
-	resp, err := http.Post(ts.URL+"/v1/query", "application/json", &buf)
+	resp, err := http.DefaultClient.Do(queryReq("POST", ts.URL+"/v1/query", map[string]any{"query": "what is fox fleet?"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -376,9 +384,7 @@ func TestQuerySuccess(t *testing.T) {
 func TestQueryMissingField(t *testing.T) {
 	_, ts := setup(t)
 
-	var buf bytes.Buffer
-	_ = json.NewEncoder(&buf).Encode(map[string]any{"top_k": 3})
-	resp, err := http.Post(ts.URL+"/v1/query", "application/json", &buf)
+	resp, err := http.DefaultClient.Do(queryReq("POST", ts.URL+"/v1/query", map[string]any{"top_k": 3}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -432,9 +438,7 @@ func TestQueryQdrantDown(t *testing.T) {
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
-	var buf bytes.Buffer
-	_ = json.NewEncoder(&buf).Encode(map[string]any{"query": "test"})
-	resp, err := http.Post(ts.URL+"/v1/query", "application/json", &buf)
+	resp, err := http.DefaultClient.Do(queryReq("POST", ts.URL+"/v1/query", map[string]any{"query": "test"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -478,9 +482,7 @@ func TestQueryEmbeddingDown(t *testing.T) {
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 
-	var buf bytes.Buffer
-	_ = json.NewEncoder(&buf).Encode(map[string]any{"query": "test"})
-	resp, err := http.Post(ts.URL+"/v1/query", "application/json", &buf)
+	resp, err := http.DefaultClient.Do(queryReq("POST", ts.URL+"/v1/query", map[string]any{"query": "test"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -500,5 +502,139 @@ func TestDeleteNotFound(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestQueryAuthRejectsUnauthenticated(t *testing.T) {
+	_, ts := setup(t)
+
+	resp, err := http.Get(ts.URL + "/v1/sources")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("GET /v1/sources unauthenticated: status = %d, want 401", resp.StatusCode)
+	}
+
+	var buf bytes.Buffer
+	_ = json.NewEncoder(&buf).Encode(map[string]any{"query": "test"})
+	resp, err = http.Post(ts.URL+"/v1/query", "application/json", &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("POST /v1/query unauthenticated: status = %d, want 401", resp.StatusCode)
+	}
+}
+
+func TestQueryAuthRejectsInvalidToken(t *testing.T) {
+	_, ts := setup(t)
+
+	req, _ := http.NewRequest("GET", ts.URL+"/v1/sources", nil)
+	req.Header.Set("Authorization", "Bearer wrong-token")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("status = %d, want 401", resp.StatusCode)
+	}
+}
+
+func TestQueryAuthAcceptsAdminToken(t *testing.T) {
+	_, ts := setup(t)
+
+	resp, err := http.DefaultClient.Do(queryReq("GET", ts.URL+"/v1/sources", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want 200", resp.StatusCode)
+	}
+}
+
+type staticTokenValidator struct {
+	token string
+}
+
+func (v *staticTokenValidator) ValidQueryToken(t string) bool {
+	return t != "" && t == v.token
+}
+
+func TestQueryAuthAcceptsInstanceToken(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { db.Close() })
+
+	sources, err := source.OpenRegistry(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ec := embedding.NewClient(embedding.Config{BaseURL: "http://unused", Model: "test"})
+	qc := qdrant.NewClient("http://unused")
+
+	instanceToken := "test-instance-token-abc123"
+	srv := New(Config{
+		AdminSecret: testSecret,
+		Collection:  "test-docs",
+		VectorSize:  3,
+	}, sources, ec, qc, nil, WithTokenValidator(&staticTokenValidator{token: instanceToken}))
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	req, _ := http.NewRequest("GET", ts.URL+"/v1/sources", nil)
+	req.Header.Set("Authorization", "Bearer "+instanceToken)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("instance token via Bearer: status = %d, want 200", resp.StatusCode)
+	}
+}
+
+func TestQueryAuthAcceptsXFoxAuthHeader(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { db.Close() })
+
+	sources, err := source.OpenRegistry(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ec := embedding.NewClient(embedding.Config{BaseURL: "http://unused", Model: "test"})
+	qc := qdrant.NewClient("http://unused")
+
+	instanceToken := "test-instance-token-xyz789"
+	srv := New(Config{
+		AdminSecret: testSecret,
+		Collection:  "test-docs",
+		VectorSize:  3,
+	}, sources, ec, qc, nil, WithTokenValidator(&staticTokenValidator{token: instanceToken}))
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	req, _ := http.NewRequest("GET", ts.URL+"/v1/sources", nil)
+	req.Header.Set("X-Fox-Auth", instanceToken)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("instance token via X-Fox-Auth: status = %d, want 200", resp.StatusCode)
 	}
 }
