@@ -34,31 +34,49 @@ fi
 
 if [ -n "${FOX_VERSION:-}" ]; then
   VERSION="$FOX_VERSION"
-  TAG="v${VERSION}"
 else
-  TAG=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
-  VERSION="$TAG"
-  TAG="v${VERSION}"
+  VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
+  if [ -z "$VERSION" ]; then
+    echo "Error: could not determine latest version from GitHub API" >&2
+    exit 1
+  fi
 fi
 
+TAG="v${VERSION}"
 ARTIFACT="fox-control-${TAG}-${OS}-${ARCH}"
 URL="https://github.com/${REPO}/releases/download/${TAG}/${ARTIFACT}.tar.gz"
+CHECKSUMS_URL="https://github.com/${REPO}/releases/download/${TAG}/checksums-sha256.txt"
 
-TMPDIR="$(mktemp -d)"
-trap 'rm -rf "$TMPDIR"' EXIT
+STAGING_DIR="$(mktemp -d)"
+trap 'rm -rf "$STAGING_DIR"' EXIT
 
 echo "Downloading fox-control ${TAG} for ${OS}/${ARCH}..."
-curl -fsSL "$URL" -o "${TMPDIR}/${ARTIFACT}.tar.gz"
+curl -fsSL "$URL" -o "${STAGING_DIR}/${ARTIFACT}.tar.gz"
+curl -fsSL "$CHECKSUMS_URL" -o "${STAGING_DIR}/checksums-sha256.txt"
+
+echo "Verifying checksum..."
+EXPECTED=$(grep "${ARTIFACT}.tar.gz" "${STAGING_DIR}/checksums-sha256.txt" | awk '{print $1}')
+if [ -z "$EXPECTED" ]; then
+  echo "Error: no checksum found for ${ARTIFACT}.tar.gz in checksums file" >&2
+  exit 1
+fi
+ACTUAL=$(sha256sum "${STAGING_DIR}/${ARTIFACT}.tar.gz" | awk '{print $1}')
+if [ "$EXPECTED" != "$ACTUAL" ]; then
+  echo "Error: checksum mismatch" >&2
+  echo "  expected: ${EXPECTED}" >&2
+  echo "  actual:   ${ACTUAL}" >&2
+  exit 1
+fi
 
 echo "Extracting..."
-tar xzf "${TMPDIR}/${ARTIFACT}.tar.gz" -C "$TMPDIR"
+tar xzf "${STAGING_DIR}/${ARTIFACT}.tar.gz" -C "$STAGING_DIR"
 
 if [ ! -w "$INSTALL_DIR" ]; then
   echo "Installing to ${INSTALL_DIR} (requires sudo)..."
-  sudo install -m 755 "${TMPDIR}/${ARTIFACT}/fox-control" "${INSTALL_DIR}/fox-control"
+  sudo install -m 755 "${STAGING_DIR}/${ARTIFACT}/fox-control" "${INSTALL_DIR}/fox-control"
 else
-  install -m 755 "${TMPDIR}/${ARTIFACT}/fox-control" "${INSTALL_DIR}/fox-control"
+  install -m 755 "${STAGING_DIR}/${ARTIFACT}/fox-control" "${INSTALL_DIR}/fox-control"
 fi
 
 echo "fox-control ${TAG} installed to ${INSTALL_DIR}/fox-control"
-fox-control version
+fox-control version || true

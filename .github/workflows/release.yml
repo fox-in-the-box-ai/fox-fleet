@@ -220,6 +220,7 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    if: ${{ !contains(github.ref_name, '-') }}
     strategy:
       matrix:
         include:
@@ -246,7 +247,7 @@ jobs:
           tar xzf "artifacts/fox-control-${TAG}-linux-${GOARCH}.tar.gz"
           cp "fox-control-${TAG}-linux-${GOARCH}/fox-control" "${PKG}/usr/local/bin/"
           chmod 755 "${PKG}/usr/local/bin/fox-control"
-          cat > "${PKG}/DEBIAN/control" <<CTRL
+          cat > "${PKG}/DEBIAN/control" <<-CTRL
           Package: fox-control
           Version: ${VERSION}
           Section: utils
@@ -256,7 +257,6 @@ jobs:
           Description: Fox Fleet management plane
            Provision and manage Fox AI assistant instances on Docker.
           CTRL
-          sed -i 's/^          //' "${PKG}/DEBIAN/control"
           dpkg-deb --build --root-owner-group "${PKG}"
           mv "${PKG}.deb" "fox-control_${VERSION}_${DEBARCH}.deb"
 
@@ -278,17 +278,22 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Generate formula
+      - name: Generate formula from release checksums
         env:
           TAG: ${{ github.ref_name }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${TAG#v}"
-          for platform in darwin-arm64 darwin-amd64 linux-arm64 linux-amd64; do
-            URL="https://github.com/fox-in-the-box-ai/fox-fleet/releases/download/${TAG}/fox-control-${TAG}-${platform}.tar.gz"
-            SHA=$(curl -fsSL "$URL" | sha256sum | awk '{print $1}')
-            VARNAME="SHA256_$(echo "$platform" | tr '-' '_' | tr '[:lower:]' '[:upper:]')"
-            eval "$VARNAME=$SHA"
+          gh release download "$TAG" --pattern checksums-sha256.txt --dir .
+          SHA256_DARWIN_ARM64=$(grep "darwin-arm64.tar.gz" checksums-sha256.txt | awk '{print $1}')
+          SHA256_DARWIN_AMD64=$(grep "darwin-amd64.tar.gz" checksums-sha256.txt | awk '{print $1}')
+          SHA256_LINUX_ARM64=$(grep "linux-arm64.tar.gz" checksums-sha256.txt | awk '{print $1}')
+          SHA256_LINUX_AMD64=$(grep "linux-amd64.tar.gz" checksums-sha256.txt | awk '{print $1}')
+          for var in SHA256_DARWIN_ARM64 SHA256_DARWIN_AMD64 SHA256_LINUX_ARM64 SHA256_LINUX_AMD64; do
+            if [ -z "${!var}" ]; then
+              echo "::error::Missing checksum for ${var} in checksums-sha256.txt"
+              exit 1
+            fi
           done
           sed \
             -e "s/{{VERSION}}/${VERSION}/g" \
@@ -308,15 +313,19 @@ jobs:
             exit 0
           fi
           VERSION="${TAG#v}"
-          git clone "https://x-access-token:${TAP_TOKEN}@github.com/fox-in-the-box-ai/homebrew-fox-fleet.git" tap
-          mkdir -p tap/Formula
-          cp fox-control.rb tap/Formula/fox-control.rb
+          git clone "https://github.com/fox-in-the-box-ai/homebrew-fox-fleet.git" tap
           cd tap
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p Formula
+          cp ../fox-control.rb Formula/fox-control.rb
           git add Formula/fox-control.rb
-          git commit -m "Update fox-control to ${VERSION}" || echo "No changes to commit"
-          git push
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update fox-control to ${VERSION}"
+            git -c http.extraHeader="Authorization: Bearer ${TAP_TOKEN}" push
+          fi
 
   container:
     name: Container Image
