@@ -215,6 +215,109 @@ jobs:
             artifacts/*.sbom.cdx.json \
             artifacts/checksums-sha256.txt
 
+  deb-package:
+    name: Debian Packages
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        include:
+          - goarch: amd64
+            debarch: amd64
+          - goarch: arm64
+            debarch: arm64
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: fox-control-linux-${{ matrix.goarch }}
+          path: artifacts
+
+      - name: Build .deb package
+        env:
+          TAG: ${{ github.ref_name }}
+          DEBARCH: ${{ matrix.debarch }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          VERSION="${TAG#v}"
+          PKG="fox-control_${VERSION}_${DEBARCH}"
+          mkdir -p "${PKG}/DEBIAN"
+          mkdir -p "${PKG}/usr/local/bin"
+          tar xzf "artifacts/fox-control-${TAG}-linux-${GOARCH}.tar.gz"
+          cp "fox-control-${TAG}-linux-${GOARCH}/fox-control" "${PKG}/usr/local/bin/"
+          chmod 755 "${PKG}/usr/local/bin/fox-control"
+          cat > "${PKG}/DEBIAN/control" <<CTRL
+          Package: fox-control
+          Version: ${VERSION}
+          Section: utils
+          Priority: optional
+          Architecture: ${DEBARCH}
+          Maintainer: Fox in the Box AI <support@fox-in-the-box.ai>
+          Description: Fox Fleet management plane
+           Provision and manage Fox AI assistant instances on Docker.
+          CTRL
+          sed -i 's/^          //' "${PKG}/DEBIAN/control"
+          dpkg-deb --build --root-owner-group "${PKG}"
+          mv "${PKG}.deb" "fox-control_${VERSION}_${DEBARCH}.deb"
+
+      - name: Upload .deb to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          DEBARCH: ${{ matrix.debarch }}
+        run: |
+          VERSION="${TAG#v}"
+          gh release upload "$TAG" "fox-control_${VERSION}_${DEBARCH}.deb" --clobber
+
+  homebrew-tap:
+    name: Update Homebrew Tap
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ !contains(github.ref_name, '-') }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Generate formula
+        env:
+          TAG: ${{ github.ref_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${TAG#v}"
+          for platform in darwin-arm64 darwin-amd64 linux-arm64 linux-amd64; do
+            URL="https://github.com/fox-in-the-box-ai/fox-fleet/releases/download/${TAG}/fox-control-${TAG}-${platform}.tar.gz"
+            SHA=$(curl -fsSL "$URL" | sha256sum | awk '{print $1}')
+            VARNAME="SHA256_$(echo "$platform" | tr '-' '_' | tr '[:lower:]' '[:upper:]')"
+            eval "$VARNAME=$SHA"
+          done
+          sed \
+            -e "s/{{VERSION}}/${VERSION}/g" \
+            -e "s/{{SHA256_DARWIN_ARM64}}/${SHA256_DARWIN_ARM64}/g" \
+            -e "s/{{SHA256_DARWIN_AMD64}}/${SHA256_DARWIN_AMD64}/g" \
+            -e "s/{{SHA256_LINUX_ARM64}}/${SHA256_LINUX_ARM64}/g" \
+            -e "s/{{SHA256_LINUX_AMD64}}/${SHA256_LINUX_AMD64}/g" \
+            deploy/homebrew/fox-control.rb.tmpl > fox-control.rb
+
+      - name: Push to tap repository
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ -z "${TAP_TOKEN:-}" ]; then
+            echo "::warning::HOMEBREW_TAP_TOKEN not set — skipping tap update"
+            exit 0
+          fi
+          VERSION="${TAG#v}"
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/fox-in-the-box-ai/homebrew-fox-fleet.git" tap
+          mkdir -p tap/Formula
+          cp fox-control.rb tap/Formula/fox-control.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/fox-control.rb
+          git commit -m "Update fox-control to ${VERSION}" || echo "No changes to commit"
+          git push
+
   container:
     name: Container Image
     needs: verify
