@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-06-08
+
+### Security
+
+- **#99:** SSE auth hardened — admin secret no longer transmitted as a URL query parameter; replaced with HMAC-SHA256 signed session tokens delivered via HttpOnly cookie (`fox_sse_token`); configurable TTL via `session_token_ttl_seconds` (default 600s, range 60–3600); signing key stored in registry with `sec rotate-sse-key` rotation command
+- **#100:** Data plane query auth — `/v1/query` and `/v1/sources` endpoints now require authentication; each instance receives a unique 32-byte query token at provision time, validated via `Authorization: Bearer` or `X-Fox-Auth` header; admin secret also accepted; `sec rotate-query-token --instance <id>` command for token rotation; existing instances backfilled automatically on upgrade
+
+### Added
+
+- `internal/sessiontoken` package — HMAC-SHA256 token signing with purpose byte, expiry, and nonce
+- `POST /api/auth/session` endpoint — issues time-limited SSE session tokens via Set-Cookie
+- `sec rotate-sse-key` CLI command — rotates the SSE signing key, invalidating all active session tokens
+- `sec rotate-query-token` CLI command — rotates a data plane query token for a specific instance
+- `QueryTokenValidator` interface and `WithTokenValidator` option for data plane server constructor
+
 ## [1.0.0] - 2026-06-08
 
 ### Added
