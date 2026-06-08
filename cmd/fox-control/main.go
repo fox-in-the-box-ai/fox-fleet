@@ -124,8 +124,8 @@ func newServeCmd() *cobra.Command {
 				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
 				if err := srv.Shutdown(shutdownCtx); err != nil {
-						slog.Error("server shutdown error", "error", err)
-					}
+					slog.Error("server shutdown error", "error", err)
+				}
 			}()
 
 			slog.Info("panel server listening", "addr", cfg.Control.Listen)
