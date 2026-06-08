@@ -128,17 +128,19 @@ func newServeCmd() *cobra.Command {
 			}
 
 			apiServer := api.NewServer(api.Deps{
-				Registry:       reg,
-				Provisioner:    prov,
-				Plugin:         plug,
-				AdminSecret:    cfg.Auth.AdminSecret,
-				InstancePwd:    cfg.Auth.InstancePassword,
-				Image:          parseImageRef(cfg.Docker.Image),
-				MaxInstances:   cfg.Instances.MaxInstances,
-				PollInterval:   pollInterval,
-				WebFS:          webFS,
-				SourceRegistry: srcReg,
-				DataPlaneURL:   dpURL,
+				Registry:        reg,
+				Provisioner:     prov,
+				Plugin:          plug,
+				AdminSecret:     cfg.Auth.AdminSecret,
+				InstancePwd:     cfg.Auth.InstancePassword,
+				Image:           parseImageRef(cfg.Docker.Image),
+				MaxInstances:    cfg.Instances.MaxInstances,
+				PollInterval:    pollInterval,
+				WebFS:           webFS,
+				SourceRegistry:  srcReg,
+				DataPlaneURL:    dpURL,
+				DefaultSkillset: cfg.Instances.DefaultSkillset,
+				DefaultRole:     cfg.Instances.DefaultRole,
 			})
 
 			ctx := cmd.Context()

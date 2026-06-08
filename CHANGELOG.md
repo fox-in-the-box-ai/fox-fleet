@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **DP-08:** Panel sources view — tabbed UI with Instances/Sources navigation, source table with status badges, auto-refresh
 - **PLAT-02:** Hermes adapter — panel wires source registry and data plane URL through to provisioner when data plane is enabled
 - **PLAT-03:** Data plane agent plugin — config injection writes `tools.json` with `knowledge_query` tool manifest (URL, auth header, parameters)
+- **PLAT-10:** Skillset + role assignment — provisioner validates and copies skillset manifests, registry stores skillset name and principal role, panel create accepts optional skillset path and role with config defaults, detail view shows assigned skillset and role
 
 ## [0.1.0-alpha] - 2026-06-08
 

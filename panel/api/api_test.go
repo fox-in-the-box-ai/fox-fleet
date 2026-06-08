@@ -647,6 +647,151 @@ func TestCreatePassesDataPlaneURL(t *testing.T) {
 	}
 }
 
+func TestCreatePassesSkillsetAndRole(t *testing.T) {
+	dir := t.TempDir()
+	reg, err := registry.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { reg.Close() })
+
+	prov := &fakeProvisioner{provisionCh: make(chan struct{}, 1)}
+
+	srv := NewServer(Deps{
+		Registry:     reg,
+		Provisioner:  prov,
+		Plugin:       &fakePlugin{},
+		AdminSecret:  testSecret,
+		InstancePwd:  "test-pwd",
+		MaxInstances: 2,
+		PollInterval: time.Hour,
+	})
+
+	body := `{"id":"fox-sk","skillset_path":"/opt/skills/sales.yaml","role":"rep"}`
+	req := httptest.NewRequest("POST", "/api/instances", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+testSecret)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", w.Code)
+	}
+
+	select {
+	case <-prov.provisionCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("provisioner not called within timeout")
+	}
+
+	prov.mu.Lock()
+	defer prov.mu.Unlock()
+	if prov.provisions[0].SkillsetPath != "/opt/skills/sales.yaml" {
+		t.Errorf("SkillsetPath = %q, want /opt/skills/sales.yaml", prov.provisions[0].SkillsetPath)
+	}
+	if prov.provisions[0].PrincipalRole != "rep" {
+		t.Errorf("PrincipalRole = %q, want rep", prov.provisions[0].PrincipalRole)
+	}
+}
+
+func TestCreateUsesDefaultSkillsetAndRole(t *testing.T) {
+	dir := t.TempDir()
+	reg, err := registry.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { reg.Close() })
+
+	prov := &fakeProvisioner{provisionCh: make(chan struct{}, 1)}
+
+	srv := NewServer(Deps{
+		Registry:        reg,
+		Provisioner:     prov,
+		Plugin:          &fakePlugin{},
+		AdminSecret:     testSecret,
+		InstancePwd:     "test-pwd",
+		MaxInstances:    2,
+		PollInterval:    time.Hour,
+		DefaultSkillset: "/etc/fox/default.yaml",
+		DefaultRole:     "user",
+	})
+
+	req := httptest.NewRequest("POST", "/api/instances", strings.NewReader(`{"id":"fox-def"}`))
+	req.Header.Set("Authorization", "Bearer "+testSecret)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", w.Code)
+	}
+
+	select {
+	case <-prov.provisionCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("provisioner not called within timeout")
+	}
+
+	prov.mu.Lock()
+	defer prov.mu.Unlock()
+	if prov.provisions[0].SkillsetPath != "/etc/fox/default.yaml" {
+		t.Errorf("SkillsetPath = %q, want /etc/fox/default.yaml", prov.provisions[0].SkillsetPath)
+	}
+	if prov.provisions[0].PrincipalRole != "user" {
+		t.Errorf("PrincipalRole = %q, want user", prov.provisions[0].PrincipalRole)
+	}
+}
+
+func TestDetailIncludesSkillsetAndRole(t *testing.T) {
+	dir := t.TempDir()
+	reg, err := registry.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { reg.Close() })
+
+	if err := reg.Create(registry.Instance{
+		ID:            "fox-detail",
+		ImageDigest:   "sha256:abc",
+		Port:          9100,
+		DataDir:       "/data/fox-detail",
+		Status:        "running",
+		CreatedAt:     "2026-01-01T00:00:00Z",
+		SkillsetName:  "sales-bot",
+		PrincipalRole: "agent",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	srv := NewServer(Deps{
+		Registry:     reg,
+		Provisioner:  &fakeProvisioner{provisionCh: make(chan struct{}, 1)},
+		Plugin:       &fakePlugin{},
+		AdminSecret:  testSecret,
+		InstancePwd:  "test-pwd",
+		MaxInstances: 2,
+		PollInterval: time.Hour,
+	})
+
+	req := httptest.NewRequest("GET", "/api/instances/fox-detail", nil)
+	req.Header.Set("Authorization", "Bearer "+testSecret)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var detail map[string]any
+	if err := json.NewDecoder(w.Body).Decode(&detail); err != nil {
+		t.Fatal(err)
+	}
+	if detail["skillset_name"] != "sales-bot" {
+		t.Errorf("skillset_name = %v, want sales-bot", detail["skillset_name"])
+	}
+	if detail["principal_role"] != "agent" {
+		t.Errorf("principal_role = %v, want agent", detail["principal_role"])
+	}
+}
+
 func TestSPANotServedWithoutWebFS(t *testing.T) {
 	env := newTestEnv(t)
 	req := httptest.NewRequest("GET", "/", nil)
