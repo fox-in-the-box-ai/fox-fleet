@@ -174,7 +174,7 @@ jobs:
         env:
           TAG: ${{ github.ref_name }}
         run: |
-          syft dir:. --select-catalogers go-module-file-cataloger \
+          syft dir:. --select-catalogers +go-module-file-cataloger \
             --output "cyclonedx-json=artifacts/fox-control-${TAG}.sbom.cdx.json"
 
       - name: Generate checksums
