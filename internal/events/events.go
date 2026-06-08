@@ -22,6 +22,10 @@ type Log struct {
 	pos  int
 	full bool
 	seq  atomic.Uint64
+
+	subMu  sync.Mutex
+	subs   map[uint64]chan Event
+	subSeq atomic.Uint64
 }
 
 func NewLog(capacity int) *Log {
@@ -46,10 +50,54 @@ func (l *Log) Emit(typ, instance, message string) {
 		l.full = true
 	}
 	l.mu.Unlock()
+
+	l.subMu.Lock()
+	for _, ch := range l.subs {
+		select {
+		case ch <- e:
+		default:
+		}
+	}
+	l.subMu.Unlock()
 }
 
 func (l *Log) Emitf(typ, instance, format string, args ...any) {
 	l.Emit(typ, instance, fmt.Sprintf(format, args...))
+}
+
+func (l *Log) Subscribe() (<-chan Event, func()) {
+	ch := make(chan Event, 16)
+	id := l.subSeq.Add(1)
+	l.subMu.Lock()
+	if l.subs == nil {
+		l.subs = make(map[uint64]chan Event)
+	}
+	l.subs[id] = ch
+	l.subMu.Unlock()
+	return ch, func() {
+		l.subMu.Lock()
+		delete(l.subs, id)
+		l.subMu.Unlock()
+	}
+}
+
+func (l *Log) SinceID(lastID uint64) []Event {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	size := l.pos
+	if l.full {
+		size = l.cap
+	}
+	var out []Event
+	for i := 0; i < size; i++ {
+		idx := (l.pos - size + i + l.cap) % l.cap
+		e := l.buf[idx]
+		if e.ID > lastID {
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 func (l *Log) Recent(n int) []Event {

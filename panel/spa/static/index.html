@@ -858,6 +858,7 @@ var state = {
   sourceDetail: "",
   loading: false,
   refreshTimer: null,
+  eventSource: null,
   locale: localStorage.getItem("fox_locale") || "en",
   theme: localStorage.getItem("fox_theme") || "system"
 };
@@ -1090,13 +1091,14 @@ function enterApp() {
   document.getElementById("auth-screen").style.display = "none";
   document.getElementById("shell").style.display = "flex";
   refresh();
-  startAutoRefresh();
+  connectSSE();
 }
 
 function logout() {
   sessionStorage.removeItem("fox_secret");
   state.secret = "";
   stopAutoRefresh();
+  if (state.eventSource) { state.eventSource.close(); state.eventSource = null; }
   document.getElementById("auth-screen").style.display = "flex";
   document.getElementById("shell").style.display = "none";
   document.getElementById("secret-input").value = "";
@@ -1116,7 +1118,29 @@ function apiFetch(path, opts) {
   });
 }
 
-/* ── Refresh ───────────────────────────────────────────────────────── */
+/* ── SSE / Auto-Refresh ───────────────────────────────────────────── */
+
+var _refreshPending = null;
+
+function connectSSE() {
+  stopAutoRefresh();
+  if (state.eventSource) { state.eventSource.close(); state.eventSource = null; }
+  if (!state.secret) return;
+
+  var es = new EventSource("/api/events/stream?token=" + encodeURIComponent(state.secret));
+  state.eventSource = es;
+
+  es.onopen = function() { stopAutoRefresh(); };
+
+  es.onmessage = function() {
+    if (_refreshPending) clearTimeout(_refreshPending);
+    _refreshPending = setTimeout(function() { _refreshPending = null; refresh(); }, 100);
+  };
+
+  es.onerror = function() {
+    if (!state.refreshTimer) startAutoRefresh();
+  };
+}
 
 function startAutoRefresh() {
   stopAutoRefresh();

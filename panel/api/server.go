@@ -99,6 +99,7 @@ func NewServer(d Deps) *Server {
 	apiMux.HandleFunc("DELETE /api/skillsets/{name}", s.handleDeleteSkillset)
 	apiMux.HandleFunc("POST /api/query", s.handleQuery)
 	apiMux.HandleFunc("GET /api/events", s.handleEvents)
+	apiMux.HandleFunc("GET /api/events/stream", s.handleEventsStream)
 
 	s.mux = http.NewServeMux()
 	s.mux.HandleFunc("GET /healthz", s.handleHealthz)
