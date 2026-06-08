@@ -29,6 +29,7 @@ type Deps struct {
 	DataPlaneURL    string
 	DefaultSkillset string
 	DefaultRole     string
+	SkillsetsDir    string
 }
 
 type Server struct {
@@ -46,6 +47,7 @@ type Server struct {
 	dpURL           string
 	defaultSkillset string
 	defaultRole     string
+	skillsetsDir    string
 }
 
 func NewServer(d Deps) *Server {
@@ -69,6 +71,7 @@ func NewServer(d Deps) *Server {
 		dpURL:           d.DataPlaneURL,
 		defaultSkillset: d.DefaultSkillset,
 		defaultRole:     d.DefaultRole,
+		skillsetsDir:    d.SkillsetsDir,
 	}
 
 	s.poller = &HealthPoller{
@@ -85,6 +88,10 @@ func NewServer(d Deps) *Server {
 	apiMux.HandleFunc("POST /api/instances", s.handleCreate)
 	apiMux.HandleFunc("DELETE /api/instances/{id}", s.handleDestroy)
 	apiMux.HandleFunc("GET /api/sources", s.handleListSources)
+	apiMux.HandleFunc("GET /api/skillsets", s.handleListSkillsets)
+	apiMux.HandleFunc("GET /api/skillsets/{name}", s.handleGetSkillset)
+	apiMux.HandleFunc("POST /api/skillsets", s.handleUploadSkillset)
+	apiMux.HandleFunc("DELETE /api/skillsets/{name}", s.handleDeleteSkillset)
 
 	s.mux = http.NewServeMux()
 	s.mux.Handle("/api/", s.requireAuth(apiMux))

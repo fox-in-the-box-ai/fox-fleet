@@ -545,6 +545,40 @@ body {
   margin-bottom: 6px;
 }
 
+/* ── Drop Zone ────────────────────────────────────────────────────── */
+.drop-zone {
+  border: 2px dashed var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 32px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+  margin-bottom: 20px;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--color-accent);
+  background: var(--color-wash);
+}
+.drop-zone-text {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.drop-zone-text strong {
+  color: var(--color-text);
+}
+.manifest-pre {
+  background: var(--sidebar-bg);
+  color: #f5f2ec;
+  border-radius: var(--radius-md);
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
 /* ── Placeholder Pages ─────────────────────────────────────────────── */
 .placeholder-page {
   text-align: center;
@@ -596,7 +630,7 @@ body {
       </button></li>
       <li><button class="sb-link" data-page="skillsets">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        Skillsets<span class="soon">Soon</span>
+        Skillsets
       </button></li>
     </ul>
 
@@ -645,6 +679,7 @@ var state = {
   secret: sessionStorage.getItem("fox_secret") || "",
   page: "instances",
   detailId: "",
+  skillsetDetail: "",
   loading: false,
   refreshTimer: null
 };
@@ -718,6 +753,8 @@ function refresh() {
   if (p === "instances" && state.detailId) { renderDetail(state.detailId); }
   else if (p === "instances") { renderInstances(); }
   else if (p === "sources") { renderSources(); }
+  else if (p === "skillsets" && state.skillsetDetail) { renderSkillsetDetail(state.skillsetDetail); }
+  else if (p === "skillsets") { renderSkillsets(); }
   else { renderPlaceholder(p); }
   document.getElementById("last-updated").textContent = "Updated " + new Date().toLocaleTimeString();
 }
@@ -727,6 +764,7 @@ function refresh() {
 function navigate(page) {
   state.page = page;
   state.detailId = "";
+  state.skillsetDetail = "";
   document.querySelectorAll(".sb-link").forEach(function(el) {
     el.classList.toggle("active", el.dataset.page === page);
   });
@@ -1020,11 +1058,185 @@ function renderSources() {
   });
 }
 
+/* ── Skillsets View ────────────────────────────────────────────────── */
+
+function renderSkillsets() {
+  apiFetch("/api/skillsets").then(function(res) { return res.json(); }).then(function(skillsets) {
+    var content = document.getElementById("content");
+    document.getElementById("page-meta").textContent = skillsets.length + " skillset" + (skillsets.length !== 1 ? "s" : "");
+
+    var html = '<div class="drop-zone" id="drop-zone">'
+      + '<div class="drop-zone-text"><strong>Drop a skillset YAML</strong> here or <label style="color:var(--color-accent);cursor:pointer;text-decoration:underline">browse<input type="file" accept=".yaml,.yml" style="display:none" id="file-input"></label></div>'
+      + '</div>';
+
+    if (skillsets.length === 0) {
+      html += '<div class="empty-state">'
+        + '<svg class="empty-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
+        + '<div class="empty-title">No skillsets uploaded</div>'
+        + '<div class="empty-desc">Upload a skillset YAML manifest to define assistant capabilities, tools, and behavior.</div>'
+        + '</div>';
+    } else {
+      html += '<table class="data-table"><thead><tr>'
+        + '<th>Name</th><th>Version</th><th>Contract</th><th>Tools</th><th>Sources</th>'
+        + '</tr></thead><tbody>';
+      for (var i = 0; i < skillsets.length; i++) {
+        var sk = skillsets[i];
+        html += '<tr style="cursor:pointer" data-action="skillset-detail" data-name="' + esc(sk.name) + '">'
+          + '<td style="font-weight:500">' + esc(sk.name) + '</td>'
+          + '<td><span class="badge badge-active">' + esc(sk.version) + '</span></td>'
+          + '<td>' + esc(sk.contract_version) + '</td>'
+          + '<td>' + sk.tool_count + '</td>'
+          + '<td>' + sk.source_count + '</td>'
+          + '</tr>';
+      }
+      html += '</tbody></table>';
+    }
+    content.innerHTML = html;
+    bindDropZone();
+  }).catch(function(e) {
+    if (e.message !== "Unauthorized") showToast("Failed to load skillsets: " + e.message);
+  });
+}
+
+function bindDropZone() {
+  var zone = document.getElementById("drop-zone");
+  var fileInput = document.getElementById("file-input");
+  if (!zone) return;
+
+  zone.addEventListener("dragover", function(e) {
+    e.preventDefault();
+    zone.classList.add("drag-over");
+  });
+  zone.addEventListener("dragleave", function() {
+    zone.classList.remove("drag-over");
+  });
+  zone.addEventListener("drop", function(e) {
+    e.preventDefault();
+    zone.classList.remove("drag-over");
+    if (e.dataTransfer.files.length > 0) uploadSkillset(e.dataTransfer.files[0]);
+  });
+  if (fileInput) {
+    fileInput.addEventListener("change", function() {
+      if (this.files.length > 0) uploadSkillset(this.files[0]);
+    });
+  }
+}
+
+function uploadSkillset(file) {
+  var form = new FormData();
+  form.append("file", file);
+  apiFetch("/api/skillsets", {
+    method: "POST",
+    body: form
+  }).then(function(res) {
+    if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || "Upload failed"); });
+    return res.json();
+  }).then(function(sk) {
+    showToast("Skillset " + sk.name + " uploaded", "success");
+    refresh();
+  }).catch(function(e) {
+    if (e.message !== "Unauthorized") showToast(e.message);
+  });
+}
+
+function showSkillsetDetail(name) {
+  state.skillsetDetail = name;
+  document.getElementById("page-title").textContent = name;
+  document.getElementById("page-meta").textContent = "";
+  renderSkillsetDetail(name);
+}
+
+function renderSkillsetDetail(name) {
+  apiFetch("/api/skillsets/" + encodeURIComponent(name)).then(function(res) {
+    if (res.status === 404) { state.skillsetDetail = ""; navigate("skillsets"); return; }
+    return res.json();
+  }).then(function(m) {
+    if (!m) return;
+    var content = document.getElementById("content");
+    var html = '<button class="back-link" data-action="skillset-back">&larr; Back to skillsets</button>'
+      + '<div class="detail-card">'
+      + '<div class="detail-header">'
+      + '<div class="detail-title">' + esc(m.name) + '</div>'
+      + '<button class="btn btn-danger" data-action="delete-skillset" data-name="' + esc(m.name) + '">Delete</button>'
+      + '</div>'
+      + '<dl class="detail-grid">'
+      + '<dt>Version</dt><dd><span class="badge badge-active">' + esc(m.version) + '</span></dd>'
+      + '<dt>Contract</dt><dd>' + esc(m.contract_version) + '</dd>';
+    if (m.persona && m.persona.system_prompt_file) {
+      html += '<dt>System Prompt</dt><dd>' + esc(m.persona.system_prompt_file) + '</dd>';
+    }
+    if (m.ui && m.ui.branding && m.ui.branding.bot_name) {
+      html += '<dt>Bot Name</dt><dd>' + esc(m.ui.branding.bot_name) + '</dd>';
+    }
+    html += '</dl>';
+
+    if (m.tools && m.tools.length > 0) {
+      html += '<h3 style="font-family:var(--font-heading);font-size:14px;font-weight:500;margin-bottom:8px">Tools (' + m.tools.length + ')</h3>'
+        + '<table class="data-table" style="margin-bottom:20px"><thead><tr><th>Name</th><th>Type</th></tr></thead><tbody>';
+      for (var i = 0; i < m.tools.length; i++) {
+        html += '<tr><td>' + esc(m.tools[i].name) + '</td><td><span class="badge badge-pending">' + esc(m.tools[i].type) + '</span></td></tr>';
+      }
+      html += '</tbody></table>';
+    }
+
+    if (m.data_sources && m.data_sources.length > 0) {
+      html += '<h3 style="font-family:var(--font-heading);font-size:14px;font-weight:500;margin-bottom:8px">Data Sources (' + m.data_sources.length + ')</h3>'
+        + '<table class="data-table" style="margin-bottom:20px"><thead><tr><th>Binding</th><th>Query Mode</th></tr></thead><tbody>';
+      for (var j = 0; j < m.data_sources.length; j++) {
+        html += '<tr><td>' + esc(m.data_sources[j].binding) + '</td><td><span class="badge badge-pending">' + esc(m.data_sources[j].query_mode) + '</span></td></tr>';
+      }
+      html += '</tbody></table>';
+    }
+
+    if (m.capabilities) {
+      var caps = Object.keys(m.capabilities);
+      if (caps.length > 0) {
+        html += '<h3 style="font-family:var(--font-heading);font-size:14px;font-weight:500;margin-bottom:8px">Capabilities</h3><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px">';
+        for (var k = 0; k < caps.length; k++) {
+          var badgeClass = m.capabilities[caps[k]] ? "badge-active" : "badge-pending";
+          html += '<span class="badge ' + badgeClass + '">' + esc(caps[k]) + '</span>';
+        }
+        html += '</div>';
+      }
+    }
+
+    html += '</div>';
+    content.innerHTML = html;
+  }).catch(function(e) {
+    if (e.message !== "Unauthorized") showToast("Failed to load skillset: " + e.message);
+  });
+}
+
+function showDeleteSkillsetModal(name) {
+  showModal(
+    '<div class="modal">'
+    + '<div class="modal-title">Delete Skillset</div>'
+    + '<div class="modal-desc">This will permanently delete the <strong>' + esc(name) + '</strong> skillset manifest. Instances already using it are not affected.</div>'
+    + '<div class="modal-actions">'
+    + '<button class="btn btn-ghost" id="m-cancel">Cancel</button>'
+    + '<button class="btn btn-danger" id="m-delete-skillset">Delete</button>'
+    + '</div></div>'
+  );
+  document.getElementById("m-cancel").addEventListener("click", closeModal);
+  document.getElementById("m-delete-skillset").addEventListener("click", function() {
+    this.disabled = true;
+    apiFetch("/api/skillsets/" + encodeURIComponent(name), { method: "DELETE" }).then(function(res) {
+      if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || "Failed"); });
+      closeModal();
+      showToast("Skillset " + name + " deleted", "success");
+      state.skillsetDetail = "";
+      navigate("skillsets");
+    }).catch(function(e) {
+      document.getElementById("m-delete-skillset").disabled = false;
+      if (e.message !== "Unauthorized") showToast(e.message);
+    });
+  });
+}
+
 /* ── Placeholder Pages ─────────────────────────────────────────────── */
 
 function renderPlaceholder(page) {
   var descs = {
-    skillsets: "Manage skillset manifests that define assistant capabilities and behavior.",
     query: "Test knowledge retrieval by querying the data plane directly.",
     activity: "View a chronological feed of fleet events and state changes.",
     settings: "Configure fleet defaults, data plane connection, and panel preferences."
@@ -1048,6 +1260,12 @@ document.getElementById("content").addEventListener("click", function(e) {
   if (destroy) { showDestroyModal(destroy.dataset.id); return; }
   var prov = e.target.closest("#btn-provision, #btn-provision-empty");
   if (prov) { showProvisionModal(); return; }
+  var skDetail = e.target.closest("[data-action='skillset-detail']");
+  if (skDetail) { showSkillsetDetail(skDetail.dataset.name); return; }
+  var skBack = e.target.closest("[data-action='skillset-back']");
+  if (skBack) { navigate("skillsets"); return; }
+  var skDelete = e.target.closest("[data-action='delete-skillset']");
+  if (skDelete) { showDeleteSkillsetModal(skDelete.dataset.name); return; }
 });
 
 /* ── Utilities ─────────────────────────────────────────────────────── */

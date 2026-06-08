@@ -141,6 +141,7 @@ func newServeCmd() *cobra.Command {
 				DataPlaneURL:    dpURL,
 				DefaultSkillset: cfg.Instances.DefaultSkillset,
 				DefaultRole:     cfg.Instances.DefaultRole,
+				SkillsetsDir:    filepath.Join(cfg.Control.DataRoot, "skillsets"),
 			})
 
 			ctx := cmd.Context()
