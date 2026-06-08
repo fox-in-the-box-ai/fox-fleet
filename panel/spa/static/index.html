@@ -643,11 +643,11 @@ body {
 <!-- Auth Screen -->
 <div id="auth-screen">
   <div class="auth-card">
-    <div class="auth-brand">Fox Fleet</div>
-    <div class="auth-tagline">The operating layer for personal AI assistants</div>
-    <label class="auth-label" for="secret-input">Admin Secret</label>
-    <input type="password" id="secret-input" class="auth-input" placeholder="Enter your admin secret" autocomplete="off">
-    <button class="auth-btn" id="auth-btn">Connect</button>
+    <div class="auth-brand" data-i18n="brand">Fox Fleet</div>
+    <div class="auth-tagline" data-i18n="tagline">The operating layer for personal AI assistants</div>
+    <label class="auth-label" for="secret-input" data-i18n="auth.label">Admin Secret</label>
+    <input type="password" id="secret-input" class="auth-input" data-i18n-placeholder="auth.placeholder" placeholder="Enter your admin secret" autocomplete="off">
+    <button class="auth-btn" id="auth-btn" data-i18n="auth.btn">Connect</button>
     <div class="auth-error" id="auth-error"></div>
   </div>
 </div>
@@ -655,46 +655,50 @@ body {
 <!-- App Shell -->
 <div id="shell">
   <nav id="sidebar">
-    <div class="sb-brand">Fox Fleet</div>
-    <div class="sb-tagline">The operating layer for personal AI assistants</div>
+    <div class="sb-brand" data-i18n="brand">Fox Fleet</div>
+    <div class="sb-tagline" data-i18n="tagline">The operating layer for personal AI assistants</div>
 
-    <div class="sb-section">Manage</div>
+    <div class="sb-section" data-i18n="nav.manage">Manage</div>
     <ul class="sb-nav">
       <li><button class="sb-link active" data-page="instances">
         <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="2" y1="15" x2="22" y2="15"/></svg>
-        Instances
+        <span data-i18n="nav.instances">Instances</span>
       </button></li>
       <li><button class="sb-link" data-page="sources">
         <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4.03 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/></svg>
-        Sources
+        <span data-i18n="nav.sources">Sources</span>
       </button></li>
       <li><button class="sb-link" data-page="skillsets">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        Skillsets
+        <span data-i18n="nav.skillsets">Skillsets</span>
       </button></li>
     </ul>
 
-    <div class="sb-section">Observe</div>
+    <div class="sb-section" data-i18n="nav.observe">Observe</div>
     <ul class="sb-nav">
       <li><button class="sb-link" data-page="query">
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        Query
+        <span data-i18n="nav.query">Query</span>
       </button></li>
       <li><button class="sb-link" data-page="activity">
         <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        Activity
+        <span data-i18n="nav.activity">Activity</span>
       </button></li>
     </ul>
 
-    <div class="sb-section">Configure</div>
+    <div class="sb-section" data-i18n="nav.configure">Configure</div>
     <ul class="sb-nav">
       <li><button class="sb-link" data-page="settings">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        Settings<span class="soon">Soon</span>
+        <span data-i18n="nav.settings">Settings</span><span class="soon" data-i18n="soon">Soon</span>
       </button></li>
     </ul>
 
     <div class="sb-footer">
+      <select id="lang-select" style="background:transparent;color:var(--sidebar-muted);border:1px solid var(--sidebar-border);border-radius:4px;padding:2px 6px;font-size:12px;font-family:var(--font-body);cursor:pointer">
+        <option value="en">English</option>
+        <option value="es">Español</option>
+      </select>
       <span id="last-updated"></span>
     </div>
   </nav>
@@ -722,12 +726,170 @@ var state = {
   skillsetDetail: "",
   sourceDetail: "",
   loading: false,
-  refreshTimer: null
+  refreshTimer: null,
+  locale: localStorage.getItem("fox_locale") || "en"
 };
+
+/* ── i18n ─────────────────────────────────────────────────────────── */
+
+var langs = {
+  en: {
+    brand: "Fox Fleet", tagline: "The operating layer for personal AI assistants",
+    "auth.label": "Admin Secret", "auth.placeholder": "Enter your admin secret", "auth.btn": "Connect",
+    "auth.error": "Authentication failed — check your secret",
+    "nav.manage": "Manage", "nav.observe": "Observe", "nav.configure": "Configure",
+    "nav.instances": "Instances", "nav.sources": "Sources", "nav.skillsets": "Skillsets",
+    "nav.query": "Query", "nav.activity": "Activity", "nav.settings": "Settings",
+    soon: "Soon", "updated": "Updated",
+    "inst.provision": "Provision Instance", "inst.create": "Create Instance",
+    "inst.empty_title": "Provision your first assistant",
+    "inst.empty_desc": "Create an instance to start managing AI assistants for your team.",
+    "inst.port": "Port", "inst.status": "Status", "inst.health": "Health",
+    "inst.last_check": "Last Check", "inst.skillset": "Skillset", "inst.role": "Role",
+    "inst.created": "Created", "inst.logs": "Container Logs",
+    "inst.healthy": "Healthy", "inst.unhealthy": "Unhealthy", "inst.unknown": "Unknown",
+    "inst.back": "Back to fleet", "inst.destroy": "Destroy",
+    "prov.title": "Provision Instance", "prov.desc": "Create a new managed Fox assistant instance.",
+    "prov.id_label": "Instance ID", "prov.id_placeholder": "e.g. alice, support-bot",
+    "prov.skillset_label": "Skillset Path (optional)", "prov.skillset_placeholder": "/path/to/skillset.yaml",
+    "prov.role_label": "Role (optional)", "prov.role_placeholder": "e.g. assistant, support",
+    cancel: "Cancel", create: "Create",
+    "prov.started": "Instance {id} provisioning started",
+    "dest.title": "Destroy Instance",
+    "dest.desc": "This will stop and remove the container for <strong>{id}</strong>. This action cannot be undone.",
+    "dest.remove_data": "Also remove instance data",
+    "dest.confirm_label": "Type the instance ID to confirm",
+    "dest.destroyed": "Instance {id} destroyed",
+    "src.empty_title": "Connect your knowledge",
+    "src.empty_desc": "Add file or REST sources to give your assistants access to organizational knowledge.",
+    "src.name": "Name", "src.type": "Type", "src.status": "Status",
+    "src.docs": "Docs", "src.chunks": "Chunks", "src.error": "Error",
+    "src.back": "Back to sources", "src.id": "ID", "src.collection": "Collection",
+    "src.documents": "Documents", "src.updated": "Updated", "src.config": "Configuration",
+    "sk.drop": "Drop a skillset YAML", "sk.browse": "browse",
+    "sk.empty_title": "No skillsets uploaded",
+    "sk.empty_desc": "Upload a skillset YAML manifest to define assistant capabilities, tools, and behavior.",
+    "sk.name": "Name", "sk.version": "Version", "sk.contract": "Contract",
+    "sk.tools": "Tools", "sk.sources": "Sources", "sk.back": "Back to skillsets",
+    "sk.delete": "Delete", "sk.system_prompt": "System Prompt", "sk.bot_name": "Bot Name",
+    "sk.data_sources": "Data Sources", "sk.binding": "Binding", "sk.query_mode": "Query Mode",
+    "sk.capabilities": "Capabilities", "sk.uploaded": "Skillset {name} uploaded",
+    "sk.del_title": "Delete Skillset",
+    "sk.del_desc": "This will permanently delete the <strong>{name}</strong> skillset manifest. Instances already using it are not affected.",
+    "sk.deleted": "Skillset {name} deleted",
+    "q.placeholder": "Search your organizational knowledge...",
+    "q.btn": "Query", "q.searching": "Searching...",
+    "q.topk": "Top K", "q.source": "Source", "q.all": "All",
+    "q.empty_title": "No results found",
+    "q.empty_desc": "Try a different query or check that sources have been ingested.",
+    "q.file": "File", "q.source_id": "Source", "q.chunk": "Chunk",
+    "act.empty_title": "No activity yet",
+    "act.empty_desc": "Events from provisioning, destruction, and health changes will appear here.",
+    "act.time": "Time", "act.type": "Type", "act.instance": "Instance", "act.message": "Message",
+    "coming_soon": "Coming Soon",
+    "settings.desc": "Configure fleet defaults, data plane connection, and panel preferences.",
+    "err.instances": "Failed to load instances: {msg}",
+    "err.instance": "Failed to load instance: {msg}",
+    "err.sources": "Failed to load sources: {msg}",
+    "err.source": "Failed to load source: {msg}",
+    "err.skillsets": "Failed to load skillsets: {msg}",
+    "err.skillset": "Failed to load skillset: {msg}",
+    "err.events": "Failed to load events: {msg}",
+    "lang.en": "English", "lang.es": "Español"
+  },
+  es: {
+    brand: "Fox Fleet", tagline: "La capa operativa para asistentes de IA personales",
+    "auth.label": "Secreto de Admin", "auth.placeholder": "Ingrese su secreto de administración", "auth.btn": "Conectar",
+    "auth.error": "Autenticación fallida — verifique su secreto",
+    "nav.manage": "Administrar", "nav.observe": "Observar", "nav.configure": "Configurar",
+    "nav.instances": "Instancias", "nav.sources": "Fuentes", "nav.skillsets": "Habilidades",
+    "nav.query": "Consulta", "nav.activity": "Actividad", "nav.settings": "Ajustes",
+    soon: "Pronto", "updated": "Actualizado",
+    "inst.provision": "Crear Instancia", "inst.create": "Crear Instancia",
+    "inst.empty_title": "Cree su primer asistente",
+    "inst.empty_desc": "Cree una instancia para comenzar a administrar asistentes de IA para su equipo.",
+    "inst.port": "Puerto", "inst.status": "Estado", "inst.health": "Salud",
+    "inst.last_check": "Última revisión", "inst.skillset": "Habilidad", "inst.role": "Rol",
+    "inst.created": "Creado", "inst.logs": "Registros del contenedor",
+    "inst.healthy": "Saludable", "inst.unhealthy": "No saludable", "inst.unknown": "Desconocido",
+    "inst.back": "Volver a la flota", "inst.destroy": "Destruir",
+    "prov.title": "Crear Instancia", "prov.desc": "Cree una nueva instancia administrada de Fox.",
+    "prov.id_label": "ID de instancia", "prov.id_placeholder": "ej. alice, soporte-bot",
+    "prov.skillset_label": "Ruta de habilidad (opcional)", "prov.skillset_placeholder": "/ruta/a/habilidad.yaml",
+    "prov.role_label": "Rol (opcional)", "prov.role_placeholder": "ej. asistente, soporte",
+    cancel: "Cancelar", create: "Crear",
+    "prov.started": "Instancia {id} — aprovisionamiento iniciado",
+    "dest.title": "Destruir Instancia",
+    "dest.desc": "Esto detendrá y eliminará el contenedor de <strong>{id}</strong>. Esta acción no se puede deshacer.",
+    "dest.remove_data": "También eliminar datos de la instancia",
+    "dest.confirm_label": "Escriba el ID de la instancia para confirmar",
+    "dest.destroyed": "Instancia {id} destruida",
+    "src.empty_title": "Conecte su conocimiento",
+    "src.empty_desc": "Agregue fuentes de archivo o REST para dar a sus asistentes acceso al conocimiento organizacional.",
+    "src.name": "Nombre", "src.type": "Tipo", "src.status": "Estado",
+    "src.docs": "Docs", "src.chunks": "Fragmentos", "src.error": "Error",
+    "src.back": "Volver a fuentes", "src.id": "ID", "src.collection": "Colección",
+    "src.documents": "Documentos", "src.updated": "Actualizado", "src.config": "Configuración",
+    "sk.drop": "Arrastre un YAML de habilidad", "sk.browse": "examinar",
+    "sk.empty_title": "Sin habilidades cargadas",
+    "sk.empty_desc": "Suba un manifiesto YAML para definir capacidades, herramientas y comportamiento del asistente.",
+    "sk.name": "Nombre", "sk.version": "Versión", "sk.contract": "Contrato",
+    "sk.tools": "Herramientas", "sk.sources": "Fuentes", "sk.back": "Volver a habilidades",
+    "sk.delete": "Eliminar", "sk.system_prompt": "Prompt de sistema", "sk.bot_name": "Nombre del bot",
+    "sk.data_sources": "Fuentes de datos", "sk.binding": "Vínculo", "sk.query_mode": "Modo consulta",
+    "sk.capabilities": "Capacidades", "sk.uploaded": "Habilidad {name} subida",
+    "sk.del_title": "Eliminar Habilidad",
+    "sk.del_desc": "Esto eliminará permanentemente el manifiesto <strong>{name}</strong>. Las instancias que ya lo usan no se ven afectadas.",
+    "sk.deleted": "Habilidad {name} eliminada",
+    "q.placeholder": "Busque en su conocimiento organizacional...",
+    "q.btn": "Consultar", "q.searching": "Buscando...",
+    "q.topk": "Top K", "q.source": "Fuente", "q.all": "Todas",
+    "q.empty_title": "Sin resultados",
+    "q.empty_desc": "Pruebe otra consulta o verifique que las fuentes hayan sido ingeridas.",
+    "q.file": "Archivo", "q.source_id": "Fuente", "q.chunk": "Fragmento",
+    "act.empty_title": "Sin actividad aún",
+    "act.empty_desc": "Eventos de aprovisionamiento, destrucción y cambios de salud aparecerán aquí.",
+    "act.time": "Hora", "act.type": "Tipo", "act.instance": "Instancia", "act.message": "Mensaje",
+    "coming_soon": "Próximamente",
+    "settings.desc": "Configure valores predeterminados, conexión del plano de datos y preferencias del panel.",
+    "err.instances": "Error al cargar instancias: {msg}",
+    "err.instance": "Error al cargar instancia: {msg}",
+    "err.sources": "Error al cargar fuentes: {msg}",
+    "err.source": "Error al cargar fuente: {msg}",
+    "err.skillsets": "Error al cargar habilidades: {msg}",
+    "err.skillset": "Error al cargar habilidad: {msg}",
+    "err.events": "Error al cargar eventos: {msg}",
+    "lang.en": "English", "lang.es": "Español"
+  }
+};
+
+function t(key, params) {
+  var dict = langs[state.locale] || langs.en;
+  var s = dict[key] || langs.en[key] || key;
+  if (params) { Object.keys(params).forEach(function(k) { s = s.replace("{" + k + "}", params[k]); }); }
+  return s;
+}
+
+function setLocale(loc) {
+  state.locale = loc;
+  localStorage.setItem("fox_locale", loc);
+  applyStaticText();
+  var p = state.page;
+  navigate(p);
+}
+
+function applyStaticText() {
+  document.documentElement.lang = state.locale;
+  document.querySelectorAll("[data-i18n]").forEach(function(el) { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(function(el) { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  var sel = document.getElementById("lang-select");
+  if (sel) sel.value = state.locale;
+}
 
 /* ── Auth ──────────────────────────────────────────────────────────── */
 
 function initAuth() {
+  applyStaticText();
   if (state.secret) { enterApp(); return; }
   document.getElementById("auth-screen").style.display = "flex";
   document.getElementById("shell").style.display = "none";
@@ -800,7 +962,7 @@ function refresh() {
   else if (p === "query") { return; }
   else if (p === "activity") { renderActivity(); }
   else { renderPlaceholder(p); }
-  document.getElementById("last-updated").textContent = "Updated " + new Date().toLocaleTimeString();
+  document.getElementById("last-updated").textContent = t("updated") + " " + new Date().toLocaleTimeString();
 }
 
 /* ── Navigation ────────────────────────────────────────────────────── */
@@ -813,11 +975,7 @@ function navigate(page) {
   document.querySelectorAll(".sb-link").forEach(function(el) {
     el.classList.toggle("active", el.dataset.page === page);
   });
-  var titles = {
-    instances: "Instances", sources: "Sources", skillsets: "Skillsets",
-    query: "Query", activity: "Activity", settings: "Settings"
-  };
-  document.getElementById("page-title").textContent = titles[page] || page;
+  document.getElementById("page-title").textContent = t("nav." + page) || page;
   if (page === "query") { renderQuery(); return; }
   refresh();
 }
@@ -825,6 +983,10 @@ function navigate(page) {
 document.getElementById("sidebar").addEventListener("click", function(e) {
   var link = e.target.closest(".sb-link");
   if (link && link.dataset.page) navigate(link.dataset.page);
+});
+
+document.getElementById("lang-select").addEventListener("change", function() {
+  setLocale(this.value);
 });
 
 /* ── Toast ─────────────────────────────────────────────────────────── */
@@ -883,15 +1045,15 @@ function renderInstances() {
     document.getElementById("page-meta").textContent = meta;
 
     var html = '<div class="toolbar">'
-      + '<button class="btn btn-primary" id="btn-provision">Provision Instance</button>'
+      + '<button class="btn btn-primary" id="btn-provision">' + esc(t("inst.provision")) + '</button>'
       + '</div>';
 
     if (instances.length === 0) {
       html += '<div class="empty-state">'
         + '<svg class="empty-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="2" y1="9" x2="22" y2="9"/><circle cx="7" cy="6" r="1"/><circle cx="11" cy="6" r="1"/></svg>'
-        + '<div class="empty-title">Provision your first assistant</div>'
-        + '<div class="empty-desc">Create an instance to start managing AI assistants for your team.</div>'
-        + '<button class="btn btn-primary" id="btn-provision-empty">Create Instance</button>'
+        + '<div class="empty-title">' + esc(t("inst.empty_title")) + '</div>'
+        + '<div class="empty-desc">' + esc(t("inst.empty_desc")) + '</div>'
+        + '<button class="btn btn-primary" id="btn-provision-empty">' + esc(t("inst.create")) + '</button>'
         + '</div>';
     } else {
       html += '<div class="grid">';
@@ -906,7 +1068,7 @@ function renderInstances() {
           + '<span class="dot ' + dot + '"></span></div>'
           + '<div class="card-meta">'
           + '<span><span class="badge badge-' + esc(statusBadge) + '">' + esc(statusBadge) + '</span></span>'
-          + '<span>Port ' + esc(String(inst.port)) + '</span>'
+          + '<span>' + esc(t("inst.port")) + ' ' + esc(String(inst.port)) + '</span>'
           + '<span>' + formatDate(inst.created_at) + '</span>'
           + '</div></div>';
       }
@@ -914,7 +1076,7 @@ function renderInstances() {
     }
     content.innerHTML = html;
   }).catch(function(e) {
-    if (e.message !== "Unauthorized") showToast("Failed to load instances: " + e.message);
+    if (e.message !== "Unauthorized") showToast(t("err.instances", { msg: e.message }));
   });
 }
 
@@ -923,23 +1085,23 @@ function renderInstances() {
 function showProvisionModal() {
   showModal(
     '<div class="modal">'
-    + '<div class="modal-title">Provision Instance</div>'
-    + '<div class="modal-desc">Create a new managed Fox assistant instance.</div>'
+    + '<div class="modal-title">' + esc(t("prov.title")) + '</div>'
+    + '<div class="modal-desc">' + esc(t("prov.desc")) + '</div>'
     + '<div class="modal-field">'
-    + '<label class="modal-label" for="m-id">Instance ID</label>'
-    + '<input class="input" id="m-id" style="width:100%" placeholder="e.g. alice, support-bot" autocomplete="off">'
+    + '<label class="modal-label" for="m-id">' + esc(t("prov.id_label")) + '</label>'
+    + '<input class="input" id="m-id" style="width:100%" placeholder="' + esc(t("prov.id_placeholder")) + '" autocomplete="off">'
     + '</div>'
     + '<div class="modal-field">'
-    + '<label class="modal-label" for="m-skillset">Skillset Path (optional)</label>'
-    + '<input class="input" id="m-skillset" style="width:100%" placeholder="/path/to/skillset.yaml">'
+    + '<label class="modal-label" for="m-skillset">' + esc(t("prov.skillset_label")) + '</label>'
+    + '<input class="input" id="m-skillset" style="width:100%" placeholder="' + esc(t("prov.skillset_placeholder")) + '">'
     + '</div>'
     + '<div class="modal-field">'
-    + '<label class="modal-label" for="m-role">Role (optional)</label>'
-    + '<input class="input" id="m-role" style="width:100%" placeholder="e.g. assistant, support">'
+    + '<label class="modal-label" for="m-role">' + esc(t("prov.role_label")) + '</label>'
+    + '<input class="input" id="m-role" style="width:100%" placeholder="' + esc(t("prov.role_placeholder")) + '">'
     + '</div>'
     + '<div class="modal-actions">'
-    + '<button class="btn btn-ghost" id="m-cancel">Cancel</button>'
-    + '<button class="btn btn-primary" id="m-create">Create</button>'
+    + '<button class="btn btn-ghost" id="m-cancel">' + esc(t("cancel")) + '</button>'
+    + '<button class="btn btn-primary" id="m-create">' + esc(t("create")) + '</button>'
     + '</div></div>'
   );
   document.getElementById("m-cancel").addEventListener("click", closeModal);
@@ -967,7 +1129,7 @@ function doProvision() {
   }).then(function(res) {
     if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || "Failed"); });
     closeModal();
-    showToast("Instance " + id + " provisioning started", "success");
+    showToast(t("prov.started", { id: id }), "success");
     refresh();
   }).catch(function(e) {
     document.getElementById("m-create").disabled = false;
@@ -993,31 +1155,31 @@ function renderDetail(id) {
     var content = document.getElementById("content");
     var h = inst.health;
     var dot = h ? (h.healthy ? "healthy" : "unhealthy") : "unknown";
-    var label = h ? (h.healthy ? "Healthy" : "Unhealthy") : "Unknown";
+    var label = h ? (h.healthy ? t("inst.healthy") : t("inst.unhealthy")) : t("inst.unknown");
 
-    var html = '<button class="back-link" data-action="back">&larr; Back to fleet</button>'
+    var html = '<button class="back-link" data-action="back">&larr; ' + esc(t("inst.back")) + '</button>'
       + '<div class="detail-card">'
       + '<div class="detail-header">'
       + '<div class="detail-title">' + esc(inst.id) + ' <span class="dot ' + dot + '"></span></div>'
-      + '<button class="btn btn-danger" data-action="destroy" data-id="' + esc(inst.id) + '">Destroy</button>'
+      + '<button class="btn btn-danger" data-action="destroy" data-id="' + esc(inst.id) + '">' + esc(t("inst.destroy")) + '</button>'
       + '</div>'
       + '<dl class="detail-grid">'
-      + '<dt>Status</dt><dd><span class="badge badge-' + esc(inst.status) + '">' + esc(inst.status) + '</span></dd>'
-      + '<dt>Port</dt><dd>' + esc(String(inst.port)) + '</dd>'
-      + '<dt>Health</dt><dd>' + label + '</dd>';
-    if (h && h.checked_at) html += '<dt>Last Check</dt><dd>' + formatDate(h.checked_at) + '</dd>';
-    if (inst.skillset_name) html += '<dt>Skillset</dt><dd>' + esc(inst.skillset_name) + '</dd>';
-    if (inst.principal_role) html += '<dt>Role</dt><dd>' + esc(inst.principal_role) + '</dd>';
-    html += '<dt>Created</dt><dd>' + formatDate(inst.created_at) + '</dd>'
+      + '<dt>' + esc(t("inst.status")) + '</dt><dd><span class="badge badge-' + esc(inst.status) + '">' + esc(inst.status) + '</span></dd>'
+      + '<dt>' + esc(t("inst.port")) + '</dt><dd>' + esc(String(inst.port)) + '</dd>'
+      + '<dt>' + esc(t("inst.health")) + '</dt><dd>' + esc(label) + '</dd>';
+    if (h && h.checked_at) html += '<dt>' + esc(t("inst.last_check")) + '</dt><dd>' + formatDate(h.checked_at) + '</dd>';
+    if (inst.skillset_name) html += '<dt>' + esc(t("inst.skillset")) + '</dt><dd>' + esc(inst.skillset_name) + '</dd>';
+    if (inst.principal_role) html += '<dt>' + esc(t("inst.role")) + '</dt><dd>' + esc(inst.principal_role) + '</dd>';
+    html += '<dt>' + esc(t("inst.created")) + '</dt><dd>' + formatDate(inst.created_at) + '</dd>'
       + '</dl>';
     if (inst.logs) {
-      html += '<div class="logs-section"><h3>Container Logs</h3>'
+      html += '<div class="logs-section"><h3>' + esc(t("inst.logs")) + '</h3>'
         + '<div class="logs">' + esc(inst.logs) + '</div></div>';
     }
     html += '</div>';
     content.innerHTML = html;
   }).catch(function(e) {
-    if (e.message !== "Unauthorized") showToast("Failed to load instance: " + e.message);
+    if (e.message !== "Unauthorized") showToast(t("err.instance", { msg: e.message }));
   });
 }
 
@@ -1026,18 +1188,18 @@ function renderDetail(id) {
 function showDestroyModal(id) {
   showModal(
     '<div class="modal">'
-    + '<div class="modal-title">Destroy Instance</div>'
-    + '<div class="modal-desc">This will stop and remove the container for <strong>' + esc(id) + '</strong>. This action cannot be undone.</div>'
+    + '<div class="modal-title">' + esc(t("dest.title")) + '</div>'
+    + '<div class="modal-desc">' + t("dest.desc", { id: esc(id) }) + '</div>'
     + '<div class="modal-field">'
-    + '<label class="modal-label"><input type="checkbox" id="m-remove-data"> Also remove instance data</label>'
+    + '<label class="modal-label"><input type="checkbox" id="m-remove-data"> ' + esc(t("dest.remove_data")) + '</label>'
     + '</div>'
     + '<div class="modal-field">'
-    + '<label class="modal-label" for="m-confirm-id">Type the instance ID to confirm</label>'
+    + '<label class="modal-label" for="m-confirm-id">' + esc(t("dest.confirm_label")) + '</label>'
     + '<input class="input" id="m-confirm-id" style="width:100%" placeholder="' + esc(id) + '" autocomplete="off">'
     + '</div>'
     + '<div class="modal-actions">'
-    + '<button class="btn btn-ghost" id="m-cancel">Cancel</button>'
-    + '<button class="btn btn-danger" id="m-destroy" disabled>Destroy</button>'
+    + '<button class="btn btn-ghost" id="m-cancel">' + esc(t("cancel")) + '</button>'
+    + '<button class="btn btn-danger" id="m-destroy" disabled>' + esc(t("inst.destroy")) + '</button>'
     + '</div></div>'
   );
   document.getElementById("m-cancel").addEventListener("click", closeModal);
@@ -1056,7 +1218,7 @@ function doDestroy(id) {
   apiFetch(url, { method: "DELETE" }).then(function(res) {
     if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || "Failed"); });
     closeModal();
-    showToast("Instance " + id + " destroyed", "success");
+    showToast(t("dest.destroyed", { id: id }), "success");
     state.detailId = "";
     navigate("instances");
   }).catch(function(e) {
@@ -1075,15 +1237,15 @@ function renderSources() {
     if (sources.length === 0) {
       content.innerHTML = '<div class="empty-state">'
         + '<svg class="empty-icon" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4.03 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/></svg>'
-        + '<div class="empty-title">Connect your knowledge</div>'
-        + '<div class="empty-desc">Add file or REST sources to give your assistants access to organizational knowledge.</div>'
+        + '<div class="empty-title">' + esc(t("src.empty_title")) + '</div>'
+        + '<div class="empty-desc">' + esc(t("src.empty_desc")) + '</div>'
         + '</div>';
       return;
     }
 
     var html = '<table class="data-table"><thead><tr>'
-      + '<th>Name</th><th>Type</th><th>Status</th>'
-      + '<th>Docs</th><th>Chunks</th><th>Error</th>'
+      + '<th>' + esc(t("src.name")) + '</th><th>' + esc(t("src.type")) + '</th><th>' + esc(t("src.status")) + '</th>'
+      + '<th>' + esc(t("src.docs")) + '</th><th>' + esc(t("src.chunks")) + '</th><th>' + esc(t("src.error")) + '</th>'
       + '</tr></thead><tbody>';
     for (var i = 0; i < sources.length; i++) {
       var s = sources[i];
@@ -1100,7 +1262,7 @@ function renderSources() {
     html += '</tbody></table>';
     content.innerHTML = html;
   }).catch(function(e) {
-    if (e.message !== "Unauthorized") showToast("Failed to load sources: " + e.message);
+    if (e.message !== "Unauthorized") showToast(t("err.sources", { msg: e.message }));
   });
 }
 
@@ -1121,27 +1283,27 @@ function renderSourceDetail(id) {
     if (!src) return;
     var content = document.getElementById("content");
     var badge = src.status || "pending";
-    var html = '<button class="back-link" data-action="source-back">&larr; Back to sources</button>'
+    var html = '<button class="back-link" data-action="source-back">&larr; ' + esc(t("src.back")) + '</button>'
       + '<div class="detail-card">'
       + '<div class="detail-header">'
       + '<div class="detail-title">' + esc(src.name || src.id) + '</div>'
       + '<span class="badge badge-' + esc(badge) + '">' + esc(badge) + '</span>'
       + '</div>'
       + '<dl class="detail-grid">'
-      + '<dt>ID</dt><dd style="font-family:var(--font-mono);font-size:12px">' + esc(src.id) + '</dd>'
-      + '<dt>Type</dt><dd>' + esc(src.type) + '</dd>'
-      + '<dt>Collection</dt><dd>' + esc(src.collection) + '</dd>'
-      + '<dt>Documents</dt><dd>' + (src.doc_count || 0) + '</dd>'
-      + '<dt>Chunks</dt><dd>' + (src.chunk_count || 0) + '</dd>'
-      + '<dt>Created</dt><dd>' + formatDate(src.created_at) + '</dd>'
-      + '<dt>Updated</dt><dd>' + formatDate(src.updated_at) + '</dd>';
+      + '<dt>' + esc(t("src.id")) + '</dt><dd style="font-family:var(--font-mono);font-size:12px">' + esc(src.id) + '</dd>'
+      + '<dt>' + esc(t("src.type")) + '</dt><dd>' + esc(src.type) + '</dd>'
+      + '<dt>' + esc(t("src.collection")) + '</dt><dd>' + esc(src.collection) + '</dd>'
+      + '<dt>' + esc(t("src.documents")) + '</dt><dd>' + (src.doc_count || 0) + '</dd>'
+      + '<dt>' + esc(t("src.chunks")) + '</dt><dd>' + (src.chunk_count || 0) + '</dd>'
+      + '<dt>' + esc(t("inst.created")) + '</dt><dd>' + formatDate(src.created_at) + '</dd>'
+      + '<dt>' + esc(t("src.updated")) + '</dt><dd>' + formatDate(src.updated_at) + '</dd>';
     if (src.error_detail) {
-      html += '<dt>Error</dt><dd style="color:var(--color-error)">' + esc(src.error_detail) + '</dd>';
+      html += '<dt>' + esc(t("src.error")) + '</dt><dd style="color:var(--color-error)">' + esc(src.error_detail) + '</dd>';
     }
     html += '</dl>';
 
     if (src.config && Object.keys(src.config).length > 0) {
-      html += '<h3 style="font-family:var(--font-heading);font-size:14px;font-weight:500;margin-bottom:8px">Configuration</h3>'
+      html += '<h3 style="font-family:var(--font-heading);font-size:14px;font-weight:500;margin-bottom:8px">' + esc(t("src.config")) + '</h3>'
         + '<dl class="detail-grid" style="margin-bottom:0">';
       var keys = Object.keys(src.config);
       for (var i = 0; i < keys.length; i++) {
@@ -1154,7 +1316,7 @@ function renderSourceDetail(id) {
     html += '</div>';
     content.innerHTML = html;
   }).catch(function(e) {
-    if (e.message !== "Unauthorized") showToast("Failed to load source: " + e.message);
+    if (e.message !== "Unauthorized") showToast(t("err.source", { msg: e.message }));
   });
 }
 
@@ -1166,18 +1328,18 @@ function renderSkillsets() {
     document.getElementById("page-meta").textContent = skillsets.length + " skillset" + (skillsets.length !== 1 ? "s" : "");
 
     var html = '<div class="drop-zone" id="drop-zone">'
-      + '<div class="drop-zone-text"><strong>Drop a skillset YAML</strong> here or <label style="color:var(--color-accent);cursor:pointer;text-decoration:underline">browse<input type="file" accept=".yaml,.yml" style="display:none" id="file-input"></label></div>'
+      + '<div class="drop-zone-text"><strong>' + esc(t("sk.drop")) + '</strong> here or <label style="color:var(--color-accent);cursor:pointer;text-decoration:underline">' + esc(t("sk.browse")) + '<input type="file" accept=".yaml,.yml" style="display:none" id="file-input"></label></div>'
       + '</div>';
 
     if (skillsets.length === 0) {
       html += '<div class="empty-state">'
         + '<svg class="empty-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
-        + '<div class="empty-title">No skillsets uploaded</div>'
-        + '<div class="empty-desc">Upload a skillset YAML manifest to define assistant capabilities, tools, and behavior.</div>'
+        + '<div class="empty-title">' + esc(t("sk.empty_title")) + '</div>'
+        + '<div class="empty-desc">' + esc(t("sk.empty_desc")) + '</div>'
         + '</div>';
     } else {
       html += '<table class="data-table"><thead><tr>'
-        + '<th>Name</th><th>Version</th><th>Contract</th><th>Tools</th><th>Sources</th>'
+        + '<th>' + esc(t("sk.name")) + '</th><th>' + esc(t("sk.version")) + '</th><th>' + esc(t("sk.contract")) + '</th><th>' + esc(t("sk.tools")) + '</th><th>' + esc(t("sk.sources")) + '</th>'
         + '</tr></thead><tbody>';
       for (var i = 0; i < skillsets.length; i++) {
         var sk = skillsets[i];
@@ -1194,7 +1356,7 @@ function renderSkillsets() {
     content.innerHTML = html;
     bindDropZone();
   }).catch(function(e) {
-    if (e.message !== "Unauthorized") showToast("Failed to load skillsets: " + e.message);
+    if (e.message !== "Unauthorized") showToast(t("err.skillsets", { msg: e.message }));
   });
 }
 
@@ -1232,7 +1394,7 @@ function uploadSkillset(file) {
     if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || "Upload failed"); });
     return res.json();
   }).then(function(sk) {
-    showToast("Skillset " + sk.name + " uploaded", "success");
+    showToast(t("sk.uploaded", { name: sk.name }), "success");
     refresh();
   }).catch(function(e) {
     if (e.message !== "Unauthorized") showToast(e.message);
@@ -1253,25 +1415,25 @@ function renderSkillsetDetail(name) {
   }).then(function(m) {
     if (!m) return;
     var content = document.getElementById("content");
-    var html = '<button class="back-link" data-action="skillset-back">&larr; Back to skillsets</button>'
+    var html = '<button class="back-link" data-action="skillset-back">&larr; ' + esc(t("sk.back")) + '</button>'
       + '<div class="detail-card">'
       + '<div class="detail-header">'
       + '<div class="detail-title">' + esc(m.name) + '</div>'
-      + '<button class="btn btn-danger" data-action="delete-skillset" data-name="' + esc(m.name) + '">Delete</button>'
+      + '<button class="btn btn-danger" data-action="delete-skillset" data-name="' + esc(m.name) + '">' + esc(t("sk.delete")) + '</button>'
       + '</div>'
       + '<dl class="detail-grid">'
-      + '<dt>Version</dt><dd><span class="badge badge-active">' + esc(m.version) + '</span></dd>'
-      + '<dt>Contract</dt><dd>' + esc(m.contract_version) + '</dd>';
+      + '<dt>' + esc(t("sk.version")) + '</dt><dd><span class="badge badge-active">' + esc(m.version) + '</span></dd>'
+      + '<dt>' + esc(t("sk.contract")) + '</dt><dd>' + esc(m.contract_version) + '</dd>';
     if (m.persona && m.persona.system_prompt_file) {
-      html += '<dt>System Prompt</dt><dd>' + esc(m.persona.system_prompt_file) + '</dd>';
+      html += '<dt>' + esc(t("sk.system_prompt")) + '</dt><dd>' + esc(m.persona.system_prompt_file) + '</dd>';
     }
     if (m.ui && m.ui.branding && m.ui.branding.bot_name) {
-      html += '<dt>Bot Name</dt><dd>' + esc(m.ui.branding.bot_name) + '</dd>';
+      html += '<dt>' + esc(t("sk.bot_name")) + '</dt><dd>' + esc(m.ui.branding.bot_name) + '</dd>';
     }
     html += '</dl>';
 
     if (m.tools && m.tools.length > 0) {
-      html += '<h3 style="font-family:var(--font-heading);font-size:14px;font-weight:500;margin-bottom:8px">Tools (' + m.tools.length + ')</h3>'
+      html += '<h3 style="font-family:var(--font-heading);font-size:14px;font-weight:500;margin-bottom:8px">' + esc(t("sk.tools")) + ' (' + m.tools.length + ')</h3>'
         + '<table class="data-table" style="margin-bottom:20px"><thead><tr><th>Name</th><th>Type</th></tr></thead><tbody>';
       for (var i = 0; i < m.tools.length; i++) {
         html += '<tr><td>' + esc(m.tools[i].name) + '</td><td><span class="badge badge-pending">' + esc(m.tools[i].type) + '</span></td></tr>';
@@ -1280,8 +1442,8 @@ function renderSkillsetDetail(name) {
     }
 
     if (m.data_sources && m.data_sources.length > 0) {
-      html += '<h3 style="font-family:var(--font-heading);font-size:14px;font-weight:500;margin-bottom:8px">Data Sources (' + m.data_sources.length + ')</h3>'
-        + '<table class="data-table" style="margin-bottom:20px"><thead><tr><th>Binding</th><th>Query Mode</th></tr></thead><tbody>';
+      html += '<h3 style="font-family:var(--font-heading);font-size:14px;font-weight:500;margin-bottom:8px">' + esc(t("sk.data_sources")) + ' (' + m.data_sources.length + ')</h3>'
+        + '<table class="data-table" style="margin-bottom:20px"><thead><tr><th>' + esc(t("sk.binding")) + '</th><th>' + esc(t("sk.query_mode")) + '</th></tr></thead><tbody>';
       for (var j = 0; j < m.data_sources.length; j++) {
         html += '<tr><td>' + esc(m.data_sources[j].binding) + '</td><td><span class="badge badge-pending">' + esc(m.data_sources[j].query_mode) + '</span></td></tr>';
       }
@@ -1291,7 +1453,7 @@ function renderSkillsetDetail(name) {
     if (m.capabilities) {
       var caps = Object.keys(m.capabilities);
       if (caps.length > 0) {
-        html += '<h3 style="font-family:var(--font-heading);font-size:14px;font-weight:500;margin-bottom:8px">Capabilities</h3><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px">';
+        html += '<h3 style="font-family:var(--font-heading);font-size:14px;font-weight:500;margin-bottom:8px">' + esc(t("sk.capabilities")) + '</h3><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px">';
         for (var k = 0; k < caps.length; k++) {
           var badgeClass = m.capabilities[caps[k]] ? "badge-active" : "badge-pending";
           html += '<span class="badge ' + badgeClass + '">' + esc(caps[k]) + '</span>';
@@ -1303,18 +1465,18 @@ function renderSkillsetDetail(name) {
     html += '</div>';
     content.innerHTML = html;
   }).catch(function(e) {
-    if (e.message !== "Unauthorized") showToast("Failed to load skillset: " + e.message);
+    if (e.message !== "Unauthorized") showToast(t("err.skillset", { msg: e.message }));
   });
 }
 
 function showDeleteSkillsetModal(name) {
   showModal(
     '<div class="modal">'
-    + '<div class="modal-title">Delete Skillset</div>'
-    + '<div class="modal-desc">This will permanently delete the <strong>' + esc(name) + '</strong> skillset manifest. Instances already using it are not affected.</div>'
+    + '<div class="modal-title">' + esc(t("sk.del_title")) + '</div>'
+    + '<div class="modal-desc">' + t("sk.del_desc", { name: esc(name) }) + '</div>'
     + '<div class="modal-actions">'
-    + '<button class="btn btn-ghost" id="m-cancel">Cancel</button>'
-    + '<button class="btn btn-danger" id="m-delete-skillset">Delete</button>'
+    + '<button class="btn btn-ghost" id="m-cancel">' + esc(t("cancel")) + '</button>'
+    + '<button class="btn btn-danger" id="m-delete-skillset">' + esc(t("sk.delete")) + '</button>'
     + '</div></div>'
   );
   document.getElementById("m-cancel").addEventListener("click", closeModal);
@@ -1323,7 +1485,7 @@ function showDeleteSkillsetModal(name) {
     apiFetch("/api/skillsets/" + encodeURIComponent(name), { method: "DELETE" }).then(function(res) {
       if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || "Failed"); });
       closeModal();
-      showToast("Skillset " + name + " deleted", "success");
+      showToast(t("sk.deleted", { name: name }), "success");
       state.skillsetDetail = "";
       navigate("skillsets");
     }).catch(function(e) {
@@ -1340,12 +1502,12 @@ function renderQuery() {
   document.getElementById("page-meta").textContent = "";
 
   content.innerHTML = '<div class="query-input-row">'
-    + '<input class="input" id="q-input" placeholder="Search your organizational knowledge..." autofocus>'
-    + '<button class="btn btn-primary" id="q-submit">Query</button>'
+    + '<input class="input" id="q-input" placeholder="' + esc(t("q.placeholder")) + '" autofocus>'
+    + '<button class="btn btn-primary" id="q-submit">' + esc(t("q.btn")) + '</button>'
     + '</div>'
     + '<div class="query-opts">'
-    + '<label>Top K</label><input class="input" id="q-topk" type="number" value="5" min="1" max="50">'
-    + '<label>Source</label><input class="input" id="q-source" placeholder="All" style="width:140px">'
+    + '<label>' + esc(t("q.topk")) + '</label><input class="input" id="q-topk" type="number" value="5" min="1" max="50">'
+    + '<label>' + esc(t("q.source")) + '</label><input class="input" id="q-source" placeholder="' + esc(t("q.all")) + '" style="width:140px">'
     + '</div>'
     + '<div id="q-results"></div>';
 
@@ -1363,7 +1525,7 @@ function doQuery() {
   var btn = document.getElementById("q-submit");
   var results = document.getElementById("q-results");
   btn.disabled = true;
-  btn.textContent = "Searching...";
+  btn.textContent = t("q.searching");
   results.innerHTML = skeletonCards(2);
 
   var payload = { query: query, top_k: topk };
@@ -1378,15 +1540,15 @@ function doQuery() {
     return res.json();
   }).then(function(data) {
     btn.disabled = false;
-    btn.textContent = "Query";
+    btn.textContent = t("q.btn");
     var items = data.results || [];
     document.getElementById("page-meta").textContent = items.length + " result" + (items.length !== 1 ? "s" : "");
 
     if (items.length === 0) {
       results.innerHTML = '<div class="empty-state">'
         + '<svg class="empty-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
-        + '<div class="empty-title">No results found</div>'
-        + '<div class="empty-desc">Try a different query or check that sources have been ingested.</div>'
+        + '<div class="empty-title">' + esc(t("q.empty_title")) + '</div>'
+        + '<div class="empty-desc">' + esc(t("q.empty_desc")) + '</div>'
         + '</div>';
       return;
     }
@@ -1398,9 +1560,9 @@ function doQuery() {
       html += '<div class="result-card">'
         + '<div class="result-header">'
         + '<div class="result-meta">';
-      if (r.file) html += '<span>File: ' + esc(r.file) + '</span>';
-      if (r.source_id) html += '<span>Source: ' + esc(r.source_id) + '</span>';
-      if (r.chunk_idx !== undefined) html += '<span>Chunk: ' + r.chunk_idx + '</span>';
+      if (r.file) html += '<span>' + esc(t("q.file")) + ': ' + esc(r.file) + '</span>';
+      if (r.source_id) html += '<span>' + esc(t("q.source_id")) + ': ' + esc(r.source_id) + '</span>';
+      if (r.chunk_idx !== undefined) html += '<span>' + esc(t("q.chunk")) + ': ' + r.chunk_idx + '</span>';
       html += '</div>'
         + '<span class="result-score">' + score + '%</span>'
         + '</div>'
@@ -1410,7 +1572,7 @@ function doQuery() {
     results.innerHTML = html;
   }).catch(function(e) {
     btn.disabled = false;
-    btn.textContent = "Query";
+    btn.textContent = t("q.btn");
     results.innerHTML = '';
     if (e.message !== "Unauthorized") showToast(e.message);
   });
@@ -1426,14 +1588,14 @@ function renderActivity() {
     if (evts.length === 0) {
       content.innerHTML = '<div class="empty-state">'
         + '<svg class="empty-icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>'
-        + '<div class="empty-title">No activity yet</div>'
-        + '<div class="empty-desc">Events from provisioning, destruction, and health changes will appear here.</div>'
+        + '<div class="empty-title">' + esc(t("act.empty_title")) + '</div>'
+        + '<div class="empty-desc">' + esc(t("act.empty_desc")) + '</div>'
         + '</div>';
       return;
     }
 
     var html = '<table class="data-table"><thead><tr>'
-      + '<th>Time</th><th>Type</th><th>Instance</th><th>Message</th>'
+      + '<th>' + esc(t("act.time")) + '</th><th>' + esc(t("act.type")) + '</th><th>' + esc(t("act.instance")) + '</th><th>' + esc(t("act.message")) + '</th>'
       + '</tr></thead><tbody>';
     for (var i = 0; i < evts.length; i++) {
       var ev = evts[i];
@@ -1448,21 +1610,18 @@ function renderActivity() {
     html += '</tbody></table>';
     content.innerHTML = html;
   }).catch(function(e) {
-    if (e.message !== "Unauthorized") showToast("Failed to load events: " + e.message);
+    if (e.message !== "Unauthorized") showToast(t("err.events", { msg: e.message }));
   });
 }
 
 /* ── Placeholder Pages ─────────────────────────────────────────────── */
 
 function renderPlaceholder(page) {
-  var descs = {
-    settings: "Configure fleet defaults, data plane connection, and panel preferences."
-  };
   document.getElementById("page-meta").textContent = "";
   document.getElementById("content").innerHTML =
     '<div class="placeholder-page">'
-    + '<h2>Coming Soon</h2>'
-    + '<p>' + (descs[page] || "") + '</p>'
+    + '<h2>' + esc(t("coming_soon")) + '</h2>'
+    + '<p>' + esc(t("settings.desc")) + '</p>'
     + '</div>';
 }
 
@@ -1503,8 +1662,9 @@ function formatDate(s) {
   try {
     var d = new Date(s);
     if (isNaN(d.getTime())) return esc(s);
-    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
-      + " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    var loc = state.locale || "en";
+    return d.toLocaleDateString(loc, { month: "short", day: "numeric", year: "numeric" })
+      + " " + d.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" });
   } catch (_) { return esc(s); }
 }
 
