@@ -1,0 +1,44 @@
+services:
+  fox-control:
+    image: ghcr.io/fox-in-the-box-ai/fox-control:${FOX_VERSION:-latest}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    ports:
+      - "${FOX_LISTEN_PORT:-9090}:9090"
+    volumes:
+      - fox-data:/var/lib/fox-control
+      - ./fox-control.toml:/etc/fox-control/fox-control.toml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - FOX_ADMIN_SECRET=${FOX_ADMIN_SECRET:?Set FOX_ADMIN_SECRET in .env}
+      - FOX_INSTANCE_PASSWORD=${FOX_INSTANCE_PASSWORD:?Set FOX_INSTANCE_PASSWORD in .env}
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/api/instances"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  qdrant:
+    image: qdrant/qdrant:v1.14.1
+    volumes:
+      - qdrant-data:/qdrant/storage
+    ports:
+      - "${QDRANT_HTTP_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:6333/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  fox-data:
+  qdrant-data:

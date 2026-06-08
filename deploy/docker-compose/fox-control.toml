@@ -1,0 +1,31 @@
+[control]
+listen = "0.0.0.0:9090"
+data_root = "/var/lib/fox-control"
+health_poll_seconds = 15
+
+[docker]
+socket = "/var/run/docker.sock"
+image = "ghcr.io/fox-in-the-box-ai/fox:latest"
+
+[auth]
+admin_secret = "${FOX_ADMIN_SECRET}"
+instance_password = "${FOX_INSTANCE_PASSWORD}"
+
+[instances]
+port_start = 8787
+max_instances = 10
+
+[qdrant]
+enabled = true
+http_port = 6333
+grpc_port = 6334
+
+[data_plane]
+enabled = true
+listen = "0.0.0.0:9091"
+collection = "fox-knowledge"
+vector_size = 1536
+
+[embedding]
+base_url = "http://host.docker.internal:11434"
+model = "nomic-embed-text"
