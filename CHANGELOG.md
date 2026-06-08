@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **EDGE-BASE-01:** Caddy reverse proxy — automatic TLS, panel + data plane routing, instance subdomain pattern (#66)
 - **EDGE-BASE-02:** Documented limitations — architectural boundaries, known gaps, planned improvements (#67)
 - **POLISH-01:** Internationalization — `t()` i18n function, English + Spanish dictionaries, `data-i18n` attribute binding, language selector with localStorage persistence, locale-aware date formatting
+- **POLISH-02:** Dark mode — CSS custom property theming, `[data-theme="dark"]` override layer, system preference detection via `prefers-color-scheme`, theme selector with localStorage persistence
 
 ## [0.2.0-alpha] - 2026-06-08
 
