@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/fox-in-the-box-ai/fox-fleet/plugins"
+	"gopkg.in/yaml.v3"
 )
 
 func validParams(t *testing.T) InjectParams {
@@ -93,6 +94,29 @@ func TestConfigYAMLContents(t *testing.T) {
 	}
 	if !strings.Contains(content, "chat: true") {
 		t.Errorf("config.yaml missing capability chat, got:\n%s", content)
+	}
+}
+
+func TestConfigYAMLRoundTrip(t *testing.T) {
+	p := validParams(t)
+	p.Config.ProxyEndpoint = "https://proxy.example.com:8080/path?key=val#frag"
+	p.Config.PrincipalRole = `role: "admin" {special}`
+	if err := Inject(p); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(p.DataDir, "config.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var parsed map[string]any
+	if err := yaml.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("config.yaml round-trip unmarshal failed: %v\ncontent:\n%s", err, data)
+	}
+	if got, ok := parsed["proxy_endpoint"].(string); !ok || got != p.Config.ProxyEndpoint {
+		t.Errorf("proxy_endpoint = %q, want %q", got, p.Config.ProxyEndpoint)
+	}
+	if got, ok := parsed["principal_role"].(string); !ok || got != p.Config.PrincipalRole {
+		t.Errorf("principal_role = %q, want %q", got, p.Config.PrincipalRole)
 	}
 }
 
@@ -251,6 +275,33 @@ func TestHermesEnvQueryToken(t *testing.T) {
 	}
 	if !strings.Contains(content, "FOX_DATA_PLANE_URL=http://127.0.0.1:9091") {
 		t.Errorf("hermes.env missing FOX_DATA_PLANE_URL, got:\n%s", content)
+	}
+}
+
+func TestInjectFilePermissions(t *testing.T) {
+	p := validParams(t)
+	p.Config.DataPlaneURL = "http://127.0.0.1:9091"
+	p.QueryToken = "test-token"
+	if err := Inject(p); err != nil {
+		t.Fatal(err)
+	}
+
+	wantPerms := map[string]os.FileMode{
+		"hermes.env":    0o600,
+		"tools.json":    0o600,
+		"config.yaml":   0o644,
+		"settings.json": 0o644,
+	}
+	for name, want := range wantPerms {
+		info, err := os.Stat(filepath.Join(p.DataDir, name))
+		if err != nil {
+			t.Errorf("%s: %v", name, err)
+			continue
+		}
+		got := info.Mode().Perm()
+		if got != want {
+			t.Errorf("%s: permissions = %04o, want %04o", name, got, want)
+		}
 	}
 }
 

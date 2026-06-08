@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -70,7 +71,7 @@ func (c *Client) EnsureCollection(ctx context.Context, name string, vectorSize i
 		},
 	})
 
-	url := fmt.Sprintf("%s/collections/%s", c.baseURL, name)
+	url := fmt.Sprintf("%s/collections/%s", c.baseURL, url.PathEscape(name))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("qdrant: create collection request: %w", err)
@@ -98,7 +99,7 @@ func (c *Client) Upsert(ctx context.Context, collection string, points []Point) 
 		return fmt.Errorf("qdrant: marshal upsert: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/collections/%s/points", c.baseURL, collection)
+	url := fmt.Sprintf("%s/collections/%s/points", c.baseURL, url.PathEscape(collection))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("qdrant: upsert request: %w", err)
@@ -123,7 +124,7 @@ func (c *Client) Search(ctx context.Context, collection string, sr SearchRequest
 		return nil, fmt.Errorf("qdrant: marshal search: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/collections/%s/points/search", c.baseURL, collection)
+	url := fmt.Sprintf("%s/collections/%s/points/search", c.baseURL, url.PathEscape(collection))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("qdrant: search request: %w", err)
@@ -148,7 +149,7 @@ func (c *Client) Search(ctx context.Context, collection string, sr SearchRequest
 }
 
 func (c *Client) DeleteCollection(ctx context.Context, name string) error {
-	url := fmt.Sprintf("%s/collections/%s", c.baseURL, name)
+	url := fmt.Sprintf("%s/collections/%s", c.baseURL, url.PathEscape(name))
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil {
 		return fmt.Errorf("qdrant: delete collection request: %w", err)

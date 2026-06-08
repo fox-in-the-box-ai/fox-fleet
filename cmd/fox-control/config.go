@@ -137,6 +137,8 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.Auth.AdminSecret == "" {
 		errs = append(errs, "auth.admin_secret must not be empty — set it in config or via FOX_ADMIN_SECRET env var")
+	} else if len(cfg.Auth.AdminSecret) < 16 {
+		errs = append(errs, "auth.admin_secret must be at least 16 characters — use 'fox-control generate-secret' to create one")
 	}
 	if cfg.Auth.InstancePassword == "" {
 		errs = append(errs, "auth.instance_password must not be empty — set it in config or via FOX_INSTANCE_PASSWORD env var")

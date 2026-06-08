@@ -80,6 +80,11 @@ func (s *Server) handleList(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDetail(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if !validInstanceID.MatchString(id) {
+		writeError(w, http.StatusBadRequest, "bad_request",
+			fmt.Sprintf("invalid instance ID %q", id))
+		return
+	}
 
 	inst, err := s.registry.Get(id)
 	if err != nil {
@@ -237,6 +242,11 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDestroy(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if !validInstanceID.MatchString(id) {
+		writeError(w, http.StatusBadRequest, "bad_request",
+			fmt.Sprintf("invalid instance ID %q", id))
+		return
+	}
 	removeData := r.URL.Query().Get("remove_data") == "true"
 
 	if err := s.provisioner.Destroy(r.Context(), id, removeData); err != nil {

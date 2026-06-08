@@ -132,6 +132,7 @@ func (s *Server) ListenAndServe() error {
 		Addr:              s.cfg.Listen,
 		Handler:           s.mux,
 		ReadHeaderTimeout: 10 * time.Second,
+		WriteTimeout:      300 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
 	s.log.Info("data plane server listening", "addr", s.cfg.Listen)

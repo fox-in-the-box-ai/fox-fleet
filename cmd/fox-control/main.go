@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -69,6 +71,7 @@ func newRootCmd() *cobra.Command {
 		newConformanceCmd(),
 		newVerifyCmd(),
 		newSecCmd(),
+		newGenerateSecretCmd(),
 	)
 	return cmd
 }
@@ -141,13 +144,19 @@ func newServeCmd() *cobra.Command {
 
 			eventLog := events.NewLog(200)
 
+			imageRef := parseImageRef(cfg.Docker.Image)
+			if imageRef.Digest == "" {
+				slog.Warn("docker.image uses a tag without a digest — pin to a digest for reproducible deployments (repo@sha256:...)",
+					"image", cfg.Docker.Image)
+			}
+
 			apiServer := api.NewServer(api.Deps{
 				Registry:        reg,
 				Provisioner:     prov,
 				Plugin:          plug,
 				AdminSecret:     cfg.Auth.AdminSecret,
 				InstancePwd:     cfg.Auth.InstancePassword,
-				Image:           parseImageRef(cfg.Docker.Image),
+				Image:           imageRef,
 				MaxInstances:    cfg.Instances.MaxInstances,
 				PollInterval:    pollInterval,
 				WebFS:           webFS,
@@ -171,6 +180,7 @@ func newServeCmd() *cobra.Command {
 				Addr:              cfg.Control.Listen,
 				Handler:           apiServer.Handler(),
 				ReadHeaderTimeout: 10 * time.Second,
+				WriteTimeout:      30 * time.Second,
 			}
 
 			go func() {
@@ -540,4 +550,22 @@ func openRegistryAndPlugin(cfg *Config) (*registry.Registry, *docker.Plugin, err
 	}
 
 	return reg, docker.NewWithClient(cli), nil
+}
+
+func newGenerateSecretCmd() *cobra.Command {
+	var length int
+	cmd := &cobra.Command{
+		Use:   "generate-secret",
+		Short: "Generate a cryptographically random secret suitable for admin_secret",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			buf := make([]byte, length)
+			if _, err := rand.Read(buf); err != nil {
+				return fmt.Errorf("generate secret: %w", err)
+			}
+			fmt.Println(hex.EncodeToString(buf))
+			return nil
+		},
+	}
+	cmd.Flags().IntVar(&length, "bytes", 32, "number of random bytes (output is hex-encoded, so 32 bytes = 64 chars)")
+	return cmd
 }

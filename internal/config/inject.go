@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/fox-in-the-box-ai/fox-fleet/plugins"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -36,11 +37,12 @@ func Inject(p InjectParams) error {
 	writers := []struct {
 		name string
 		fn   func(InjectParams) ([]byte, error)
+		perm os.FileMode
 	}{
-		{"hermes.env", renderHermesEnv},
-		{"config.yaml", renderConfigYAML},
-		{"settings.json", renderSettingsJSON},
-		{"tools.json", renderToolsJSON},
+		{"hermes.env", renderHermesEnv, 0o600},
+		{"config.yaml", renderConfigYAML, 0o644},
+		{"settings.json", renderSettingsJSON, 0o644},
+		{"tools.json", renderToolsJSON, 0o600},
 	}
 
 	for _, w := range writers {
@@ -48,7 +50,7 @@ func Inject(p InjectParams) error {
 		if err != nil {
 			return fmt.Errorf("config: render %s: %w", w.name, err)
 		}
-		if err := writeIfChanged(filepath.Join(p.DataDir, w.name), data); err != nil {
+		if err := writeIfChanged(filepath.Join(p.DataDir, w.name), data, w.perm); err != nil {
 			return fmt.Errorf("config: write %s: %w", w.name, err)
 		}
 	}
@@ -70,6 +72,13 @@ func renderHermesEnv(p InjectParams) ([]byte, error) {
 		env["FOX_SKILLSET_PATH"] = p.Config.SkillsetPath
 	}
 	for k, v := range p.Config.Env {
+		upper := strings.ToUpper(k)
+		if upper == "FOX_PLANE_AUTH_SECRET" || upper == "HERMES_WEBUI_PASSWORD" ||
+			upper == "FOX_DATA_PLANE_URL" || upper == "FOX_DATA_PLANE_TOKEN" ||
+			upper == "FOX_SKILLSET_PATH" || upper == "PATH" ||
+			upper == "HOME" || upper == "LD_PRELOAD" || upper == "LD_LIBRARY_PATH" {
+			return nil, fmt.Errorf("env key %q is reserved and cannot be overridden", k)
+		}
 		env[k] = v
 	}
 
@@ -87,25 +96,25 @@ func renderHermesEnv(p InjectParams) ([]byte, error) {
 }
 
 func renderConfigYAML(p InjectParams) ([]byte, error) {
-	var buf bytes.Buffer
-	buf.WriteString("# Managed by fox-control — do not edit manually.\n")
+	cfg := make(map[string]any)
 	if p.Config.ProxyEndpoint != "" {
-		fmt.Fprintf(&buf, "proxy_endpoint: %s\n", p.Config.ProxyEndpoint)
+		cfg["proxy_endpoint"] = p.Config.ProxyEndpoint
 	}
 	if p.Config.PrincipalRole != "" {
-		fmt.Fprintf(&buf, "principal_role: %s\n", p.Config.PrincipalRole)
+		cfg["principal_role"] = p.Config.PrincipalRole
 	}
 	if len(p.Config.CapabilityFlags) > 0 {
-		buf.WriteString("capabilities:\n")
-		keys := make([]string, 0, len(p.Config.CapabilityFlags))
-		for k := range p.Config.CapabilityFlags {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			fmt.Fprintf(&buf, "  %s: %t\n", k, p.Config.CapabilityFlags[k])
-		}
+		cfg["capabilities"] = p.Config.CapabilityFlags
 	}
+
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	buf.WriteString("# Managed by fox-control — do not edit manually.\n")
+	buf.Write(data)
 	return buf.Bytes(), nil
 }
 
@@ -172,7 +181,7 @@ func renderToolsJSON(p InjectParams) ([]byte, error) {
 	return data, nil
 }
 
-func writeIfChanged(path string, data []byte) error {
+func writeIfChanged(path string, data []byte, perm os.FileMode) error {
 	existing, err := os.ReadFile(path)
 	if err == nil && bytes.Equal(existing, data) {
 		return nil
@@ -180,7 +189,7 @@ func writeIfChanged(path string, data []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	return os.WriteFile(path, data, perm)
 }
 
 func ValidateSecrets(authSecret, instancePassword string) error {
