@@ -85,26 +85,20 @@ jobs:
           merge-multiple: true
 
       - name: Extract release notes from CHANGELOG
-        id: notes
         run: |
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
-          NOTES=$(awk -v ver="$VERSION" '
+          awk -v ver="$VERSION" '
             /^## \[/ {
               if (found) exit
               if (index($0, "[" ver "]") || index($0, "[Unreleased]")) found=1
               next
             }
             found { print }
-          ' CHANGELOG.md)
-          if [ -z "$NOTES" ]; then
-            NOTES="Release ${TAG}. See CHANGELOG.md for details."
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "Release ${TAG}. See CHANGELOG.md for details." > release-notes.md
           fi
-          {
-            echo "NOTES<<RELEASE_NOTES_EOF"
-            echo "$NOTES"
-            echo "RELEASE_NOTES_EOF"
-          } >> "$GITHUB_OUTPUT"
 
       - name: Generate checksums
         run: |
@@ -122,7 +116,7 @@ jobs:
           fi
           gh release create "$TAG" \
             --title "Fox Fleet ${TAG}" \
-            --notes "${{ steps.notes.outputs.NOTES }}" \
+            --notes-file release-notes.md \
             ${PRERELEASE} \
             artifacts/*.tar.gz \
             artifacts/checksums-sha256.txt
