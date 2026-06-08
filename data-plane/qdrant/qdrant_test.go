@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"testing"
+	"time"
 )
 
 func TestConfigDefaults(t *testing.T) {
@@ -41,6 +42,38 @@ func TestConfigPreservesExplicit(t *testing.T) {
 	}
 	if cfg.GRPCPort != 7334 {
 		t.Errorf("GRPCPort = %d, want 7334", cfg.GRPCPort)
+	}
+}
+
+func TestConfigValidateMissingDataDir(t *testing.T) {
+	cfg := Config{Image: "qdrant/qdrant:v1.14.0", HTTPPort: 6333, GRPCPort: 6334}
+	if err := cfg.validate(); err != ErrMissingDataDir {
+		t.Errorf("validate() = %v, want ErrMissingDataDir", err)
+	}
+}
+
+func TestConfigValidateValid(t *testing.T) {
+	cfg := Config{DataDir: "/tmp/qdrant"}
+	cfg.applyDefaults()
+	if err := cfg.validate(); err != nil {
+		t.Errorf("validate() = %v", err)
+	}
+}
+
+func TestNewManagerMissingDataDir(t *testing.T) {
+	_, err := NewManager(nil, Config{})
+	if err != ErrMissingDataDir {
+		t.Errorf("NewManager() = %v, want ErrMissingDataDir", err)
+	}
+}
+
+func TestNewManagerValid(t *testing.T) {
+	m, err := NewManager(nil, Config{DataDir: "/tmp/qdrant"})
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	if m.cfg.Image != defaultImage {
+		t.Errorf("Image = %q, want %q", m.cfg.Image, defaultImage)
 	}
 }
 
@@ -88,8 +121,22 @@ func TestHttpProbeUnreachable(t *testing.T) {
 	}
 }
 
-func TestContainerName(t *testing.T) {
-	if containerName != "fox-qdrant" {
-		t.Errorf("containerName = %q, want %q", containerName, "fox-qdrant")
+func TestPollHealthTimeout(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+
+	_, portStr, _ := net.SplitHostPort(srv.Listener.Addr().String())
+	port, _ := strconv.Atoi(portStr)
+
+	m := &Manager{cfg: Config{HTTPPort: port}}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	err := m.pollHealth(ctx)
+	if err == nil {
+		t.Fatal("pollHealth should return error on timeout")
 	}
 }

@@ -2,6 +2,7 @@ package qdrant
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,6 +25,8 @@ const (
 	stopTimeout    = 30
 )
 
+var ErrMissingDataDir = errors.New("qdrant: data_dir is required for persistent storage")
+
 type Config struct {
 	Image    string
 	HTTPPort int
@@ -43,36 +46,51 @@ func (c *Config) applyDefaults() {
 	}
 }
 
+func (c *Config) validate() error {
+	if c.DataDir == "" {
+		return ErrMissingDataDir
+	}
+	return nil
+}
+
 type Manager struct {
 	cli *client.Client
 	cfg Config
 }
 
-func NewManager(cli *client.Client, cfg Config) *Manager {
+func NewManager(cli *client.Client, cfg Config) (*Manager, error) {
 	cfg.applyDefaults()
-	return &Manager{cli: cli, cfg: cfg}
+	if err := cfg.validate(); err != nil {
+		return nil, err
+	}
+	return &Manager{cli: cli, cfg: cfg}, nil
 }
 
 func (m *Manager) Provision(ctx context.Context) error {
-	pullReader, err := m.cli.ImagePull(ctx, m.cfg.Image, image.PullOptions{})
-	if err != nil {
-		return fmt.Errorf("qdrant: pull image %s: %w", m.cfg.Image, err)
+	info, err := m.cli.ContainerInspect(ctx, containerName)
+	if err == nil {
+		if info.State.Running {
+			return m.pollHealth(ctx)
+		}
+		if err := m.cli.ContainerStart(ctx, info.ID, container.StartOptions{}); err != nil {
+			return fmt.Errorf("qdrant: start existing container: %w", err)
+		}
+		return m.pollHealth(ctx)
 	}
-	_, _ = io.Copy(io.Discard, pullReader)
-	pullReader.Close()
 
-	httpBinding := nat.PortMap{
+	if !client.IsErrNotFound(err) {
+		return fmt.Errorf("qdrant: inspect container: %w", err)
+	}
+
+	m.ensureImage(ctx)
+
+	portBindings := nat.PortMap{
 		nat.Port(httpPort): []nat.PortBinding{
 			{HostIP: "127.0.0.1", HostPort: fmt.Sprintf("%d", m.cfg.HTTPPort)},
 		},
 		nat.Port(grpcPort): []nat.PortBinding{
 			{HostIP: "127.0.0.1", HostPort: fmt.Sprintf("%d", m.cfg.GRPCPort)},
 		},
-	}
-
-	binds := []string{}
-	if m.cfg.DataDir != "" {
-		binds = append(binds, m.cfg.DataDir+":/qdrant/storage")
 	}
 
 	resp, err := m.cli.ContainerCreate(ctx,
@@ -88,8 +106,8 @@ func (m *Manager) Provision(ctx context.Context) error {
 			},
 		},
 		&container.HostConfig{
-			PortBindings: httpBinding,
-			Binds:        binds,
+			PortBindings: portBindings,
+			Binds:        []string{m.cfg.DataDir + ":/qdrant/storage"},
 			RestartPolicy: container.RestartPolicy{
 				Name: container.RestartPolicyUnlessStopped,
 			},
@@ -104,14 +122,20 @@ func (m *Manager) Provision(ctx context.Context) error {
 		return fmt.Errorf("qdrant: start container: %w", err)
 	}
 
-	if err := m.pollHealth(ctx); err != nil {
-		return fmt.Errorf("qdrant: %w", err)
-	}
-
-	return nil
+	return m.pollHealth(ctx)
 }
 
 func (m *Manager) HealthCheck(ctx context.Context) (bool, error) {
+	info, err := m.cli.ContainerInspect(ctx, containerName)
+	if err != nil {
+		if client.IsErrNotFound(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("qdrant: inspect container: %w", err)
+	}
+	if !info.State.Running {
+		return false, nil
+	}
 	return httpProbe(ctx, m.cfg.HTTPPort, healthPath), nil
 }
 
@@ -138,6 +162,19 @@ func (m *Manager) GRPCURL() string {
 	return fmt.Sprintf("127.0.0.1:%d", m.cfg.GRPCPort)
 }
 
+func (m *Manager) ensureImage(ctx context.Context) {
+	_, _, err := m.cli.ImageInspectWithRaw(ctx, m.cfg.Image)
+	if err == nil {
+		return
+	}
+	pullReader, pullErr := m.cli.ImagePull(ctx, m.cfg.Image, image.PullOptions{})
+	if pullErr != nil {
+		return
+	}
+	_, _ = io.Copy(io.Discard, pullReader)
+	pullReader.Close()
+}
+
 func (m *Manager) pollHealth(ctx context.Context) error {
 	for i := 0; i < healthPollMax; i++ {
 		select {
@@ -149,7 +186,7 @@ func (m *Manager) pollHealth(ctx context.Context) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("health check timed out after %d attempts", healthPollMax)
+	return fmt.Errorf("qdrant: health check timed out after %d attempts", healthPollMax)
 }
 
 func httpProbe(ctx context.Context, port int, path string) bool {

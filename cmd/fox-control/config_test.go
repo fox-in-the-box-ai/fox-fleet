@@ -394,3 +394,18 @@ func TestLoadConfig_QdrantSectionDefaults(t *testing.T) {
 		t.Error("Qdrant.Enabled should default to false")
 	}
 }
+
+func TestLoadConfig_QdrantEnabledDefaultsDataDir(t *testing.T) {
+	content := validTOML() + `
+[qdrant]
+enabled = true
+`
+	cfg, err := LoadConfig(writeConfig(t, content))
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	want := cfg.Control.DataRoot + "/qdrant"
+	if cfg.Qdrant.DataDir != want {
+		t.Errorf("Qdrant.DataDir = %q, want %q", cfg.Qdrant.DataDir, want)
+	}
+}
