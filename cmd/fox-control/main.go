@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -17,9 +18,11 @@ import (
 
 	"github.com/docker/docker/client"
 	"github.com/spf13/cobra"
+	_ "modernc.org/sqlite"
 
 	plugconf "github.com/fox-in-the-box-ai/fox-fleet/conformance/plugin"
 	conformance "github.com/fox-in-the-box-ai/fox-fleet/conformance/runtime"
+	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/source"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/provisioner"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
 	"github.com/fox-in-the-box-ai/fox-fleet/panel/api"
@@ -108,16 +111,34 @@ func newServeCmd() *cobra.Command {
 				return fmt.Errorf("embed web assets: %w", err)
 			}
 
+			var srcReg *source.Registry
+			var dpURL string
+			if cfg.DataPlane.Enabled {
+				dpURL = "http://" + cfg.DataPlane.Listen
+				srcDB, err := sql.Open("sqlite", filepath.Join(cfg.Control.DataRoot, "sources.db"))
+				if err != nil {
+					return fmt.Errorf("open sources db: %w", err)
+				}
+				srcDB.SetMaxOpenConns(1)
+				defer srcDB.Close()
+				srcReg, err = source.OpenRegistry(srcDB)
+				if err != nil {
+					return fmt.Errorf("open source registry: %w", err)
+				}
+			}
+
 			apiServer := api.NewServer(api.Deps{
-				Registry:     reg,
-				Provisioner:  prov,
-				Plugin:       plug,
-				AdminSecret:  cfg.Auth.AdminSecret,
-				InstancePwd:  cfg.Auth.InstancePassword,
-				Image:        parseImageRef(cfg.Docker.Image),
-				MaxInstances: cfg.Instances.MaxInstances,
-				PollInterval: pollInterval,
-				WebFS:        webFS,
+				Registry:       reg,
+				Provisioner:    prov,
+				Plugin:         plug,
+				AdminSecret:    cfg.Auth.AdminSecret,
+				InstancePwd:    cfg.Auth.InstancePassword,
+				Image:          parseImageRef(cfg.Docker.Image),
+				MaxInstances:   cfg.Instances.MaxInstances,
+				PollInterval:   pollInterval,
+				WebFS:          webFS,
+				SourceRegistry: srcReg,
+				DataPlaneURL:   dpURL,
 			})
 
 			ctx := cmd.Context()

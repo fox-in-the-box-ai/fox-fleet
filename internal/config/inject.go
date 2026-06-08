@@ -39,6 +39,7 @@ func Inject(p InjectParams) error {
 		{"hermes.env", renderHermesEnv},
 		{"config.yaml", renderConfigYAML},
 		{"settings.json", renderSettingsJSON},
+		{"tools.json", renderToolsJSON},
 	}
 
 	for _, w := range writers {
@@ -113,6 +114,53 @@ func renderSettingsJSON(p InjectParams) ([]byte, error) {
 		settings["capabilities"] = p.Config.CapabilityFlags
 	}
 	data, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	data = append(data, '\n')
+	return data, nil
+}
+
+func renderToolsJSON(p InjectParams) ([]byte, error) {
+	type toolParam struct {
+		Type        string `json:"type"`
+		Required    bool   `json:"required,omitempty"`
+		Default     any    `json:"default,omitempty"`
+		Description string `json:"description"`
+	}
+	type toolAuth struct {
+		Header string `json:"header"`
+		Env    string `json:"env"`
+	}
+	type toolDef struct {
+		Name        string               `json:"name"`
+		Description string               `json:"description"`
+		URL         string               `json:"url"`
+		Method      string               `json:"method"`
+		Auth        *toolAuth            `json:"auth,omitempty"`
+		Parameters  map[string]toolParam `json:"parameters"`
+	}
+	type manifest struct {
+		Tools []toolDef `json:"tools"`
+	}
+
+	m := manifest{Tools: []toolDef{}}
+	if p.Config.DataPlaneURL != "" {
+		m.Tools = append(m.Tools, toolDef{
+			Name:        "knowledge_query",
+			Description: "Search the knowledge base for relevant information",
+			URL:         p.Config.DataPlaneURL + "/v1/query",
+			Method:      "POST",
+			Auth:        &toolAuth{Header: "X-Fox-Auth", Env: "FOX_PLANE_AUTH_SECRET"},
+			Parameters: map[string]toolParam{
+				"query":     {Type: "string", Required: true, Description: "Search query text"},
+				"top_k":     {Type: "integer", Default: 5, Description: "Maximum number of results to return"},
+				"source_id": {Type: "string", Description: "Filter results by source ID"},
+			},
+		})
+	}
+
+	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return nil, err
 	}

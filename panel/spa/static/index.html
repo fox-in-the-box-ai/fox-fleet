@@ -43,6 +43,18 @@ main{max-width:960px;margin:0 auto;padding:1.5rem}
 #auth-prompt input{width:100%;background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:.5rem;border-radius:6px;font-size:.875rem;margin-bottom:1rem}
 #auth-prompt button{background:#2563eb;color:#fff;border:none;padding:.5rem 1.5rem;border-radius:6px;cursor:pointer}
 .error-banner{background:#7f1d1d;border:1px solid #dc2626;color:#fecaca;padding:.75rem 1rem;border-radius:6px;margin-bottom:1rem;font-size:.875rem}
+.tabs{display:flex;gap:0;margin-bottom:1.5rem;border-bottom:1px solid #334155}
+.tab{background:none;border:none;color:#94a3b8;padding:.5rem 1rem;font-size:.875rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab:hover{color:#e2e8f0}
+.tab.active{color:#60a5fa;border-bottom-color:#60a5fa}
+.src-table{width:100%;border-collapse:collapse;font-size:.875rem}
+.src-table th{text-align:left;color:#94a3b8;padding:.5rem .75rem;border-bottom:1px solid #334155;font-weight:500}
+.src-table td{padding:.5rem .75rem;border-bottom:1px solid #1e293b}
+.badge{display:inline-block;padding:.125rem .5rem;border-radius:4px;font-size:.75rem;font-weight:500}
+.badge.active{background:#065f46;color:#6ee7b7}
+.badge.ingesting{background:#92400e;color:#fcd34d}
+.badge.error{background:#7f1d1d;color:#fca5a5}
+.badge.pending{background:#334155;color:#94a3b8}
 </style>
 </head>
 <body>
@@ -68,6 +80,7 @@ let secret = sessionStorage.getItem("fox_secret") || "";
 let view = "list";
 let selectedId = "";
 let refreshTimer = null;
+let activeTab = "instances";
 
 function saveSecret() {
   secret = document.getElementById("secret-input").value;
@@ -106,8 +119,9 @@ async function apiFetch(path, opts = {}) {
 async function refresh() {
   if (!secret) return;
   try {
-    if (view === "list") await renderList();
-    else await renderDetail(selectedId);
+    if (view === "detail") await renderDetail(selectedId);
+    else if (activeTab === "sources") await renderSources();
+    else await renderList();
     document.getElementById("last-updated").textContent = "Updated " + new Date().toLocaleTimeString();
   } catch (e) {
     if (e.message !== "Unauthorized") {
@@ -116,12 +130,47 @@ async function refresh() {
   }
 }
 
+function renderTabs() {
+  return '<div class="tabs">'
+    + '<button class="tab' + (activeTab === "instances" ? " active" : "") + '" data-action="tab" data-tab="instances">Instances</button>'
+    + '<button class="tab' + (activeTab === "sources" ? " active" : "") + '" data-action="tab" data-tab="sources">Sources</button>'
+    + '</div>';
+}
+
+async function renderSources() {
+  const res = await apiFetch("/api/sources");
+  const sources = await res.json();
+  const app = document.getElementById("app");
+
+  let html = renderTabs();
+
+  if (sources.length === 0) {
+    html += '<div class="empty">No knowledge sources configured.</div>';
+  } else {
+    html += '<table class="src-table"><thead><tr><th>Name</th><th>Type</th><th>Status</th><th>Docs</th><th>Chunks</th><th>Error</th></tr></thead><tbody>';
+    for (const s of sources) {
+      const badge = s.status || "pending";
+      html += '<tr>';
+      html += '<td>' + escapeHtml(s.name || s.id) + '</td>';
+      html += '<td>' + escapeHtml(s.type) + '</td>';
+      html += '<td><span class="badge ' + escapeHtml(badge) + '">' + escapeHtml(badge) + '</span></td>';
+      html += '<td>' + (s.doc_count || 0) + '</td>';
+      html += '<td>' + (s.chunk_count || 0) + '</td>';
+      html += '<td>' + escapeHtml(s.error_detail || "-") + '</td>';
+      html += '</tr>';
+    }
+    html += '</tbody></table>';
+  }
+  app.innerHTML = html;
+}
+
 async function renderList() {
   const res = await apiFetch("/api/instances");
   const instances = await res.json();
   const app = document.getElementById("app");
 
-  let html = '<div class="toolbar">';
+  let html = renderTabs();
+  html += '<div class="toolbar">';
   html += '<input type="text" id="new-id" placeholder="Instance ID">';
   html += '<button onclick="createInstance()">Create</button>';
   html += '</div>';
@@ -220,7 +269,16 @@ function escapeHtml(s) {
   return d.innerHTML;
 }
 
+function switchTab(tab) {
+  activeTab = tab;
+  view = "list";
+  selectedId = "";
+  refresh();
+}
+
 document.getElementById("app").addEventListener("click", function(e) {
+  const tab = e.target.closest("[data-action='tab']");
+  if (tab) { switchTab(tab.dataset.tab); return; }
   const card = e.target.closest("[data-action='detail']");
   if (card) { showDetail(card.dataset.id); return; }
   const btn = e.target.closest("[data-action='destroy']");
