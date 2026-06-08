@@ -5,12 +5,124 @@ on:
     tags:
       - "v*.*.*"
 
+permissions:
+  contents: write
+
 jobs:
-  placeholder:
-    name: Release (not yet implemented)
+  build:
+    name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            runner: ubuntu-latest
+          - goos: linux
+            goarch: arm64
+            runner: ubuntu-latest
+          - goos: darwin
+            goarch: amd64
+            runner: macos-latest
+          - goos: darwin
+            goarch: arm64
+            runner: macos-latest
+          - goos: windows
+            goarch: amd64
+            runner: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          BINARY=fox-control
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            BINARY=fox-control.exe
+          fi
+          go build -trimpath \
+            -ldflags "-s -w -X main.buildVersion=${{ github.ref_name }} -X main.buildCommit=${{ github.sha }} -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o "${BINARY}" \
+            ./cmd/fox-control
+        shell: bash
+
+      - name: Package artifact
+        run: |
+          ARTIFACT=fox-control-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}
+          mkdir "${ARTIFACT}"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            cp fox-control.exe "${ARTIFACT}/"
+          else
+            cp fox-control "${ARTIFACT}/"
+          fi
+          cp LICENSE "${ARTIFACT}/"
+          cp README.md "${ARTIFACT}/"
+          tar czf "${ARTIFACT}.tar.gz" "${ARTIFACT}"
+        shell: bash
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fox-control-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: "*.tar.gz"
+
+  release:
+    name: Create GitHub Release
+    needs: build
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          echo "Release workflow not yet implemented."
-          echo "See REL-02 (cosign) and REL-03 (SBOM) for the design."
-          echo "Tag: ${{ github.ref_name }}"
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          NOTES=$(awk -v ver="$VERSION" '
+            /^## \[/ {
+              if (found) exit
+              if (index($0, "[" ver "]") || index($0, "[Unreleased]")) found=1
+              next
+            }
+            found { print }
+          ' CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            NOTES="Release ${TAG}. See CHANGELOG.md for details."
+          fi
+          {
+            echo "NOTES<<RELEASE_NOTES_EOF"
+            echo "$NOTES"
+            echo "RELEASE_NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          sha256sum *.tar.gz > checksums-sha256.txt
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          PRERELEASE=""
+          if echo "$TAG" | grep -qE '-(alpha|beta|rc)'; then
+            PRERELEASE="--prerelease"
+          fi
+          gh release create "$TAG" \
+            --title "Fox Fleet ${TAG}" \
+            --notes "${{ steps.notes.outputs.NOTES }}" \
+            ${PRERELEASE} \
+            artifacts/*.tar.gz \
+            artifacts/checksums-sha256.txt
