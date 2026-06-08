@@ -55,7 +55,7 @@ func (s *Server) SetFailNext() {
 func (s *Server) Close() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	s.srv.Shutdown(ctx)
+	_ = s.srv.Shutdown(ctx)
 	<-s.done
 }
 
@@ -63,7 +63,7 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 	if s.failNext.CompareAndSwap(true, false) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error":{"message":"mock provider error","type":"server_error"}}`))
+		_, _ = w.Write([]byte(`{"error":{"message":"mock provider error","type":"server_error"}}`))
 		return
 	}
 

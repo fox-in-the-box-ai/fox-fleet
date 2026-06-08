@@ -14,8 +14,8 @@ type Mode int
 
 const (
 	Standalone    Mode = iota
-	Managed                    // FOX_PLANE_AUTH_SECRET + HERMES_WEBUI_PASSWORD
-	BootInvariant              // FOX_PLANE_AUTH_SECRET only (expects exit)
+	Managed            // FOX_PLANE_AUTH_SECRET + HERMES_WEBUI_PASSWORD
+	BootInvariant      // FOX_PLANE_AUTH_SECRET only (expects exit)
 )
 
 type Config struct {

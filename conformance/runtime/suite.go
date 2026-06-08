@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	testAuthSecret    = "conf-test-secret-7f3a"
-	testPassword      = "conf-test-pass-9b2e"
+	testAuthSecret = "conf-test-secret-7f3a"
+	testPassword   = "conf-test-pass-9b2e"
 )
 
 type Suite struct {
