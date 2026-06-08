@@ -16,7 +16,17 @@ import (
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/qdrant"
 )
 
-const maxFileSize = 50 << 20 // 50 MB
+const (
+	maxFileSize    = 50 << 20 // 50 MB
+	maxEmbedBatch  = 256
+)
+
+type DocTracker interface {
+	GetDocHash(sourceID, docID string) (string, error)
+	SetDocHash(sourceID, docID, hash string) error
+	ListDocIDs(sourceID string) ([]string, error)
+	DeleteDocTracking(sourceID, docID string) error
+}
 
 type Connector struct {
 	mu         sync.RWMutex
@@ -24,6 +34,7 @@ type Connector struct {
 	vector     *qdrant.Client
 	allowedDir string
 	sources    map[string]ingestion.SourceConfig
+	tracker    DocTracker
 }
 
 func New(embedder *embedding.Client, vector *qdrant.Client, allowedDir string) *Connector {
@@ -34,6 +45,8 @@ func New(embedder *embedding.Client, vector *qdrant.Client, allowedDir string) *
 		sources:    make(map[string]ingestion.SourceConfig),
 	}
 }
+
+func (c *Connector) SetTracker(t DocTracker) { c.tracker = t }
 
 func (c *Connector) Connect(_ context.Context, cfg ingestion.SourceConfig) error {
 	path := cfg.Config["path"]
@@ -102,64 +115,128 @@ func (c *Connector) Ingest(ctx context.Context, sourceID string) (*ingestion.Ing
 		files = []string{path}
 	}
 
+	seenDocs := make(map[string]bool, len(files))
 	result := &ingestion.IngestResult{}
+
+	type pendingChunk struct {
+		path      string
+		docID     string
+		chunk     chunker.Chunk
+		sourceID  string
+	}
+	var pending []pendingChunk
+	docHashes := make(map[string]string)
+
 	for _, f := range files {
-		n, err := c.ingestFile(ctx, f, cfg.Collection, sourceID)
+		docID := filepath.Base(f)
+		seenDocs[docID] = true
+
+		data, err := os.ReadFile(f)
 		if err != nil {
-			result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", filepath.Base(f), err))
+			result.Errors = append(result.Errors, fmt.Sprintf("%s: read: %v", docID, err))
 			continue
 		}
+		if int64(len(data)) > maxFileSize {
+			result.Errors = append(result.Errors, fmt.Sprintf("%s: exceeds %d byte limit", docID, maxFileSize))
+			continue
+		}
+
+		contentHash := fmt.Sprintf("%x", sha256.Sum256(data))
+		if c.tracker != nil {
+			prev, err := c.tracker.GetDocHash(sourceID, docID)
+			if err == nil && prev == contentHash {
+				result.DocumentsProcessed++
+				continue
+			}
+		}
+
+		chunks := chunker.Split(string(data), chunker.Options{})
+		if len(chunks) == 0 {
+			result.DocumentsProcessed++
+			continue
+		}
+
+		docHashes[docID] = contentHash
+		for _, ch := range chunks {
+			pending = append(pending, pendingChunk{
+				path:     f,
+				docID:    docID,
+				chunk:    ch,
+				sourceID: sourceID,
+			})
+		}
 		result.DocumentsProcessed++
-		result.ChunksStored += n
-	}
-	result.Duration = time.Since(start)
-	return result, nil
-}
-
-func (c *Connector) ingestFile(ctx context.Context, path, collection, sourceID string) (int, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return 0, fmt.Errorf("read: %w", err)
-	}
-	if int64(len(data)) > maxFileSize {
-		return 0, fmt.Errorf("exceeds %d byte limit", maxFileSize)
 	}
 
-	text := string(data)
-	chunks := chunker.Split(text, chunker.Options{})
-	if len(chunks) == 0 {
-		return 0, nil
+	for i := 0; i < len(pending); i += maxEmbedBatch {
+		end := i + maxEmbedBatch
+		if end > len(pending) {
+			end = len(pending)
+		}
+		batch := pending[i:end]
+
+		texts := make([]string, len(batch))
+		for j, p := range batch {
+			texts[j] = p.chunk.Text
+		}
+
+		vectors, err := c.embedder.Embed(ctx, texts)
+		if err != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("embed batch %d–%d: %v", i, end-1, err))
+			continue
+		}
+
+		points := make([]qdrant.Point, len(batch))
+		for j, p := range batch {
+			hash := sha256.Sum256([]byte(fmt.Sprintf("%s:%s:%d", p.sourceID, p.path, p.chunk.Index)))
+			points[j] = qdrant.Point{
+				ID:     fmt.Sprintf("%x", hash[:16]),
+				Vector: vectors[j],
+				Payload: map[string]any{
+					"text":      p.chunk.Text,
+					"source_id": p.sourceID,
+					"file":      p.docID,
+					"chunk_idx": p.chunk.Index,
+				},
+			}
+		}
+
+		if err := c.vector.Upsert(ctx, cfg.Collection, points); err != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("upsert batch %d–%d: %v", i, end-1, err))
+			continue
+		}
+		result.ChunksStored += len(points)
 	}
 
-	texts := make([]string, len(chunks))
-	for i, ch := range chunks {
-		texts[i] = ch.Text
-	}
-
-	vectors, err := c.embedder.Embed(ctx, texts)
-	if err != nil {
-		return 0, fmt.Errorf("embed: %w", err)
-	}
-
-	points := make([]qdrant.Point, len(chunks))
-	for i, ch := range chunks {
-		hash := sha256.Sum256([]byte(fmt.Sprintf("%s:%s:%d", sourceID, path, ch.Index)))
-		points[i] = qdrant.Point{
-			ID:     fmt.Sprintf("%x", hash[:16]),
-			Vector: vectors[i],
-			Payload: map[string]any{
-				"text":      ch.Text,
-				"source_id": sourceID,
-				"file":      filepath.Base(path),
-				"chunk_idx": ch.Index,
-			},
+	for docID, hash := range docHashes {
+		if c.tracker != nil {
+			_ = c.tracker.SetDocHash(sourceID, docID, hash)
 		}
 	}
 
-	if err := c.vector.Upsert(ctx, collection, points); err != nil {
-		return 0, fmt.Errorf("upsert: %w", err)
+	if c.tracker != nil {
+		prevDocs, err := c.tracker.ListDocIDs(sourceID)
+		if err == nil {
+			for _, docID := range prevDocs {
+				if !seenDocs[docID] {
+					hash := sha256.Sum256([]byte(fmt.Sprintf("%s:%s:delete", sourceID, docID)))
+					pointID := fmt.Sprintf("%x", hash[:16])
+					_ = c.vector.DeleteByFilter(ctx, cfg.Collection, qdrant.Filter{
+						Must: []qdrant.Condition{{
+							Key: "source_id", Match: &qdrant.Match{Value: sourceID},
+						}, {
+							Key: "file", Match: &qdrant.Match{Value: docID},
+						}},
+					})
+					_ = pointID
+					_ = c.tracker.DeleteDocTracking(sourceID, docID)
+				}
+			}
+		}
 	}
-	return len(points), nil
+
+	result.Duration = time.Since(start)
+	return result, nil
 }
 
 func (c *Connector) Status(_ context.Context, sourceID string) (*ingestion.SourceStatus, error) {

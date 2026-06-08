@@ -1,0 +1,73 @@
+name: Release Health
+
+on:
+  schedule:
+    - cron: "0 8 * * 1"  # Monday 08:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health-check:
+    name: Release Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
+        with:
+          go-version: stable
+
+      - name: Check latest tag vs CHANGELOG
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
+          echo "Latest tag: $latest_tag"
+          if [ "$latest_tag" = "none" ]; then
+            echo "No tags found"
+            exit 0
+          fi
+          version="${latest_tag#v}"
+          if ! grep -q "\[$version\]" CHANGELOG.md; then
+            echo "::warning::Tag $latest_tag has no matching CHANGELOG entry"
+          fi
+
+      - name: Check go.sum freshness
+        run: |
+          go mod tidy
+          if ! git diff --quiet go.sum; then
+            echo "::warning::go.sum is not tidy — run 'go mod tidy'"
+          fi
+
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./... || echo "::warning::govulncheck found vulnerabilities"
+
+      - name: Build all platforms
+        run: |
+          for os in linux darwin windows; do
+            for arch in amd64 arm64; do
+              echo "Building $os/$arch..."
+              GOOS=$os GOARCH=$arch go build -o /dev/null ./cmd/fox-control
+            done
+          done
+
+      - name: Run test suite
+        run: go test -count=1 -race -shuffle=on ./...
+
+      - name: Check Helm chart version alignment
+        run: |
+          if [ -f deploy/helm/fox-control/Chart.yaml ]; then
+            chart_version=$(grep '^version:' deploy/helm/fox-control/Chart.yaml | awk '{print $2}')
+            app_version=$(grep '^appVersion:' deploy/helm/fox-control/Chart.yaml | awk '{print $2}')
+            latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
+            tag_version="${latest_tag#v}"
+            if [ "$app_version" != "$tag_version" ] && [ "$latest_tag" != "none" ]; then
+              echo "::warning::Helm appVersion ($app_version) does not match latest tag ($tag_version)"
+            fi
+            echo "Chart version: $chart_version, appVersion: $app_version"
+          fi
