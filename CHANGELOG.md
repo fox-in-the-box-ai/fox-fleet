@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Environment variable overrides for `FOX_ADMIN_SECRET` and `FOX_INSTANCE_PASSWORD` (takes precedence over TOML config)
 - **DEPLOY-04:** systemd unit and install script — dedicated system user, security hardening, env-based secrets, idempotent installer (#65)
 - **EDGE-BASE-01:** Caddy reverse proxy — automatic TLS, panel + data plane routing, instance subdomain pattern (#66)
+- **EDGE-BASE-02:** Documented limitations — architectural boundaries, known gaps, planned improvements (#67)
 
 ## [0.2.0-alpha] - 2026-06-08
 
