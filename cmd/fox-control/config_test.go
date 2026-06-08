@@ -354,3 +354,58 @@ func TestDestroyCmd_HasRemoveDataFlag(t *testing.T) {
 		t.Errorf("--remove-data default = %q, want false", flag.DefValue)
 	}
 }
+
+func TestLoadConfig_QdrantSection(t *testing.T) {
+	content := validTOML() + `
+[qdrant]
+enabled = true
+image = "qdrant/qdrant:v1.14.0"
+http_port = 6333
+grpc_port = 6334
+data_dir = "/var/lib/fox-control/qdrant"
+`
+	cfg, err := LoadConfig(writeConfig(t, content))
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if !cfg.Qdrant.Enabled {
+		t.Error("Qdrant.Enabled = false, want true")
+	}
+	if cfg.Qdrant.Image != "qdrant/qdrant:v1.14.0" {
+		t.Errorf("Qdrant.Image = %q", cfg.Qdrant.Image)
+	}
+	if cfg.Qdrant.HTTPPort != 6333 {
+		t.Errorf("Qdrant.HTTPPort = %d", cfg.Qdrant.HTTPPort)
+	}
+	if cfg.Qdrant.GRPCPort != 6334 {
+		t.Errorf("Qdrant.GRPCPort = %d", cfg.Qdrant.GRPCPort)
+	}
+	if cfg.Qdrant.DataDir != "/var/lib/fox-control/qdrant" {
+		t.Errorf("Qdrant.DataDir = %q", cfg.Qdrant.DataDir)
+	}
+}
+
+func TestLoadConfig_QdrantSectionDefaults(t *testing.T) {
+	cfg, err := LoadConfig(writeConfig(t, validTOML()))
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if cfg.Qdrant.Enabled {
+		t.Error("Qdrant.Enabled should default to false")
+	}
+}
+
+func TestLoadConfig_QdrantEnabledDefaultsDataDir(t *testing.T) {
+	content := validTOML() + `
+[qdrant]
+enabled = true
+`
+	cfg, err := LoadConfig(writeConfig(t, content))
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	want := cfg.Control.DataRoot + "/qdrant"
+	if cfg.Qdrant.DataDir != want {
+		t.Errorf("Qdrant.DataDir = %q, want %q", cfg.Qdrant.DataDir, want)
+	}
+}

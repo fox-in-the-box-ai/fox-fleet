@@ -15,6 +15,15 @@ type Config struct {
 	Docker    DockerSection    `toml:"docker"`
 	Auth      AuthSection      `toml:"auth"`
 	Instances InstancesSection `toml:"instances"`
+	Qdrant    QdrantSection    `toml:"qdrant"`
+}
+
+type QdrantSection struct {
+	Enabled  bool   `toml:"enabled"`
+	Image    string `toml:"image"`
+	HTTPPort int    `toml:"http_port"`
+	GRPCPort int    `toml:"grpc_port"`
+	DataDir  string `toml:"data_dir"`
 }
 
 type ControlSection struct {
@@ -89,6 +98,14 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.Auth.InstancePassword == "" {
 		errs = append(errs, "auth.instance_password must not be empty")
+	}
+	if cfg.Qdrant.Enabled {
+		if cfg.Qdrant.DataDir == "" && cfg.Control.DataRoot != "" {
+			cfg.Qdrant.DataDir = cfg.Control.DataRoot + "/qdrant"
+		}
+		if cfg.Qdrant.DataDir == "" {
+			errs = append(errs, "qdrant.data_dir is required when qdrant is enabled")
+		}
 	}
 	if len(errs) > 0 {
 		return fmt.Errorf("config: validation failed:\n  - %s", strings.Join(errs, "\n  - "))
