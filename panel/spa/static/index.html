@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fox Fleet</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+header{background:#1e293b;padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #334155}
+header h1{font-size:1.25rem;font-weight:600}
+#last-updated{font-size:.75rem;color:#94a3b8}
+main{max-width:960px;margin:0 auto;padding:1.5rem}
+.toolbar{display:flex;gap:.75rem;margin-bottom:1.5rem;align-items:center}
+.toolbar input{background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:.5rem .75rem;border-radius:6px;font-size:.875rem;width:200px}
+.toolbar button{background:#2563eb;color:#fff;border:none;padding:.5rem 1rem;border-radius:6px;font-size:.875rem;cursor:pointer}
+.toolbar button:hover{background:#1d4ed8}
+.toolbar button:disabled{opacity:.5;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem}
+.card{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:1rem;cursor:pointer;transition:border-color .15s}
+.card:hover{border-color:#475569}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
+.card-id{font-weight:600;font-size:1rem}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.dot.healthy{background:#22c55e}
+.dot.unhealthy{background:#ef4444}
+.dot.unknown{background:#94a3b8}
+.card-meta{font-size:.75rem;color:#94a3b8;display:flex;flex-direction:column;gap:.25rem}
+.detail{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:1.5rem;margin-top:1rem}
+.detail h2{font-size:1.125rem;font-weight:600;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between}
+.detail-grid{display:grid;grid-template-columns:auto 1fr;gap:.5rem 1rem;font-size:.875rem;margin-bottom:1rem}
+.detail-grid dt{color:#94a3b8}
+.detail-grid dd{color:#e2e8f0}
+.logs{background:#0f172a;border:1px solid #334155;border-radius:6px;padding:.75rem;font-family:monospace;font-size:.75rem;white-space:pre-wrap;max-height:300px;overflow-y:auto;color:#cbd5e1}
+.btn-destroy{background:#dc2626;color:#fff;border:none;padding:.375rem .75rem;border-radius:6px;font-size:.8125rem;cursor:pointer}
+.btn-destroy:hover{background:#b91c1c}
+.btn-back{background:none;border:none;color:#60a5fa;cursor:pointer;font-size:.875rem;margin-bottom:1rem;padding:0}
+.btn-back:hover{text-decoration:underline}
+.empty{text-align:center;color:#64748b;padding:3rem 1rem}
+#auth-prompt{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:10}
+#auth-prompt div{background:#1e293b;padding:2rem;border-radius:12px;border:1px solid #334155;text-align:center;max-width:360px;width:90%}
+#auth-prompt h2{margin-bottom:1rem;font-size:1.125rem}
+#auth-prompt input{width:100%;background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:.5rem;border-radius:6px;font-size:.875rem;margin-bottom:1rem}
+#auth-prompt button{background:#2563eb;color:#fff;border:none;padding:.5rem 1.5rem;border-radius:6px;cursor:pointer}
+.error-banner{background:#7f1d1d;border:1px solid #dc2626;color:#fecaca;padding:.75rem 1rem;border-radius:6px;margin-bottom:1rem;font-size:.875rem}
+</style>
+</head>
+<body>
+<header>
+  <h1>Fox Fleet</h1>
+  <span id="last-updated"></span>
+</header>
+<main>
+  <div id="app"></div>
+</main>
+
+<div id="auth-prompt">
+  <div>
+    <h2>Admin Secret</h2>
+    <input type="password" id="secret-input" placeholder="Enter admin secret">
+    <br>
+    <button onclick="saveSecret()">Connect</button>
+  </div>
+</div>
+
+<script>
+let secret = sessionStorage.getItem("fox_secret") || "";
+let view = "list";
+let selectedId = "";
+let refreshTimer = null;
+
+function saveSecret() {
+  secret = document.getElementById("secret-input").value;
+  if (!secret) return;
+  sessionStorage.setItem("fox_secret", secret);
+  document.getElementById("auth-prompt").style.display = "none";
+  refresh();
+  startAutoRefresh();
+}
+
+if (secret) {
+  document.getElementById("auth-prompt").style.display = "none";
+  refresh();
+  startAutoRefresh();
+}
+
+function startAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(refresh, 5000);
+}
+
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(path, {
+    ...opts,
+    headers: { "Authorization": "Bearer " + secret, ...(opts.headers || {}) }
+  });
+  if (res.status === 401) {
+    sessionStorage.removeItem("fox_secret");
+    secret = "";
+    document.getElementById("auth-prompt").style.display = "flex";
+    throw new Error("Unauthorized");
+  }
+  return res;
+}
+
+async function refresh() {
+  if (!secret) return;
+  try {
+    if (view === "list") await renderList();
+    else await renderDetail(selectedId);
+    document.getElementById("last-updated").textContent = "Updated " + new Date().toLocaleTimeString();
+  } catch (e) {
+    if (e.message !== "Unauthorized") {
+      document.getElementById("app").innerHTML = '<div class="error-banner">Connection error: ' + escapeHtml(e.message) + '</div>';
+    }
+  }
+}
+
+async function renderList() {
+  const res = await apiFetch("/api/instances");
+  const instances = await res.json();
+  const app = document.getElementById("app");
+
+  let html = '<div class="toolbar">';
+  html += '<input type="text" id="new-id" placeholder="Instance ID">';
+  html += '<button onclick="createInstance()">Create</button>';
+  html += '</div>';
+
+  if (instances.length === 0) {
+    html += '<div class="empty">No instances. Create one to get started.</div>';
+  } else {
+    html += '<div class="grid">';
+    for (const inst of instances) {
+      const h = inst.health;
+      const dot = h ? (h.healthy ? "healthy" : "unhealthy") : "unknown";
+      const digest = (inst.image_digest || "").substring(0, 19) || "-";
+      html += '<div class="card" onclick="showDetail(\'' + escapeHtml(inst.id) + '\')">';
+      html += '<div class="card-header"><span class="card-id">' + escapeHtml(inst.id) + '</span><span class="dot ' + dot + '"></span></div>';
+      html += '<div class="card-meta">';
+      html += '<span>Port ' + inst.port + '</span>';
+      html += '<span>Status: ' + escapeHtml(inst.status) + '</span>';
+      html += '<span>' + escapeHtml(inst.created_at || "") + '</span>';
+      html += '</div></div>';
+    }
+    html += '</div>';
+  }
+  app.innerHTML = html;
+}
+
+async function renderDetail(id) {
+  const res = await apiFetch("/api/instances/" + encodeURIComponent(id));
+  if (res.status === 404) { view = "list"; await renderList(); return; }
+  const inst = await res.json();
+  const app = document.getElementById("app");
+  const h = inst.health;
+  const dot = h ? (h.healthy ? "healthy" : "unhealthy") : "unknown";
+  const label = h ? (h.healthy ? "Healthy" : "Unhealthy") : "Unknown";
+
+  let html = '<button class="btn-back" onclick="showList()">&larr; Back to fleet</button>';
+  html += '<div class="detail">';
+  html += '<h2><span>' + escapeHtml(inst.id) + ' <span class="dot ' + dot + '"></span></span>';
+  html += '<button class="btn-destroy" onclick="destroyInstance(\'' + escapeHtml(inst.id) + '\')">Destroy</button></h2>';
+  html += '<dl class="detail-grid">';
+  html += '<dt>Status</dt><dd>' + escapeHtml(inst.status) + '</dd>';
+  html += '<dt>Port</dt><dd>' + inst.port + '</dd>';
+  html += '<dt>Health</dt><dd>' + label + '</dd>';
+  if (h && h.checked_at) html += '<dt>Last Check</dt><dd>' + escapeHtml(h.checked_at) + '</dd>';
+  html += '<dt>Created</dt><dd>' + escapeHtml(inst.created_at || "-") + '</dd>';
+  html += '</dl>';
+  if (inst.logs) {
+    html += '<h3 style="font-size:.875rem;margin-bottom:.5rem">Logs</h3>';
+    html += '<div class="logs">' + escapeHtml(inst.logs) + '</div>';
+  }
+  html += '</div>';
+  app.innerHTML = html;
+}
+
+function showDetail(id) { view = "detail"; selectedId = id; refresh(); }
+function showList() { view = "list"; selectedId = ""; refresh(); }
+
+async function createInstance() {
+  const input = document.getElementById("new-id");
+  const id = input.value.trim();
+  if (!id) return;
+  input.disabled = true;
+  try {
+    const res = await apiFetch("/api/instances", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: id })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.message || err.error || "Failed to create instance");
+      return;
+    }
+    input.value = "";
+    await refresh();
+  } finally {
+    input.disabled = false;
+  }
+}
+
+async function destroyInstance(id) {
+  if (!confirm("Destroy instance " + id + "? This cannot be undone.")) return;
+  const remove = confirm("Also remove instance data?");
+  const url = "/api/instances/" + encodeURIComponent(id) + (remove ? "?remove_data=true" : "");
+  await apiFetch(url, { method: "DELETE" });
+  showList();
+}
+
+function escapeHtml(s) {
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>

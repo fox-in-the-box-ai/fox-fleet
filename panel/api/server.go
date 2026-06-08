@@ -1,6 +1,7 @@
 package api
 
 import (
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"time"
@@ -22,6 +23,7 @@ type Deps struct {
 	MaxInstances int
 	PollInterval time.Duration
 	Logger       *slog.Logger
+	WebFS        fs.FS
 }
 
 type Server struct {
@@ -72,6 +74,10 @@ func NewServer(d Deps) *Server {
 
 	s.mux = http.NewServeMux()
 	s.mux.Handle("/api/", s.requireAuth(apiMux))
+
+	if d.WebFS != nil {
+		s.mux.Handle("/", http.FileServerFS(d.WebFS))
+	}
 
 	return s
 }
