@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"runtime"
 	"strings"
@@ -136,6 +137,23 @@ func validateConfig(cfg *Config) error {
 	if cfg.Auth.InstancePassword == "" {
 		errs = append(errs, "auth.instance_password must not be empty — set it in config or via FOX_INSTANCE_PASSWORD env var")
 	}
+	if _, _, err := net.SplitHostPort(cfg.Control.Listen); err != nil {
+		errs = append(errs, fmt.Sprintf("control.listen %q is not a valid host:port address", cfg.Control.Listen))
+	}
+	if cfg.Control.HealthPollSeconds < 1 || cfg.Control.HealthPollSeconds > 3600 {
+		errs = append(errs, fmt.Sprintf("control.health_poll_seconds must be between 1 and 3600, got %d", cfg.Control.HealthPollSeconds))
+	}
+	if cfg.Instances.PortStart < 1 || cfg.Instances.PortStart > 65535 {
+		errs = append(errs, fmt.Sprintf("instances.port_start must be between 1 and 65535, got %d", cfg.Instances.PortStart))
+	}
+	if cfg.Instances.MaxInstances < 1 || cfg.Instances.MaxInstances > 1000 {
+		errs = append(errs, fmt.Sprintf("instances.max_instances must be between 1 and 1000, got %d", cfg.Instances.MaxInstances))
+	}
+	if cfg.Instances.PortStart > 0 && cfg.Instances.MaxInstances > 0 &&
+		cfg.Instances.PortStart+cfg.Instances.MaxInstances-1 > 65535 {
+		errs = append(errs, fmt.Sprintf("instances.port_start %d + max_instances %d exceeds port 65535",
+			cfg.Instances.PortStart, cfg.Instances.MaxInstances))
+	}
 	if cfg.Qdrant.Enabled {
 		if cfg.Qdrant.DataDir == "" && cfg.Control.DataRoot != "" {
 			cfg.Qdrant.DataDir = cfg.Control.DataRoot + "/qdrant"
@@ -143,8 +161,26 @@ func validateConfig(cfg *Config) error {
 		if cfg.Qdrant.DataDir == "" {
 			errs = append(errs, "qdrant.data_dir is required when qdrant is enabled — set it or ensure control.data_root is set")
 		}
+		if cfg.Qdrant.Image == "" {
+			errs = append(errs, "qdrant.image is required when qdrant is enabled — set it to a Qdrant container image reference")
+		}
+		if cfg.Qdrant.HTTPPort < 1 || cfg.Qdrant.HTTPPort > 65535 {
+			errs = append(errs, fmt.Sprintf("qdrant.http_port must be between 1 and 65535, got %d", cfg.Qdrant.HTTPPort))
+		}
+		if cfg.Qdrant.GRPCPort < 1 || cfg.Qdrant.GRPCPort > 65535 {
+			errs = append(errs, fmt.Sprintf("qdrant.grpc_port must be between 1 and 65535, got %d", cfg.Qdrant.GRPCPort))
+		}
+		if cfg.Qdrant.HTTPPort > 0 && cfg.Qdrant.GRPCPort > 0 && cfg.Qdrant.HTTPPort == cfg.Qdrant.GRPCPort {
+			errs = append(errs, fmt.Sprintf("qdrant.http_port and qdrant.grpc_port must differ, both are %d", cfg.Qdrant.HTTPPort))
+		}
 	}
 	if cfg.DataPlane.Enabled {
+		if _, _, err := net.SplitHostPort(cfg.DataPlane.Listen); err != nil {
+			errs = append(errs, fmt.Sprintf("data_plane.listen %q is not a valid host:port address", cfg.DataPlane.Listen))
+		}
+		if cfg.DataPlane.VectorSize < 1 || cfg.DataPlane.VectorSize > 65536 {
+			errs = append(errs, fmt.Sprintf("data_plane.vector_size must be between 1 and 65536, got %d", cfg.DataPlane.VectorSize))
+		}
 		if cfg.Embedding.BaseURL == "" {
 			errs = append(errs, "embedding.base_url is required when data_plane is enabled — set it to an OpenAI-compatible embedding API URL")
 		}
@@ -155,10 +191,64 @@ func validateConfig(cfg *Config) error {
 			errs = append(errs, "qdrant must be enabled when data_plane is enabled — set qdrant.enabled = true")
 		}
 	}
+	if len(errs) == 0 {
+		errs = append(errs, checkPortCollisions(cfg)...)
+	}
 	if len(errs) > 0 {
 		return fmt.Errorf("config: validation failed:\n  - %s", strings.Join(errs, "\n  - "))
 	}
 	return nil
+}
+
+func checkPortCollisions(cfg *Config) []string {
+	type portEntry struct {
+		port int
+		key  string
+	}
+	var entries []portEntry
+
+	if _, portStr, err := net.SplitHostPort(cfg.Control.Listen); err == nil {
+		if p := parsePort(portStr); p > 0 {
+			entries = append(entries, portEntry{p, "control.listen"})
+		}
+	}
+
+	if cfg.Qdrant.Enabled {
+		if cfg.Qdrant.HTTPPort > 0 {
+			entries = append(entries, portEntry{cfg.Qdrant.HTTPPort, "qdrant.http_port"})
+		}
+		if cfg.Qdrant.GRPCPort > 0 {
+			entries = append(entries, portEntry{cfg.Qdrant.GRPCPort, "qdrant.grpc_port"})
+		}
+	}
+
+	if cfg.DataPlane.Enabled {
+		if _, portStr, err := net.SplitHostPort(cfg.DataPlane.Listen); err == nil {
+			if p := parsePort(portStr); p > 0 {
+				entries = append(entries, portEntry{p, "data_plane.listen"})
+			}
+		}
+	}
+
+	instStart := cfg.Instances.PortStart
+	instEnd := instStart + cfg.Instances.MaxInstances
+
+	var errs []string
+	for _, e := range entries {
+		if e.port >= instStart && e.port < instEnd {
+			errs = append(errs, fmt.Sprintf("%s port %d collides with instances.port_start range [%d, %d)",
+				e.key, e.port, instStart, instEnd))
+		}
+	}
+	return errs
+}
+
+func parsePort(s string) int {
+	var p int
+	if _, err := fmt.Sscanf(s, "%d", &p); err != nil {
+		return 0
+	}
+	return p
 }
 
 func defaultDockerSocket() string {

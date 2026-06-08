@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **POLISH-GA-01:** Error message audit — all user-facing error messages (API responses and CLI output) rewritten for consistency, actionability, and relevant context; config validation errors now suggest how to fix each issue
 - **POLISH-GA-02:** Performance benchmarks — Go benchmarks for registry operations, event log, skillset parsing, and API serialization; `make bench` target; replaced O(n) duplicate scan in instance creation with primary-key lookup
+- **POLISH-GA-03:** Configuration validation hardening — port range bounds [1, 65535], max_instances capped at 1000, listen address parsing via `net.SplitHostPort`, port collision detection across control/instances/qdrant/data_plane, qdrant.image required when enabled, health_poll_seconds bounds [1, 3600]
 
 ## [0.3.0-alpha] - 2026-06-08
 
