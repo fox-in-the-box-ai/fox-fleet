@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -50,6 +53,7 @@ jobs:
   conformance:
     name: Conformance
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
@@ -58,7 +62,9 @@ jobs:
           go-version: stable
 
       - name: Build fox-control binary
-        run: go build -o fox-control ./cmd/fox-control
+        run: |
+          go build -ldflags "-X main.buildVersion=ci" \
+            -o fox-control ./cmd/fox-control
 
       - name: Build conformance image
         run: |
