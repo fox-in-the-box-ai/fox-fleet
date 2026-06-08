@@ -907,7 +907,10 @@ var langs = {
     "sk.tools": "Tools", "sk.tool_type": "Type", "sk.sources": "Sources", "sk.back": "Back to skillsets",
     "sk.delete": "Delete", "sk.system_prompt": "System Prompt", "sk.bot_name": "Bot Name",
     "sk.data_sources": "Data Sources", "sk.binding": "Binding", "sk.query_mode": "Query Mode",
-    "sk.capabilities": "Capabilities", "sk.uploaded": "Skillset {name} uploaded",
+    "sk.capabilities": "Capabilities", "sk.memory": "Memory", "sk.memory_provider": "Provider",
+    "sk.avatar": "Avatar", "sk.removals": "UI Removals", "sk.download": "Download YAML",
+    "sk.replace": "Replace", "sk.replaced": "Skillset {name} replaced",
+    "sk.uploaded": "Skillset {name} uploaded",
     "sk.del_title": "Delete Skillset",
     "sk.del_desc_pre": "This will permanently delete the",
     "sk.del_desc_post": "skillset manifest. Instances already using it are not affected.",
@@ -980,7 +983,10 @@ var langs = {
     "sk.tools": "Herramientas", "sk.tool_type": "Tipo", "sk.sources": "Fuentes", "sk.back": "Volver a habilidades",
     "sk.delete": "Eliminar", "sk.system_prompt": "Prompt de sistema", "sk.bot_name": "Nombre del bot",
     "sk.data_sources": "Fuentes de datos", "sk.binding": "Vínculo", "sk.query_mode": "Modo consulta",
-    "sk.capabilities": "Capacidades", "sk.uploaded": "Habilidad {name} subida",
+    "sk.capabilities": "Capacidades", "sk.memory": "Memoria", "sk.memory_provider": "Proveedor",
+    "sk.avatar": "Avatar", "sk.removals": "Eliminaciones de UI", "sk.download": "Descargar YAML",
+    "sk.replace": "Reemplazar", "sk.replaced": "Habilidad {name} reemplazada",
+    "sk.uploaded": "Habilidad {name} subida",
     "sk.del_title": "Eliminar Habilidad",
     "sk.del_desc_pre": "Esto eliminará permanentemente el manifiesto",
     "sk.del_desc_post": "Las instancias que ya lo usan no se ven afectadas.",
@@ -1625,7 +1631,7 @@ function bindDropZone() {
   }
 }
 
-function uploadSkillset(file) {
+function uploadSkillset(file, onSuccess) {
   var form = new FormData();
   form.append("file", file);
   apiFetch("/api/skillsets", {
@@ -1635,8 +1641,24 @@ function uploadSkillset(file) {
     if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || t("err.upload")); });
     return res.json();
   }).then(function(sk) {
-    showToast(t("sk.uploaded", { name: sk.name }), "success");
-    refresh();
+    if (onSuccess) { onSuccess(sk); }
+    else { showToast(t("sk.uploaded", { name: sk.name }), "success"); refresh(); }
+  }).catch(function(e) {
+    if (e.message !== "Unauthorized") showToast(t("err.action", { msg: e.message }));
+  });
+}
+
+function downloadSkillset(name) {
+  apiFetch("/api/skillsets/" + encodeURIComponent(name) + "/download").then(function(res) {
+    if (!res.ok) throw new Error("download failed");
+    return res.blob();
+  }).then(function(blob) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = name + ".yaml";
+    a.click();
+    URL.revokeObjectURL(url);
   }).catch(function(e) {
     if (e.message !== "Unauthorized") showToast(t("err.action", { msg: e.message }));
   });
@@ -1660,8 +1682,11 @@ function renderSkillsetDetail(name) {
       + '<div class="detail-card">'
       + '<div class="detail-header">'
       + '<div class="detail-title">' + esc(m.name) + '</div>'
+      + '<div style="display:flex;gap:8px">'
+      + '<button class="btn btn-ghost" data-action="download-skillset" data-name="' + esc(m.name) + '">' + esc(t("sk.download")) + '</button>'
+      + '<label class="btn btn-ghost" style="cursor:pointer"><input type="file" accept=".yaml,.yml" style="display:none" data-action="replace-skillset" data-name="' + esc(m.name) + '">' + esc(t("sk.replace")) + '</label>'
       + '<button class="btn btn-danger" data-action="delete-skillset" data-name="' + esc(m.name) + '">' + esc(t("sk.delete")) + '</button>'
-      + '</div>'
+      + '</div></div>'
       + '<dl class="detail-grid">'
       + '<dt>' + esc(t("sk.version")) + '</dt><dd><span class="badge badge-active">' + esc(m.version) + '</span></dd>'
       + '<dt>' + esc(t("sk.contract")) + '</dt><dd>' + esc(m.contract_version) + '</dd>';
@@ -1670,6 +1695,12 @@ function renderSkillsetDetail(name) {
     }
     if (m.ui && m.ui.branding && m.ui.branding.bot_name) {
       html += '<dt>' + esc(t("sk.bot_name")) + '</dt><dd>' + esc(m.ui.branding.bot_name) + '</dd>';
+    }
+    if (m.ui && m.ui.branding && m.ui.branding.avatar) {
+      html += '<dt>' + esc(t("sk.avatar")) + '</dt><dd>' + esc(m.ui.branding.avatar) + '</dd>';
+    }
+    if (m.memory && m.memory.provider) {
+      html += '<dt>' + esc(t("sk.memory_provider")) + '</dt><dd>' + esc(m.memory.provider) + '</dd>';
     }
     html += '</dl>';
 
@@ -1701,6 +1732,26 @@ function renderSkillsetDetail(name) {
         }
         html += '</div>';
       }
+    }
+
+    if (m.memory && m.memory.config) {
+      var mkeys = Object.keys(m.memory.config);
+      if (mkeys.length > 0) {
+        html += '<h3 style="font-family:var(--font-heading);font-size:14px;font-weight:500;margin-bottom:8px">' + esc(t("sk.memory")) + '</h3>'
+          + '<dl class="detail-grid" style="margin-bottom:20px">';
+        for (var mc = 0; mc < mkeys.length; mc++) {
+          html += '<dt>' + esc(mkeys[mc]) + '</dt><dd>' + esc(m.memory.config[mkeys[mc]]) + '</dd>';
+        }
+        html += '</dl>';
+      }
+    }
+
+    if (m.ui && m.ui.removals && m.ui.removals.length > 0) {
+      html += '<h3 style="font-family:var(--font-heading);font-size:14px;font-weight:500;margin-bottom:8px">' + esc(t("sk.removals")) + '</h3><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px">';
+      for (var r = 0; r < m.ui.removals.length; r++) {
+        html += '<span class="badge badge-pending">' + esc(m.ui.removals[r]) + '</span>';
+      }
+      html += '</div>';
     }
 
     html += '</div>';
@@ -1886,8 +1937,24 @@ document.getElementById("content").addEventListener("click", function(e) {
   if (skDetail) { showSkillsetDetail(skDetail.dataset.name); return; }
   var skBack = e.target.closest("[data-action='skillset-back']");
   if (skBack) { navigate("skillsets"); return; }
+  var skDownload = e.target.closest("[data-action='download-skillset']");
+  if (skDownload) { downloadSkillset(skDownload.dataset.name); return; }
   var skDelete = e.target.closest("[data-action='delete-skillset']");
   if (skDelete) { showDeleteSkillsetModal(skDelete.dataset.name); return; }
+});
+
+document.getElementById("content").addEventListener("change", function(e) {
+  if (e.target.matches("[data-action='replace-skillset']")) {
+    var inp = e.target;
+    if (inp.files.length === 0) return;
+    var skName = inp.dataset.name;
+    uploadSkillset(inp.files[0], function(sk) {
+      showToast(t("sk.replaced", { name: sk.name }), "success");
+      if (sk.name !== skName) { showSkillsetDetail(sk.name); }
+      else { renderSkillsetDetail(skName); }
+    });
+    inp.value = "";
+  }
 });
 
 /* ── Utilities ─────────────────────────────────────────────────────── */
