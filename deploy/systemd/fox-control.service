@@ -10,9 +10,11 @@ Type=simple
 User=fox-control
 Group=fox-control
 ExecStart=/usr/local/bin/fox-control serve --config /etc/fox-control/fox-control.toml
-EnvironmentFile=-/etc/fox-control/env
-Restart=on-failure
+EnvironmentFile=/etc/fox-control/env
+Restart=always
 RestartSec=5
+StartLimitIntervalSec=300
+StartLimitBurst=5
 TimeoutStartSec=30
 
 # Security hardening
@@ -20,12 +22,21 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/var/lib/fox-control
+PrivateDevices=true
+ProtectHostname=true
+ProtectClock=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+RemoveIPC=true
 MemoryDenyWriteExecute=true
+ReadWritePaths=/var/lib/fox-control
+UMask=0077
+CapabilityBoundingSet=
 
 # Docker socket access
 SupplementaryGroups=docker

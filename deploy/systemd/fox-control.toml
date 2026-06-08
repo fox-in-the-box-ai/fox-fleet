@@ -8,12 +8,27 @@ socket = "/var/run/docker.sock"
 image = "ghcr.io/fox-in-the-box-ai/fox:latest"
 
 [auth]
-# Secrets are loaded from environment variables FOX_ADMIN_SECRET and
-# FOX_INSTANCE_PASSWORD (set in /etc/fox-control/env). These placeholder
-# values are overridden at startup.
-admin_secret = "set-via-env"
-instance_password = "set-via-env"
+# Must be set via FOX_ADMIN_SECRET and FOX_INSTANCE_PASSWORD env vars
+# in /etc/fox-control/env. Empty defaults ensure startup fails without them.
+admin_secret = ""
+instance_password = ""
 
 [instances]
 port_start = 8787
 max_instances = 10
+
+# Uncomment and configure to enable the data plane (requires Qdrant).
+# [qdrant]
+# enabled = true
+# http_port = 6333
+# grpc_port = 6334
+#
+# [data_plane]
+# enabled = true
+# listen = "0.0.0.0:9091"
+# collection = "fox-knowledge"
+# vector_size = 1536
+#
+# [embedding]
+# base_url = "http://localhost:11434"
+# model = "nomic-embed-text"
