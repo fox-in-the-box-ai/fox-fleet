@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	maxFileSize    = 50 << 20 // 50 MB
-	maxEmbedBatch  = 256
+	maxFileSize   = 50 << 20 // 50 MB
+	maxEmbedBatch = 256
 )
 
 type DocTracker interface {
@@ -119,10 +119,10 @@ func (c *Connector) Ingest(ctx context.Context, sourceID string) (*ingestion.Ing
 	result := &ingestion.IngestResult{}
 
 	type pendingChunk struct {
-		path      string
-		docID     string
-		chunk     chunker.Chunk
-		sourceID  string
+		path     string
+		docID    string
+		chunk    chunker.Chunk
+		sourceID string
 	}
 	var pending []pendingChunk
 	docHashes := make(map[string]string)

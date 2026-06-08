@@ -47,7 +47,7 @@ func newSSETestEnv(t *testing.T) *sseTestEnv {
 		InstancePwd:  "test-pwd",
 		MaxInstances: 2,
 		EventLog:     elog,
-		SigningKey:    testSigningKey,
+		SigningKey:   testSigningKey,
 		Logger:       logger,
 	})
 

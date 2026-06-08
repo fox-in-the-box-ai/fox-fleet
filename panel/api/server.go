@@ -18,23 +18,23 @@ import (
 const defaultPollInterval = 15 * time.Second
 
 type Deps struct {
-	Registry        *registry.Registry
-	Provisioner     provisioner.Provisioner
-	Plugin          plugins.DeploymentPlugin
-	AdminSecret     string
-	InstancePwd     string
-	Image           plugins.ImageRef
-	MaxInstances    int
-	PollInterval    time.Duration
-	Logger          *slog.Logger
-	WebFS           fs.FS
-	SourceRegistry  *source.Registry
-	DataPlaneURL    string
-	DefaultSkillset string
-	DefaultRole     string
-	SkillsetsDir    string
-	EventLog        *events.Log
-	SigningKey          []byte
+	Registry           *registry.Registry
+	Provisioner        provisioner.Provisioner
+	Plugin             plugins.DeploymentPlugin
+	AdminSecret        string
+	InstancePwd        string
+	Image              plugins.ImageRef
+	MaxInstances       int
+	PollInterval       time.Duration
+	Logger             *slog.Logger
+	WebFS              fs.FS
+	SourceRegistry     *source.Registry
+	DataPlaneURL       string
+	DefaultSkillset    string
+	DefaultRole        string
+	SkillsetsDir       string
+	EventLog           *events.Log
+	SigningKey         []byte
 	SessionTokenTTL    time.Duration
 	RateLimit          int
 	ProvisionRateLimit int

@@ -23,9 +23,9 @@ const (
 )
 
 var (
-	ErrInvalidToken  = errors.New("invalid session token")
-	ErrExpiredToken  = errors.New("session token expired")
-	ErrWrongPurpose  = errors.New("session token purpose mismatch")
+	ErrInvalidToken = errors.New("invalid session token")
+	ErrExpiredToken = errors.New("session token expired")
+	ErrWrongPurpose = errors.New("session token purpose mismatch")
 )
 
 type Signer struct {

@@ -78,7 +78,7 @@ func (f *fakePlugin) Configure(_ context.Context, _ string, _ plugins.InstanceCo
 func (f *fakePlugin) Rollout(_ context.Context, _ string, _ plugins.ImageRef) error  { return nil }
 func (f *fakePlugin) Rollback(_ context.Context, _ string, _ plugins.ImageRef) error { return nil }
 func (f *fakePlugin) Destroy(_ context.Context, _ string) error                      { return nil }
-func (f *fakePlugin) Restart(_ context.Context, _ string) error { return nil }
+func (f *fakePlugin) Restart(_ context.Context, _ string) error                      { return nil }
 func (f *fakePlugin) Stats(_ context.Context, _ string) (plugins.ContainerStats, error) {
 	return plugins.ContainerStats{}, nil
 }

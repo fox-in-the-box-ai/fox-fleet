@@ -57,7 +57,7 @@ type HealthStatus struct {
 // ContainerStats holds point-in-time resource usage for a container.
 type ContainerStats struct {
 	CPUPercent  float64 `json:"cpu_percent"`
-	MemoryUsed uint64  `json:"memory_used"`
+	MemoryUsed  uint64  `json:"memory_used"`
 	MemoryLimit uint64  `json:"memory_limit"`
 	NetRxBytes  uint64  `json:"net_rx_bytes"`
 	NetTxBytes  uint64  `json:"net_tx_bytes"`

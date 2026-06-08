@@ -14,10 +14,10 @@ import (
 )
 
 type Config struct {
-	BaseURL       string
-	APIKey        string
-	Model         string
-	MaxRetries    int
+	BaseURL        string
+	APIKey         string
+	Model          string
+	MaxRetries     int
 	InitialBackoff time.Duration
 	MaxBackoff     time.Duration
 }

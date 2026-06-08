@@ -46,13 +46,13 @@ type EmbeddingSection struct {
 }
 
 type ControlSection struct {
-	Listen               string `toml:"listen"`
-	DataRoot             string `toml:"data_root"`
-	HealthPollSeconds    int    `toml:"health_poll_seconds"`
-	SessionTokenTTLSecs  int    `toml:"session_token_ttl_seconds"`
-	LogFormat            string `toml:"log_format"`
-	LogLevel             string `toml:"log_level"`
-	MetricsEnabled       *bool  `toml:"metrics_enabled"`
+	Listen              string `toml:"listen"`
+	DataRoot            string `toml:"data_root"`
+	HealthPollSeconds   int    `toml:"health_poll_seconds"`
+	SessionTokenTTLSecs int    `toml:"session_token_ttl_seconds"`
+	LogFormat           string `toml:"log_format"`
+	LogLevel            string `toml:"log_level"`
+	MetricsEnabled      *bool  `toml:"metrics_enabled"`
 }
 
 type DockerSection struct {

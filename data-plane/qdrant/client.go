@@ -12,10 +12,10 @@ import (
 )
 
 type Timeouts struct {
-	Health      time.Duration
-	Search      time.Duration
-	Upsert      time.Duration
-	Collection  time.Duration
+	Health     time.Duration
+	Search     time.Duration
+	Upsert     time.Duration
+	Collection time.Duration
 }
 
 func DefaultTimeouts() Timeouts {

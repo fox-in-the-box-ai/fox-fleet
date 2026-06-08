@@ -20,15 +20,15 @@ import (
 
 var blockedEnvKeys = map[string]bool{
 	"FOX_PLANE_AUTH_SECRET": true,
-	"FOX_PROXY_ENDPOINT":   true,
-	"FOX_DATA_PLANE_URL":   true,
-	"FOX_DATA_PLANE_TOKEN": true,
-	"FOX_SKILLSET_PATH":    true,
+	"FOX_PROXY_ENDPOINT":    true,
+	"FOX_DATA_PLANE_URL":    true,
+	"FOX_DATA_PLANE_TOKEN":  true,
+	"FOX_SKILLSET_PATH":     true,
 	"HERMES_WEBUI_PASSWORD": true,
-	"PATH":                 true,
-	"HOME":                 true,
-	"LD_PRELOAD":           true,
-	"LD_LIBRARY_PATH":      true,
+	"PATH":                  true,
+	"HOME":                  true,
+	"LD_PRELOAD":            true,
+	"LD_LIBRARY_PATH":       true,
 }
 
 const (
