@@ -1,5 +1,16 @@
 version: "2"
 
+linters:
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (io.Closer).Close
+        - (*os).File.Close
+        - os.RemoveAll
+
 formatters:
   enable:
     - gofmt
