@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **POLISH-02:** Dark mode — CSS custom property theming, `[data-theme="dark"]` override layer, system preference detection via `prefers-color-scheme`, theme selector with localStorage persistence
 - **POLISH-03:** Mobile-responsive layout — hamburger sidebar toggle, `@media (max-width: 768px)` breakpoint, off-canvas sidebar with overlay, single-column card grid, responsive detail views/tables/modals/toasts
 - **POLISH-04:** Real-time updates via SSE — `GET /api/events/stream` Server-Sent Events endpoint with ring-buffer replay via `Last-Event-ID`, pub/sub fan-out, query-param auth for EventSource, debounced UI refresh, automatic polling fallback on connection loss
+- **DOC-01:** End-to-end deployment guide — Docker Compose, Helm, systemd, and manual binary methods with configuration reference, verification steps, upgrade procedures, and troubleshooting
 
 ## [0.2.0-alpha] - 2026-06-08
 
