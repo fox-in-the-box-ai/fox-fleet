@@ -195,6 +195,16 @@ body {
   font-size: 11px;
   color: var(--sidebar-muted);
 }
+#lang-select {
+  background: transparent;
+  color: var(--sidebar-muted);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-family: var(--font-body);
+  cursor: pointer;
+}
 
 /* ── Page Header ───────────────────────────────────────────────────── */
 .page-header {
@@ -695,7 +705,7 @@ body {
     </ul>
 
     <div class="sb-footer">
-      <select id="lang-select" style="background:transparent;color:var(--sidebar-muted);border:1px solid var(--sidebar-border);border-radius:4px;padding:2px 6px;font-size:12px;font-family:var(--font-body);cursor:pointer">
+      <select id="lang-select">
         <option value="en">English</option>
         <option value="es">Español</option>
       </select>
@@ -736,7 +746,6 @@ var langs = {
   en: {
     brand: "Fox Fleet", tagline: "The operating layer for personal AI assistants",
     "auth.label": "Admin Secret", "auth.placeholder": "Enter your admin secret", "auth.btn": "Connect",
-    "auth.error": "Authentication failed — check your secret",
     "nav.manage": "Manage", "nav.observe": "Observe", "nav.configure": "Configure",
     "nav.instances": "Instances", "nav.sources": "Sources", "nav.skillsets": "Skillsets",
     "nav.query": "Query", "nav.activity": "Activity", "nav.settings": "Settings",
@@ -756,7 +765,8 @@ var langs = {
     cancel: "Cancel", create: "Create",
     "prov.started": "Instance {id} provisioning started",
     "dest.title": "Destroy Instance",
-    "dest.desc": "This will stop and remove the container for <strong>{id}</strong>. This action cannot be undone.",
+    "dest.desc_pre": "This will stop and remove the container for",
+    "dest.desc_post": "This action cannot be undone.",
     "dest.remove_data": "Also remove instance data",
     "dest.confirm_label": "Type the instance ID to confirm",
     "dest.destroyed": "Instance {id} destroyed",
@@ -765,17 +775,18 @@ var langs = {
     "src.name": "Name", "src.type": "Type", "src.status": "Status",
     "src.docs": "Docs", "src.chunks": "Chunks", "src.error": "Error",
     "src.back": "Back to sources", "src.id": "ID", "src.collection": "Collection",
-    "src.documents": "Documents", "src.updated": "Updated", "src.config": "Configuration",
-    "sk.drop": "Drop a skillset YAML", "sk.browse": "browse",
+    "src.documents": "Documents", "src.updated": "Updated", "src.created": "Created", "src.config": "Configuration",
+    "sk.drop_full": "Drop a skillset YAML here or {browse}", "sk.browse": "browse",
     "sk.empty_title": "No skillsets uploaded",
     "sk.empty_desc": "Upload a skillset YAML manifest to define assistant capabilities, tools, and behavior.",
     "sk.name": "Name", "sk.version": "Version", "sk.contract": "Contract",
-    "sk.tools": "Tools", "sk.sources": "Sources", "sk.back": "Back to skillsets",
+    "sk.tools": "Tools", "sk.tool_type": "Type", "sk.sources": "Sources", "sk.back": "Back to skillsets",
     "sk.delete": "Delete", "sk.system_prompt": "System Prompt", "sk.bot_name": "Bot Name",
     "sk.data_sources": "Data Sources", "sk.binding": "Binding", "sk.query_mode": "Query Mode",
     "sk.capabilities": "Capabilities", "sk.uploaded": "Skillset {name} uploaded",
     "sk.del_title": "Delete Skillset",
-    "sk.del_desc": "This will permanently delete the <strong>{name}</strong> skillset manifest. Instances already using it are not affected.",
+    "sk.del_desc_pre": "This will permanently delete the",
+    "sk.del_desc_post": "skillset manifest. Instances already using it are not affected.",
     "sk.deleted": "Skillset {name} deleted",
     "q.placeholder": "Search your organizational knowledge...",
     "q.btn": "Query", "q.searching": "Searching...",
@@ -795,12 +806,17 @@ var langs = {
     "err.skillsets": "Failed to load skillsets: {msg}",
     "err.skillset": "Failed to load skillset: {msg}",
     "err.events": "Failed to load events: {msg}",
+    "err.action": "Operation failed: {msg}", "err.failed": "Failed", "err.upload": "Upload failed",
+    "meta.instances": "{n} instance", "meta.instances_plural": "{n} instances",
+    "meta.sources": "{n} source", "meta.sources_plural": "{n} sources",
+    "meta.skillsets": "{n} skillset", "meta.skillsets_plural": "{n} skillsets",
+    "meta.results": "{n} result", "meta.results_plural": "{n} results",
+    "meta.events": "{n} event", "meta.events_plural": "{n} events",
     "lang.en": "English", "lang.es": "Español"
   },
   es: {
     brand: "Fox Fleet", tagline: "La capa operativa para asistentes de IA personales",
     "auth.label": "Secreto de Admin", "auth.placeholder": "Ingrese su secreto de administración", "auth.btn": "Conectar",
-    "auth.error": "Autenticación fallida — verifique su secreto",
     "nav.manage": "Administrar", "nav.observe": "Observar", "nav.configure": "Configurar",
     "nav.instances": "Instancias", "nav.sources": "Fuentes", "nav.skillsets": "Habilidades",
     "nav.query": "Consulta", "nav.activity": "Actividad", "nav.settings": "Ajustes",
@@ -820,7 +836,8 @@ var langs = {
     cancel: "Cancelar", create: "Crear",
     "prov.started": "Instancia {id} — aprovisionamiento iniciado",
     "dest.title": "Destruir Instancia",
-    "dest.desc": "Esto detendrá y eliminará el contenedor de <strong>{id}</strong>. Esta acción no se puede deshacer.",
+    "dest.desc_pre": "Esto detendrá y eliminará el contenedor de",
+    "dest.desc_post": "Esta acción no se puede deshacer.",
     "dest.remove_data": "También eliminar datos de la instancia",
     "dest.confirm_label": "Escriba el ID de la instancia para confirmar",
     "dest.destroyed": "Instancia {id} destruida",
@@ -829,17 +846,18 @@ var langs = {
     "src.name": "Nombre", "src.type": "Tipo", "src.status": "Estado",
     "src.docs": "Docs", "src.chunks": "Fragmentos", "src.error": "Error",
     "src.back": "Volver a fuentes", "src.id": "ID", "src.collection": "Colección",
-    "src.documents": "Documentos", "src.updated": "Actualizado", "src.config": "Configuración",
-    "sk.drop": "Arrastre un YAML de habilidad", "sk.browse": "examinar",
+    "src.documents": "Documentos", "src.updated": "Actualizado", "src.created": "Creado", "src.config": "Configuración",
+    "sk.drop_full": "Arrastre un YAML de habilidad aquí o {browse}", "sk.browse": "examinar",
     "sk.empty_title": "Sin habilidades cargadas",
     "sk.empty_desc": "Suba un manifiesto YAML para definir capacidades, herramientas y comportamiento del asistente.",
     "sk.name": "Nombre", "sk.version": "Versión", "sk.contract": "Contrato",
-    "sk.tools": "Herramientas", "sk.sources": "Fuentes", "sk.back": "Volver a habilidades",
+    "sk.tools": "Herramientas", "sk.tool_type": "Tipo", "sk.sources": "Fuentes", "sk.back": "Volver a habilidades",
     "sk.delete": "Eliminar", "sk.system_prompt": "Prompt de sistema", "sk.bot_name": "Nombre del bot",
     "sk.data_sources": "Fuentes de datos", "sk.binding": "Vínculo", "sk.query_mode": "Modo consulta",
     "sk.capabilities": "Capacidades", "sk.uploaded": "Habilidad {name} subida",
     "sk.del_title": "Eliminar Habilidad",
-    "sk.del_desc": "Esto eliminará permanentemente el manifiesto <strong>{name}</strong>. Las instancias que ya lo usan no se ven afectadas.",
+    "sk.del_desc_pre": "Esto eliminará permanentemente el manifiesto",
+    "sk.del_desc_post": "Las instancias que ya lo usan no se ven afectadas.",
     "sk.deleted": "Habilidad {name} eliminada",
     "q.placeholder": "Busque en su conocimiento organizacional...",
     "q.btn": "Consultar", "q.searching": "Buscando...",
@@ -859,6 +877,12 @@ var langs = {
     "err.skillsets": "Error al cargar habilidades: {msg}",
     "err.skillset": "Error al cargar habilidad: {msg}",
     "err.events": "Error al cargar eventos: {msg}",
+    "err.action": "Operación fallida: {msg}", "err.failed": "Falló", "err.upload": "Error al subir",
+    "meta.instances": "{n} instancia", "meta.instances_plural": "{n} instancias",
+    "meta.sources": "{n} fuente", "meta.sources_plural": "{n} fuentes",
+    "meta.skillsets": "{n} habilidad", "meta.skillsets_plural": "{n} habilidades",
+    "meta.results": "{n} resultado", "meta.results_plural": "{n} resultados",
+    "meta.events": "{n} evento", "meta.events_plural": "{n} eventos",
     "lang.en": "English", "lang.es": "Español"
   }
 };
@@ -866,8 +890,13 @@ var langs = {
 function t(key, params) {
   var dict = langs[state.locale] || langs.en;
   var s = dict[key] || langs.en[key] || key;
-  if (params) { Object.keys(params).forEach(function(k) { s = s.replace("{" + k + "}", params[k]); }); }
+  if (params) { Object.keys(params).forEach(function(k) { s = s.split("{" + k + "}").join(params[k]); }); }
   return s;
+}
+
+function tPlural(key, n) {
+  var k = n === 1 ? key : key + "_plural";
+  return t(k, { n: n });
 }
 
 function setLocale(loc) {
@@ -962,7 +991,7 @@ function refresh() {
   else if (p === "query") { return; }
   else if (p === "activity") { renderActivity(); }
   else { renderPlaceholder(p); }
-  document.getElementById("last-updated").textContent = t("updated") + " " + new Date().toLocaleTimeString();
+  document.getElementById("last-updated").textContent = t("updated") + " " + new Date().toLocaleTimeString(state.locale);
 }
 
 /* ── Navigation ────────────────────────────────────────────────────── */
@@ -1041,8 +1070,7 @@ function renderInstances() {
   if (state.loading) { content.innerHTML = skeletonCards(4); return; }
 
   apiFetch("/api/instances").then(function(res) { return res.json(); }).then(function(instances) {
-    var meta = instances.length + " instance" + (instances.length !== 1 ? "s" : "");
-    document.getElementById("page-meta").textContent = meta;
+    document.getElementById("page-meta").textContent = tPlural("meta.instances", instances.length);
 
     var html = '<div class="toolbar">'
       + '<button class="btn btn-primary" id="btn-provision">' + esc(t("inst.provision")) + '</button>'
@@ -1127,13 +1155,13 @@ function doProvision() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   }).then(function(res) {
-    if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || "Failed"); });
+    if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || t("err.failed")); });
     closeModal();
     showToast(t("prov.started", { id: id }), "success");
     refresh();
   }).catch(function(e) {
     document.getElementById("m-create").disabled = false;
-    if (e.message !== "Unauthorized") showToast(e.message);
+    if (e.message !== "Unauthorized") showToast(t("err.action", { msg: e.message }));
   });
 }
 
@@ -1189,7 +1217,7 @@ function showDestroyModal(id) {
   showModal(
     '<div class="modal">'
     + '<div class="modal-title">' + esc(t("dest.title")) + '</div>'
-    + '<div class="modal-desc">' + t("dest.desc", { id: esc(id) }) + '</div>'
+    + '<div class="modal-desc">' + esc(t("dest.desc_pre")) + ' <strong>' + esc(id) + '</strong>. ' + esc(t("dest.desc_post")) + '</div>'
     + '<div class="modal-field">'
     + '<label class="modal-label"><input type="checkbox" id="m-remove-data"> ' + esc(t("dest.remove_data")) + '</label>'
     + '</div>'
@@ -1216,14 +1244,14 @@ function doDestroy(id) {
   document.getElementById("m-destroy").disabled = true;
 
   apiFetch(url, { method: "DELETE" }).then(function(res) {
-    if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || "Failed"); });
+    if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || t("err.failed")); });
     closeModal();
     showToast(t("dest.destroyed", { id: id }), "success");
     state.detailId = "";
     navigate("instances");
   }).catch(function(e) {
     document.getElementById("m-destroy").disabled = false;
-    if (e.message !== "Unauthorized") showToast(e.message);
+    if (e.message !== "Unauthorized") showToast(t("err.action", { msg: e.message }));
   });
 }
 
@@ -1232,7 +1260,7 @@ function doDestroy(id) {
 function renderSources() {
   apiFetch("/api/sources").then(function(res) { return res.json(); }).then(function(sources) {
     var content = document.getElementById("content");
-    document.getElementById("page-meta").textContent = sources.length + " source" + (sources.length !== 1 ? "s" : "");
+    document.getElementById("page-meta").textContent = tPlural("meta.sources", sources.length);
 
     if (sources.length === 0) {
       content.innerHTML = '<div class="empty-state">'
@@ -1295,7 +1323,7 @@ function renderSourceDetail(id) {
       + '<dt>' + esc(t("src.collection")) + '</dt><dd>' + esc(src.collection) + '</dd>'
       + '<dt>' + esc(t("src.documents")) + '</dt><dd>' + (src.doc_count || 0) + '</dd>'
       + '<dt>' + esc(t("src.chunks")) + '</dt><dd>' + (src.chunk_count || 0) + '</dd>'
-      + '<dt>' + esc(t("inst.created")) + '</dt><dd>' + formatDate(src.created_at) + '</dd>'
+      + '<dt>' + esc(t("src.created")) + '</dt><dd>' + formatDate(src.created_at) + '</dd>'
       + '<dt>' + esc(t("src.updated")) + '</dt><dd>' + formatDate(src.updated_at) + '</dd>';
     if (src.error_detail) {
       html += '<dt>' + esc(t("src.error")) + '</dt><dd style="color:var(--color-error)">' + esc(src.error_detail) + '</dd>';
@@ -1325,10 +1353,11 @@ function renderSourceDetail(id) {
 function renderSkillsets() {
   apiFetch("/api/skillsets").then(function(res) { return res.json(); }).then(function(skillsets) {
     var content = document.getElementById("content");
-    document.getElementById("page-meta").textContent = skillsets.length + " skillset" + (skillsets.length !== 1 ? "s" : "");
+    document.getElementById("page-meta").textContent = tPlural("meta.skillsets", skillsets.length);
 
+    var dropParts = t("sk.drop_full", { browse: "\x00" }).split("\x00");
     var html = '<div class="drop-zone" id="drop-zone">'
-      + '<div class="drop-zone-text"><strong>' + esc(t("sk.drop")) + '</strong> here or <label style="color:var(--color-accent);cursor:pointer;text-decoration:underline">' + esc(t("sk.browse")) + '<input type="file" accept=".yaml,.yml" style="display:none" id="file-input"></label></div>'
+      + '<div class="drop-zone-text">' + esc(dropParts[0]) + '<label style="color:var(--color-accent);cursor:pointer;text-decoration:underline">' + esc(t("sk.browse")) + '<input type="file" accept=".yaml,.yml" style="display:none" id="file-input"></label>' + esc(dropParts[1] || "") + '</div>'
       + '</div>';
 
     if (skillsets.length === 0) {
@@ -1391,13 +1420,13 @@ function uploadSkillset(file) {
     method: "POST",
     body: form
   }).then(function(res) {
-    if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || "Upload failed"); });
+    if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || t("err.upload")); });
     return res.json();
   }).then(function(sk) {
     showToast(t("sk.uploaded", { name: sk.name }), "success");
     refresh();
   }).catch(function(e) {
-    if (e.message !== "Unauthorized") showToast(e.message);
+    if (e.message !== "Unauthorized") showToast(t("err.action", { msg: e.message }));
   });
 }
 
@@ -1434,7 +1463,7 @@ function renderSkillsetDetail(name) {
 
     if (m.tools && m.tools.length > 0) {
       html += '<h3 style="font-family:var(--font-heading);font-size:14px;font-weight:500;margin-bottom:8px">' + esc(t("sk.tools")) + ' (' + m.tools.length + ')</h3>'
-        + '<table class="data-table" style="margin-bottom:20px"><thead><tr><th>Name</th><th>Type</th></tr></thead><tbody>';
+        + '<table class="data-table" style="margin-bottom:20px"><thead><tr><th>' + esc(t("sk.name")) + '</th><th>' + esc(t("sk.tool_type")) + '</th></tr></thead><tbody>';
       for (var i = 0; i < m.tools.length; i++) {
         html += '<tr><td>' + esc(m.tools[i].name) + '</td><td><span class="badge badge-pending">' + esc(m.tools[i].type) + '</span></td></tr>';
       }
@@ -1473,7 +1502,7 @@ function showDeleteSkillsetModal(name) {
   showModal(
     '<div class="modal">'
     + '<div class="modal-title">' + esc(t("sk.del_title")) + '</div>'
-    + '<div class="modal-desc">' + t("sk.del_desc", { name: esc(name) }) + '</div>'
+    + '<div class="modal-desc">' + esc(t("sk.del_desc_pre")) + ' <strong>' + esc(name) + '</strong> ' + esc(t("sk.del_desc_post")) + '</div>'
     + '<div class="modal-actions">'
     + '<button class="btn btn-ghost" id="m-cancel">' + esc(t("cancel")) + '</button>'
     + '<button class="btn btn-danger" id="m-delete-skillset">' + esc(t("sk.delete")) + '</button>'
@@ -1483,14 +1512,14 @@ function showDeleteSkillsetModal(name) {
   document.getElementById("m-delete-skillset").addEventListener("click", function() {
     this.disabled = true;
     apiFetch("/api/skillsets/" + encodeURIComponent(name), { method: "DELETE" }).then(function(res) {
-      if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || "Failed"); });
+      if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || t("err.failed")); });
       closeModal();
       showToast(t("sk.deleted", { name: name }), "success");
       state.skillsetDetail = "";
       navigate("skillsets");
     }).catch(function(e) {
       document.getElementById("m-delete-skillset").disabled = false;
-      if (e.message !== "Unauthorized") showToast(e.message);
+      if (e.message !== "Unauthorized") showToast(t("err.action", { msg: e.message }));
     });
   });
 }
@@ -1542,7 +1571,7 @@ function doQuery() {
     btn.disabled = false;
     btn.textContent = t("q.btn");
     var items = data.results || [];
-    document.getElementById("page-meta").textContent = items.length + " result" + (items.length !== 1 ? "s" : "");
+    document.getElementById("page-meta").textContent = tPlural("meta.results", items.length);
 
     if (items.length === 0) {
       results.innerHTML = '<div class="empty-state">'
@@ -1574,7 +1603,7 @@ function doQuery() {
     btn.disabled = false;
     btn.textContent = t("q.btn");
     results.innerHTML = '';
-    if (e.message !== "Unauthorized") showToast(e.message);
+    if (e.message !== "Unauthorized") showToast(t("err.action", { msg: e.message }));
   });
 }
 
@@ -1583,7 +1612,7 @@ function doQuery() {
 function renderActivity() {
   apiFetch("/api/events").then(function(res) { return res.json(); }).then(function(evts) {
     var content = document.getElementById("content");
-    document.getElementById("page-meta").textContent = evts.length + " event" + (evts.length !== 1 ? "s" : "");
+    document.getElementById("page-meta").textContent = tPlural("meta.events", evts.length);
 
     if (evts.length === 0) {
       content.innerHTML = '<div class="empty-state">'
@@ -1618,10 +1647,11 @@ function renderActivity() {
 
 function renderPlaceholder(page) {
   document.getElementById("page-meta").textContent = "";
+  var desc = page === "settings" ? t("settings.desc") : "";
   document.getElementById("content").innerHTML =
     '<div class="placeholder-page">'
     + '<h2>' + esc(t("coming_soon")) + '</h2>'
-    + '<p>' + esc(t("settings.desc")) + '</p>'
+    + '<p>' + esc(desc) + '</p>'
     + '</div>';
 }
 
