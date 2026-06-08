@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **PLAT-07:** Skillset admin view (full) — detail view now shows memory provider/config, avatar, UI removals; download YAML button; replace/update button; backend download endpoint
 - **TEST-01:** Test hardening — CI runs tests with `-race -shuffle=on -count=1` to detect data races, order-dependent tests, and prevent false cache hits
 - **TEST-02:** Test coverage gate — CI collects coverage profile and fails if total statement coverage drops below 45%
+- **TEST-03:** End-to-end smoke tests — lifecycle test covering instance create/list/detail/destroy and skillset upload/list/get/download/delete; auth gate test verifying all API endpoints require authentication and /healthz is public
 
 ## [0.3.0-alpha] - 2026-06-08
 
