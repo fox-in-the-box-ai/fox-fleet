@@ -1,0 +1,34 @@
+[Unit]
+Description=Fox Control — Fox Fleet management plane
+Documentation=https://github.com/fox-in-the-box-ai/fox-fleet
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=fox-control
+Group=fox-control
+ExecStart=/usr/local/bin/fox-control serve --config /etc/fox-control/fox-control.toml
+EnvironmentFile=-/etc/fox-control/env
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=30
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/fox-control
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+MemoryDenyWriteExecute=true
+
+# Docker socket access
+SupplementaryGroups=docker
+
+[Install]
+WantedBy=multi-user.target

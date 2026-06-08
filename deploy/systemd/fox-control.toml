@@ -1,0 +1,19 @@
+[control]
+listen = "127.0.0.1:9090"
+data_root = "/var/lib/fox-control"
+health_poll_seconds = 15
+
+[docker]
+socket = "/var/run/docker.sock"
+image = "ghcr.io/fox-in-the-box-ai/fox:latest"
+
+[auth]
+# Secrets are loaded from environment variables FOX_ADMIN_SECRET and
+# FOX_INSTANCE_PASSWORD (set in /etc/fox-control/env). These placeholder
+# values are overridden at startup.
+admin_secret = "set-via-env"
+instance_password = "set-via-env"
+
+[instances]
+port_start = 8787
+max_instances = 10
