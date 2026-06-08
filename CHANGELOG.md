@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **TEST-02:** Test coverage gate — CI collects coverage profile and fails if total statement coverage drops below 45%
 - **TEST-03:** End-to-end smoke tests — lifecycle test covering instance create/list/detail/destroy and skillset upload/list/get/download/delete; auth gate test verifying all API endpoints require authentication and /healthz is public
 - **TEST-04:** Mutation testing pass — gremlins mutation testing run across critical packages (panel/api, skillsets, internal/registry, internal/events, internal/config, rollout); 89–100% efficacy confirms test suite catches real regressions
+- **RELEASE-01:** Release automation hardening — all GitHub Actions pinned to commit SHAs (supply-chain defense); `timeout-minutes` on every job; pre-release verification gate (tag format, CHANGELOG entry, lint, tests) blocks build+release on failure; CHANGELOG extraction fails hard on empty section instead of falling back to generic text
 
 ## [0.3.0-alpha] - 2026-06-08
 

@@ -11,9 +11,62 @@ permissions:
   id-token: write
 
 jobs:
+  verify:
+    name: Pre-release Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
+        with:
+          go-version: stable
+
+      - name: Validate tag format
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! echo "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$'; then
+            echo "::error::Tag '$TAG' does not match semver pattern vMAJOR.MINOR.PATCH[-prerelease]"
+            exit 1
+          fi
+
+      - name: Verify CHANGELOG entry exists
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          if ! grep -qF "## [${VERSION}]" CHANGELOG.md; then
+            echo "::error::No CHANGELOG.md entry found for version ${VERSION}"
+            exit 1
+          fi
+          NOTES=$(awk -v ver="$VERSION" '
+            /^## \[/ {
+              if (found) exit
+              if (index($0, "[" ver "]")) found=1
+              next
+            }
+            found { print }
+          ' CHANGELOG.md)
+          if [ -z "$(echo "$NOTES" | tr -d '[:space:]')" ]; then
+            echo "::error::CHANGELOG.md entry for ${VERSION} is empty"
+            exit 1
+          fi
+
+      - name: Run linter
+        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9
+        with:
+          version: latest
+          install-mode: goinstall
+
+      - name: Run tests
+        run: go test -race -shuffle=on -count=1 ./...
+
   build:
     name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
+    needs: verify
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
     strategy:
       matrix:
         include:
@@ -33,9 +86,9 @@ jobs:
             goarch: amd64
             runner: windows-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
           go-version: stable
 
@@ -44,22 +97,28 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
+          REF_NAME: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
           BINARY=fox-control
-          if [ "${{ matrix.goos }}" = "windows" ]; then
+          if [ "$GOOS" = "windows" ]; then
             BINARY=fox-control.exe
           fi
           go build -trimpath \
-            -ldflags "-s -w -X main.buildVersion=${{ github.ref_name }} -X main.buildCommit=${{ github.sha }} -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -ldflags "-s -w -X main.buildVersion=${REF_NAME} -X main.buildCommit=${COMMIT_SHA} -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -o "${BINARY}" \
             ./cmd/fox-control
         shell: bash
 
       - name: Package artifact
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
         run: |
-          ARTIFACT=fox-control-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}
+          ARTIFACT="fox-control-${REF_NAME}-${GOOS}-${GOARCH}"
           mkdir "${ARTIFACT}"
-          if [ "${{ matrix.goos }}" = "windows" ]; then
+          if [ "$GOOS" = "windows" ]; then
             cp fox-control.exe "${ARTIFACT}/"
           else
             cp fox-control "${ARTIFACT}/"
@@ -69,7 +128,7 @@ jobs:
           tar czf "${ARTIFACT}.tar.gz" "${ARTIFACT}"
         shell: bash
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: fox-control-${{ matrix.goos }}-${{ matrix.goarch }}
           path: "*.tar.gz"
@@ -78,23 +137,25 @@ jobs:
     name: Create GitHub Release
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - uses: sigstore/cosign-installer@v3
+      - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
 
       - uses: anchore/sbom-action/download-syft@95a15b6ca863c73e13e8cf14dd3e41099e032397
         with:
           syft-version: v1.20.0
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: artifacts
           merge-multiple: true
 
       - name: Extract release notes from CHANGELOG
+        env:
+          TAG: ${{ github.ref_name }}
         run: |
-          TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
           awk -v ver="$VERSION" '
             /^## \[/ {
@@ -104,13 +165,15 @@ jobs:
             }
             found { print }
           ' CHANGELOG.md > release-notes.md
-          if [ ! -s release-notes.md ]; then
-            echo "Release ${TAG}. See CHANGELOG.md for details." > release-notes.md
+          if [ -z "$(tr -d '[:space:]' < release-notes.md)" ]; then
+            echo "::error::CHANGELOG section for ${VERSION} produced empty release notes"
+            exit 1
           fi
 
       - name: Generate SBOM
+        env:
+          TAG: ${{ github.ref_name }}
         run: |
-          TAG="${{ github.ref_name }}"
           syft dir:. --select-catalogers go-module-file-cataloger \
             --output "cyclonedx-json=artifacts/fox-control-${TAG}.sbom.cdx.json"
 
@@ -136,8 +199,8 @@ jobs:
       - name: Create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
         run: |
-          TAG="${{ github.ref_name }}"
           PRERELEASE=""
           if echo "$TAG" | grep -qE -- '-(alpha|beta|rc)'; then
             PRERELEASE="--prerelease"
@@ -154,21 +217,23 @@ jobs:
 
   container:
     name: Container Image
+    needs: verify
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     outputs:
       digest: ${{ steps.push.outputs.digest }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/metadata-action@v5
+      - uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         id: meta
         with:
           images: ghcr.io/${{ github.repository_owner }}/fox-control
@@ -177,7 +242,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         id: push
         with:
           context: .
@@ -196,17 +261,18 @@ jobs:
     name: Sign Container Image
     needs: container
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       id-token: write
       packages: write
     steps:
-      - uses: sigstore/cosign-installer@v3
+      - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
 
       - uses: anchore/sbom-action/download-syft@95a15b6ca863c73e13e8cf14dd3e41099e032397
         with:
           syft-version: v1.20.0
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
