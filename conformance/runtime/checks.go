@@ -404,24 +404,8 @@ func httpGetFull(ctx context.Context, url string, headers map[string]string) (in
 }
 
 func httpGet(ctx context.Context, url string, headers map[string]string) (int, []byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return 0, nil, err
-	}
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-	c := &http.Client{Timeout: 10 * time.Second, CheckRedirect: noFollow}
-	resp, err := c.Do(req)
-	if err != nil {
-		return 0, nil, err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return 0, nil, fmt.Errorf("read response: %w", err)
-	}
-	return resp.StatusCode, body, nil
+	status, body, _, err := httpGetFull(ctx, url, headers)
+	return status, body, err
 }
 
 func httpPost(ctx context.Context, url string, jsonBody string, headers map[string]string) (int, []byte, error) {
@@ -524,7 +508,7 @@ func check17VersionV2Schema(ctx context.Context, h *sut.Handle) report.Result {
 			}
 		}
 		cv := data["contract_version"].(string)
-		if !strings.HasPrefix(cv, "2.") {
+		if !strings.HasPrefix(cv, contractVersionPrefix) {
 			return report.Fail, fmt.Sprintf("expected contract_version 2.x, got %q", cv)
 		}
 		return report.Pass, ""
@@ -555,7 +539,7 @@ func check18CapabilitiesV2Schema(ctx context.Context, h *sut.Handle) report.Resu
 		if !ok || cv == "" {
 			return report.Fail, "missing or empty contract_version"
 		}
-		if !strings.HasPrefix(cv, "2.") {
+		if !strings.HasPrefix(cv, contractVersionPrefix) {
 			return report.Fail, fmt.Sprintf("expected contract_version 2.x, got %q", cv)
 		}
 		caps, ok := data["capabilities"].(map[string]any)
@@ -573,7 +557,11 @@ func check18CapabilitiesV2Schema(ctx context.Context, h *sut.Handle) report.Resu
 
 func check19HealthV2ContentType(ctx context.Context, h *sut.Handle) report.Result {
 	return timedCheck(19, "Health v2.0 content-type", func() (report.Status, string) {
-		_, _, ct, err := httpGetFull(ctx, h.BaseURL+"/health", nil)
+		headers := map[string]string{}
+		if h.AuthSecret != "" {
+			headers["X-Fox-Auth"] = h.AuthSecret
+		}
+		_, _, ct, err := httpGetFull(ctx, h.BaseURL+"/health", headers)
 		if err != nil {
 			return report.Fail, err.Error()
 		}
@@ -586,7 +574,11 @@ func check19HealthV2ContentType(ctx context.Context, h *sut.Handle) report.Resul
 
 func check20ReadyzV2Schema(ctx context.Context, h *sut.Handle) report.Result {
 	return timedCheck(20, "Readyz v2.0 schema", func() (report.Status, string) {
-		status, body, ct, err := httpGetFull(ctx, h.BaseURL+"/readyz", nil)
+		headers := map[string]string{}
+		if h.AuthSecret != "" {
+			headers["X-Fox-Auth"] = h.AuthSecret
+		}
+		status, body, ct, err := httpGetFull(ctx, h.BaseURL+"/readyz", headers)
 		if err != nil {
 			return report.Fail, err.Error()
 		}
