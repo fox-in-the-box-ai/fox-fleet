@@ -30,7 +30,7 @@ func (s *Server) handleListSkillsets(w http.ResponseWriter, _ *http.Request) {
 			writeJSON(w, http.StatusOK, []any{})
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "internal_error", "failed to read skillsets directory")
+		writeError(w, http.StatusInternalServerError, "internal_error", "cannot read skillsets directory")
 		return
 	}
 
@@ -86,7 +86,8 @@ func (s *Server) handleGetSkillset(w http.ResponseWriter, r *http.Request) {
 	}
 	m, err := skillsets.Parse(data)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "parse_error", "stored skillset is invalid")
+		writeError(w, http.StatusInternalServerError, "parse_error",
+			fmt.Sprintf("skillset %q is stored on disk but cannot be parsed — re-upload or check YAML syntax", name))
 		return
 	}
 	writeJSON(w, http.StatusOK, m)
@@ -96,20 +97,20 @@ func (s *Server) handleUploadSkillset(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxSkillsetUpload)
 
 	if err := r.ParseMultipartForm(maxSkillsetUpload); err != nil {
-		writeError(w, http.StatusBadRequest, "bad_request", "invalid multipart form or file too large")
+		writeError(w, http.StatusBadRequest, "bad_request", "request is not valid multipart form data or exceeds 1 MB limit")
 		return
 	}
 
 	f, _, err := r.FormFile("file")
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "bad_request", "missing file field")
+		writeError(w, http.StatusBadRequest, "bad_request", "multipart form must include a \"file\" field")
 		return
 	}
 	defer f.Close()
 
 	data, err := io.ReadAll(io.LimitReader(f, maxSkillsetUpload))
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "bad_request", "failed to read uploaded file")
+		writeError(w, http.StatusBadRequest, "bad_request", "cannot read uploaded file")
 		return
 	}
 
@@ -126,13 +127,13 @@ func (s *Server) handleUploadSkillset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := os.MkdirAll(s.skillsetsDir, 0o700); err != nil {
-		writeError(w, http.StatusInternalServerError, "internal_error", "failed to create skillsets directory")
+		writeError(w, http.StatusInternalServerError, "internal_error", "cannot create skillsets directory")
 		return
 	}
 
 	dest := filepath.Join(s.skillsetsDir, m.Name+".yaml")
 	if err := os.WriteFile(dest, data, 0o644); err != nil {
-		writeError(w, http.StatusInternalServerError, "internal_error", "failed to save skillset")
+		writeError(w, http.StatusInternalServerError, "internal_error", "cannot save skillset to disk")
 		return
 	}
 
@@ -187,7 +188,7 @@ func (s *Server) handleDeleteSkillset(w http.ResponseWriter, r *http.Request) {
 				writeError(w, http.StatusNotFound, "not_found", fmt.Sprintf("skillset %s not found", name))
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "internal_error", "failed to delete skillset")
+			writeError(w, http.StatusInternalServerError, "internal_error", "cannot delete skillset from disk")
 			return
 		}
 	}

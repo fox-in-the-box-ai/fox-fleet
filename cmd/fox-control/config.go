@@ -125,34 +125,34 @@ func applyEnvOverrides(cfg *Config) {
 func validateConfig(cfg *Config) error {
 	var errs []string
 	if cfg.Control.DataRoot == "" {
-		errs = append(errs, "control.data_root is required")
+		errs = append(errs, "control.data_root is required — set it to a writable directory path")
 	}
 	if cfg.Docker.Image == "" {
-		errs = append(errs, "docker.image is required")
+		errs = append(errs, "docker.image is required — set it to a Fox container image reference")
 	}
 	if cfg.Auth.AdminSecret == "" {
-		errs = append(errs, "auth.admin_secret must not be empty")
+		errs = append(errs, "auth.admin_secret must not be empty — set it in config or via FOX_ADMIN_SECRET env var")
 	}
 	if cfg.Auth.InstancePassword == "" {
-		errs = append(errs, "auth.instance_password must not be empty")
+		errs = append(errs, "auth.instance_password must not be empty — set it in config or via FOX_INSTANCE_PASSWORD env var")
 	}
 	if cfg.Qdrant.Enabled {
 		if cfg.Qdrant.DataDir == "" && cfg.Control.DataRoot != "" {
 			cfg.Qdrant.DataDir = cfg.Control.DataRoot + "/qdrant"
 		}
 		if cfg.Qdrant.DataDir == "" {
-			errs = append(errs, "qdrant.data_dir is required when qdrant is enabled")
+			errs = append(errs, "qdrant.data_dir is required when qdrant is enabled — set it or ensure control.data_root is set")
 		}
 	}
 	if cfg.DataPlane.Enabled {
 		if cfg.Embedding.BaseURL == "" {
-			errs = append(errs, "embedding.base_url is required when data_plane is enabled")
+			errs = append(errs, "embedding.base_url is required when data_plane is enabled — set it to an OpenAI-compatible embedding API URL")
 		}
 		if cfg.Embedding.Model == "" {
-			errs = append(errs, "embedding.model is required when data_plane is enabled")
+			errs = append(errs, "embedding.model is required when data_plane is enabled — set it to the embedding model name")
 		}
 		if !cfg.Qdrant.Enabled {
-			errs = append(errs, "qdrant must be enabled when data_plane is enabled")
+			errs = append(errs, "qdrant must be enabled when data_plane is enabled — set qdrant.enabled = true")
 		}
 	}
 	if len(errs) > 0 {

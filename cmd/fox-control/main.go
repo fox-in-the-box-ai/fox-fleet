@@ -110,7 +110,7 @@ func newServeCmd() *cobra.Command {
 
 			webFS, err := fs.Sub(spa.Static, "static")
 			if err != nil {
-				return fmt.Errorf("embed web assets: %w", err)
+				return fmt.Errorf("cannot load embedded web assets: %w", err)
 			}
 
 			var srcReg *source.Registry
@@ -119,13 +119,13 @@ func newServeCmd() *cobra.Command {
 				dpURL = "http://" + cfg.DataPlane.Listen
 				srcDB, err := sql.Open("sqlite", filepath.Join(cfg.Control.DataRoot, "sources.db"))
 				if err != nil {
-					return fmt.Errorf("open sources db: %w", err)
+					return fmt.Errorf("cannot open sources database: %w", err)
 				}
 				srcDB.SetMaxOpenConns(1)
 				defer srcDB.Close()
 				srcReg, err = source.OpenRegistry(srcDB)
 				if err != nil {
-					return fmt.Errorf("open source registry: %w", err)
+					return fmt.Errorf("cannot initialize source registry: %w", err)
 				}
 			}
 
@@ -344,7 +344,7 @@ func newRolloutCmd() *cobra.Command {
 
 			fmt.Fprint(cmd.OutOrStdout(), report.Format())
 			if !report.OK() {
-				return fmt.Errorf("rollout did not complete successfully")
+				return fmt.Errorf("rollout completed with failures — see report above for details")
 			}
 			return nil
 		},
@@ -429,7 +429,7 @@ func openRegistryAndPlugin(cfg *Config) (*registry.Registry, *docker.Plugin, err
 	)
 	if err != nil {
 		reg.Close()
-		return nil, nil, fmt.Errorf("docker client: %w", err)
+		return nil, nil, fmt.Errorf("cannot connect to Docker at %s: %w", cfg.Docker.Socket, err)
 	}
 
 	return reg, docker.NewWithClient(cli), nil
