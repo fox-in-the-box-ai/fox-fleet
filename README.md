@@ -6,7 +6,7 @@
 
 Open-source management plane for [Fox in the Box](https://github.com/fox-in-the-box-ai/fox-in-the-box) AI assistants. One binary, one config file, one Docker host — provision, monitor, update, and destroy a fleet of Fox instances through a CLI and browser-based panel.
 
-> **Status: v0.1 feature-complete.** All 11 Fleet-repo tickets and 5 Fox-runtime prereqs are implemented and tested. Pending: release tooling and tag. Not production-ready yet.
+> **Status: v0.2.0-alpha.** Management plane (v0.1) and data plane (v0.2) are feature-complete — provision, monitor, update, destroy, plus organizational knowledge ingestion, vector search, query API, and skillset assignment. Not production-ready yet.
 
 ---
 
@@ -36,28 +36,42 @@ graph TB
         Registry["Registry<br/>(SQLite)"]
         Plugin["Docker Plugin"]
         Config["Config<br/>Injection"]
+        DataPlane["Data Plane<br/>:9091"]
+        SourceReg["Source<br/>Registry"]
+    end
+
+    subgraph "Sidecar"
+        Qdrant["Qdrant<br/>Vector DB"]
     end
 
     CLI --> Panel
     Panel --> Provisioner
+    Panel --> DataPlane
     Provisioner --> Registry
     Provisioner --> Plugin
     Provisioner --> Config
+
+    DataPlane --> SourceReg
+    DataPlane --> Qdrant
 
     Plugin --> InstanceA["Fox Instance A<br/>:8787"]
     Plugin --> InstanceB["Fox Instance B<br/>:8788"]
     Config --> InstanceA
     Config --> InstanceB
+    InstanceA -.->|"knowledge_query"| DataPlane
+    InstanceB -.->|"knowledge_query"| DataPlane
 
     style InstanceA fill:#e8f5e9
     style InstanceB fill:#e8f5e9
+    style Qdrant fill:#e3f2fd
 ```
 
 **Key design decisions:**
 
 - **Plugin interface** — `DeploymentPlugin` is a 7-operation Go interface (Provision, HealthCheck, Configure, Rollout, Rollback, Destroy, Logs). Docker is the built-in implementation. The interface accommodates Kubernetes and Compose plugins without changes.
 - **SQLite registry** — instance metadata in a single embedded database. CGO-free via `modernc.org/sqlite`. No external database dependency.
-- **Config injection** — each instance gets its own data directory with `config.yaml`, `settings.json`, and `hermes.env` written before container start. Credentials are injected as environment variables, never baked into images.
+- **Config injection** — each instance gets its own data directory with `config.yaml`, `settings.json`, `hermes.env`, and `tools.json` written before container start. When a data plane is configured, `tools.json` includes a `knowledge_query` tool manifest pointing instances at the query API. Credentials are injected as environment variables, never baked into images.
+- **Data plane** — optional organizational knowledge layer. File and REST ingestion connectors chunk documents, embed them via an OpenAI-compatible API, and store vectors in a shared Qdrant sidecar. Instances query the data plane through the `knowledge_query` tool injected by config injection.
 - **Shared-secret auth** — `admin_secret` authenticates the operator to the panel and is injected into each instance as `FOX_PLANE_AUTH_SECRET`. The instance's `check_auth` gate validates it. `instance_password` enables upstream session auth per the managed-mode invariant.
 
 ---
@@ -68,11 +82,11 @@ Fox Fleet ships in three milestones.
 
 | Milestone | Theme | Status |
 |-----------|-------|--------|
-| **v0.1** | Management plane MVP — provision, monitor, update, destroy through CLI and panel | Feature-complete (11/11 Fleet + 5/5 Fox prereqs) |
-| **v0.2** | Data plane — organizational knowledge (ingestion, vector search, query API, skillsets) | Planned |
+| **v0.1** | Management plane MVP — provision, monitor, update, destroy through CLI and panel | Shipped (0.1.0-alpha) |
+| **v0.2** | Data plane — organizational knowledge (ingestion, vector search, query API, skillsets) | Shipped (0.2.0-alpha) |
 | **v1.0** | Apache GA — conformance CI, cosign + SBOM, all PRODUCTS.md promises shipped | Condition-gated |
 
-v0.2 ships 6-8 weeks after v0.1, condition-gated on at least one operator running v0.1. v1.0 ships when 3 operators have run Fleet with zero critical bugs for 2 consecutive releases.
+v1.0 ships when 3 operators have run Fleet with zero critical bugs for 2 consecutive releases.
 
 Full roadmap: [FLEET_BASE_ROADMAP.md](https://github.com/fox-in-the-box-ai/fox-in-the-box/blob/main/docs/architecture/FLEET_BASE_ROADMAP.md)
 
@@ -103,6 +117,15 @@ instance_password = "change-me-to-a-real-password"
 
 [instances]
 max_instances = 2
+# default_skillset = "/path/to/skillset.yaml"
+# default_role = "assistant"
+
+[data_plane]
+# enabled = true
+# listen = "127.0.0.1:9091"
+# qdrant_url = "http://127.0.0.1:6334"
+# embedding_url = "http://127.0.0.1:11434"
+# embedding_model = "nomic-embed-text"
 EOF
 
 # Run
@@ -135,21 +158,21 @@ Destroy an instance:
 ```
 cmd/fox-control/       CLI entry point, TOML config parsing, cobra subcommands
 internal/
-  config/              Config injection (writes instance data dirs)
-  provisioner/         Provisioning loop orchestrator (mutex, port alloc, rollback)
-  registry/            Instance registry (SQLite, CRUD, status tracking)
+  config/              Config injection (writes instance data dirs incl. tools.json)
+  provisioner/         Provisioning loop orchestrator (mutex, port alloc, skillset copy, rollback)
+  registry/            Instance registry (SQLite, CRUD, status + skillset tracking)
 plugins/
   plugin.go            DeploymentPlugin interface + shared types
   docker/              Docker plugin implementation (7 operations)
 panel/
-  api/                 Dashboard HTTP API + health poller
-  spa/                 Embedded single-page dashboard
+  api/                 Dashboard HTTP API + health poller + source listing
+  spa/                 Embedded single-page dashboard (instances + sources tabs)
 conformance/
   runtime/             Runtime conformance test suite (16 checks)
   plugin/              Plugin conformance test suite (8 checks)
 rollout/               Fleet rollout orchestration (rolling update + health-gated rollback)
-data-plane/            Shared Qdrant, ingestion shim, query API (v0.2)
-skillsets/             Skillset manifest spec + Hermes adapter (v0.2)
+data-plane/            Data plane server, Qdrant client, ingestion connectors, query API, source registry
+skillsets/             Skillset manifest spec, YAML parser + validator
 docs/                  Product-specific documentation
 ```
 
@@ -180,7 +203,7 @@ fox-cloud (Commercial)         Hosted product
 | Product | License | Default cap | What it adds |
 |---------|---------|-------------|-------------|
 | **Fox in the Box** | MIT | 1 (single-user) | The assistant itself — container image, desktop app, overlay |
-| **Fox Fleet** | Apache 2.0 | 2 (configurable) | Provisioning, monitoring, updates, basic data plane |
+| **Fox Fleet** | Apache 2.0 | 2 (configurable) | Provisioning, monitoring, updates, knowledge data plane, skillsets |
 | **Fox Fleet Enterprise** | Commercial | Unlimited | RBAC, audit logs, LLM proxy, SSO/OIDC, K8s plugin |
 | **Fox Cloud** | Commercial | Unlimited | Hosted runtime, billing, multi-tenant |
 
