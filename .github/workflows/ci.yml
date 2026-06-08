@@ -35,7 +35,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: stable
-      - run: go test ./...
+      - run: go test -race -shuffle=on -count=1 ./...
 
   build:
     name: Build (${{ matrix.os }})

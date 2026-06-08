@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CONF-03:** Conformance suite in CI — runtime and plugin conformance checks run on every push and PR against a locally-built Docker image
 - **PLAT-06:** Contract v2.0 conformance tests — checks 17–20 validate version/capabilities/health/readyz v2.0 response schemas, Content-Type headers, and type constraints
 - **PLAT-07:** Skillset admin view (full) — detail view now shows memory provider/config, avatar, UI removals; download YAML button; replace/update button; backend download endpoint
+- **TEST-01:** Test hardening — CI runs tests with `-race -shuffle=on -count=1` to detect data races, order-dependent tests, and prevent false cache hits
 
 ## [0.3.0-alpha] - 2026-06-08
 
