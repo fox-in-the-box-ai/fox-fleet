@@ -6,7 +6,7 @@
 
 Open-source management plane for [Fox in the Box](https://github.com/fox-in-the-box-ai/fox-in-the-box) AI assistants. One binary, one config file, one Docker host — provision, monitor, update, and destroy a fleet of Fox instances through a CLI and browser-based panel.
 
-> **Status: v0.1 in active development.** Core infrastructure (plugin interface, registry, config injection, provisioner, CLI) is implemented and tested. Dashboard and conformance suite are next. Not production-ready yet.
+> **Status: v0.1 feature-complete.** All 11 Fleet-repo tickets and 5 Fox-runtime prereqs are implemented and tested. Pending: release tooling and tag. Not production-ready yet.
 
 ---
 
@@ -64,11 +64,11 @@ graph TB
 
 ## Status and roadmap
 
-Fox Fleet ships in three milestones. v0.1 is in active development.
+Fox Fleet ships in three milestones.
 
 | Milestone | Theme | Status |
 |-----------|-------|--------|
-| **v0.1** | Management plane MVP — provision, monitor, update, destroy through CLI and panel | In progress (12 of 17 tickets) |
+| **v0.1** | Management plane MVP — provision, monitor, update, destroy through CLI and panel | Feature-complete (11/11 Fleet + 5/5 Fox prereqs) |
 | **v0.2** | Data plane — organizational knowledge (ingestion, vector search, query API, skillsets) | Planned |
 | **v1.0** | Apache GA — conformance CI, cosign + SBOM, all PRODUCTS.md promises shipped | Condition-gated |
 
@@ -80,7 +80,7 @@ Full roadmap: [FLEET_BASE_ROADMAP.md](https://github.com/fox-in-the-box-ai/fox-i
 
 ## Quickstart
 
-> Requires Go 1.22+ and Docker.
+> Requires Go 1.25+ and Docker.
 
 ```bash
 # Clone and build
@@ -142,12 +142,12 @@ plugins/
   plugin.go            DeploymentPlugin interface + shared types
   docker/              Docker plugin implementation (7 operations)
 panel/
-  api/                 Dashboard HTTP API (v0.1 — in progress)
-  spa/                 Embedded single-page dashboard (v0.1 — in progress)
+  api/                 Dashboard HTTP API + health poller
+  spa/                 Embedded single-page dashboard
 conformance/
-  runtime/             Runtime conformance test suite (v0.1 — in progress)
-  plugin/              Plugin conformance test suite (v0.1 — in progress)
-rollout/               Fleet rollout orchestration, CLI (v0.1 — in progress)
+  runtime/             Runtime conformance test suite (16 checks)
+  plugin/              Plugin conformance test suite (8 checks)
+rollout/               Fleet rollout orchestration (rolling update + health-gated rollback)
 data-plane/            Shared Qdrant, ingestion shim, query API (v0.2)
 skillsets/             Skillset manifest spec + Hermes adapter (v0.2)
 docs/                  Product-specific documentation
@@ -202,7 +202,7 @@ These hold across the entire Fox ecosystem. Fleet inherits all of them.
 
 ### Prerequisites
 
-- Go 1.22+
+- Go 1.25+
 - Docker (for integration tests and the Docker plugin)
 - [golangci-lint](https://golangci-lint.run/) (for `make lint`)
 
@@ -212,7 +212,7 @@ These hold across the entire Fox ecosystem. Fleet inherits all of them.
 make lint          # golangci-lint run
 make test          # go test ./...
 make build         # go build with ldflags
-make conformance   # conformance suite (when implemented)
+make conformance   # runtime + plugin conformance suites
 ```
 
 All four commands must pass before opening a PR.

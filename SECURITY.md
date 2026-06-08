@@ -26,7 +26,7 @@ We will acknowledge receipt within 48 hours and provide an initial assessment wi
 
 Fox Fleet v0.1 uses a shared-secret authentication model:
 
-- **`admin_secret`** — authenticates the operator to the dashboard panel and is injected into each instance as `FOX_PLANE_AUTH_SECRET`. Validated via constant-time comparison (`hmac.compare_digest`).
+- **`admin_secret`** — authenticates the operator to the dashboard panel and is injected into each instance as `FOX_PLANE_AUTH_SECRET`. Validated via constant-time comparison (`crypto/subtle.ConstantTimeCompare`).
 - **`instance_password`** — injected into each instance as `HERMES_WEBUI_PASSWORD`, enabling upstream session authentication. Required by the managed-mode invariant: `FOX_PLANE_AUTH_SECRET` requires upstream auth to be enabled.
 - **Fail-loud policy** — `fox-control` refuses to start if either secret is empty.
 
