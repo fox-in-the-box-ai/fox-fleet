@@ -42,6 +42,8 @@ func TestSmokeLifecycle(t *testing.T) {
 		t.Fatal("provisioner not called within timeout")
 	}
 
+	// The create handler's goroutine calls fakeProvisioner which does not
+	// persist to the registry. Seed manually so list/detail assertions work.
 	env.seedInstance(t, "smoke-1", 9200)
 
 	w = env.doRequest("GET", "/api/instances", "")
@@ -137,12 +139,15 @@ func TestSmokeAuthGate(t *testing.T) {
 		{"GET", "/api/instances/x"},
 		{"DELETE", "/api/instances/x"},
 		{"GET", "/api/sources"},
+		{"GET", "/api/sources/x"},
 		{"GET", "/api/skillsets"},
 		{"GET", "/api/skillsets/x"},
+		{"POST", "/api/skillsets"},
 		{"GET", "/api/skillsets/x/download"},
 		{"DELETE", "/api/skillsets/x"},
 		{"POST", "/api/query"},
 		{"GET", "/api/events"},
+		{"GET", "/api/events/stream"},
 	}
 
 	for _, p := range paths {
