@@ -709,7 +709,9 @@ body {
 .hamburger {
   display: none;
   background: none; border: none; cursor: pointer;
-  padding: 4px; color: var(--color-text);
+  padding: 10px; margin: -10px; color: var(--color-text);
+  min-width: 44px; min-height: 44px;
+  align-items: center; justify-content: center;
 }
 .hamburger svg {
   width: 22px; height: 22px;
@@ -743,6 +745,7 @@ body.sidebar-open #sidebar-overlay { display: block; }
   .detail-header {
     flex-direction: column; align-items: flex-start; gap: 12px;
   }
+  .data-table { min-width: 600px; }
   .query-input-row { flex-direction: column; }
   .query-opts { flex-wrap: wrap; }
   .modal { max-width: calc(100vw - 32px); }
@@ -828,11 +831,11 @@ body.sidebar-open #sidebar-overlay { display: block; }
     </div>
   </nav>
 
-  <div id="sidebar-overlay"></div>
+  <div id="sidebar-overlay" aria-hidden="true"></div>
 
   <div id="main">
     <div class="page-header">
-      <button class="hamburger" id="hamburger" aria-label="Menu"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+      <button class="hamburger" id="hamburger" aria-label="Menu" aria-expanded="false" data-i18n-aria="nav.menu"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
       <h1 class="page-title" id="page-title">Instances</h1>
       <span class="page-meta" id="page-meta"></span>
     </div>
@@ -865,6 +868,7 @@ var langs = {
   en: {
     brand: "Fox Fleet", tagline: "The operating layer for personal AI assistants",
     "auth.label": "Admin Secret", "auth.placeholder": "Enter your admin secret", "auth.btn": "Connect",
+    "nav.menu": "Menu",
     "nav.manage": "Manage", "nav.observe": "Observe", "nav.configure": "Configure",
     "nav.instances": "Instances", "nav.sources": "Sources", "nav.skillsets": "Skillsets",
     "nav.query": "Query", "nav.activity": "Activity", "nav.settings": "Settings",
@@ -937,6 +941,7 @@ var langs = {
   es: {
     brand: "Fox Fleet", tagline: "La capa operativa para asistentes de IA personales",
     "auth.label": "Secreto de Admin", "auth.placeholder": "Ingrese su secreto de administración", "auth.btn": "Conectar",
+    "nav.menu": "Menú",
     "nav.manage": "Administrar", "nav.observe": "Observar", "nav.configure": "Configurar",
     "nav.instances": "Instancias", "nav.sources": "Fuentes", "nav.skillsets": "Habilidades",
     "nav.query": "Consulta", "nav.activity": "Actividad", "nav.settings": "Ajustes",
@@ -1032,6 +1037,7 @@ function applyStaticText() {
   document.documentElement.lang = state.locale;
   document.querySelectorAll("[data-i18n]").forEach(function(el) { el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll("[data-i18n-placeholder]").forEach(function(el) { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  document.querySelectorAll("[data-i18n-aria]").forEach(function(el) { el.setAttribute("aria-label", t(el.dataset.i18nAria)); });
   var sel = document.getElementById("lang-select");
   if (sel) sel.value = state.locale;
 }
@@ -1167,16 +1173,37 @@ document.getElementById("theme-select").addEventListener("change", function() {
 
 /* ── Mobile Sidebar ───────────────────────────────────────────────── */
 
-function closeSidebar() { document.body.classList.remove("sidebar-open"); }
+function closeSidebar() {
+  document.body.classList.remove("sidebar-open");
+  document.getElementById("hamburger").setAttribute("aria-expanded", "false");
+}
+
+function openSidebar() {
+  document.body.classList.add("sidebar-open");
+  document.getElementById("hamburger").setAttribute("aria-expanded", "true");
+  var first = document.querySelector("#sidebar .sb-link");
+  if (first) first.focus();
+}
 
 document.getElementById("hamburger").addEventListener("click", function() {
-  document.body.classList.toggle("sidebar-open");
+  if (document.body.classList.contains("sidebar-open")) closeSidebar();
+  else openSidebar();
 });
 
-document.getElementById("sidebar-overlay").addEventListener("click", closeSidebar);
+document.getElementById("sidebar-overlay").addEventListener("click", function() {
+  closeSidebar();
+  document.getElementById("hamburger").focus();
+});
 
-window.addEventListener("resize", function() {
-  if (window.innerWidth > 768) closeSidebar();
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape" && document.body.classList.contains("sidebar-open")) {
+    closeSidebar();
+    document.getElementById("hamburger").focus();
+  }
+});
+
+matchMedia("(max-width: 768px)").addEventListener("change", function(e) {
+  if (!e.matches) closeSidebar();
 });
 
 /* ── Toast ─────────────────────────────────────────────────────────── */
