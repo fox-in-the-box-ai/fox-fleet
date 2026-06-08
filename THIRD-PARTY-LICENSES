@@ -9,7 +9,7 @@ Direct Dependencies
   Module                              Version              License
   ------                              -------              -------
   github.com/BurntSushi/toml          v1.6.0               MIT
-  github.com/docker/docker            v27.5.1              Apache-2.0
+  github.com/docker/docker            v27.5.1+incompatible Apache-2.0
   github.com/docker/go-connections    v0.5.0               Apache-2.0
   github.com/spf13/cobra              v1.10.2              Apache-2.0
   gopkg.in/yaml.v3                    v3.0.1               MIT AND Apache-2.0
@@ -40,7 +40,7 @@ Indirect Dependencies
   github.com/opencontainers/go-digest                                 v1.0.0               Apache-2.0
   github.com/opencontainers/image-spec                                v1.1.1               Apache-2.0
   github.com/pkg/errors                                               v0.9.1               BSD-2-Clause
-  github.com/remyoudompheng/bigfft                                    v0.0.0-20230129      BSD-3-Clause
+  github.com/remyoudompheng/bigfft                                    v0.0.0-20230129092748-24d4a6f8daec  BSD-3-Clause
   github.com/spf13/pflag                                              v1.0.9               BSD-3-Clause
   go.opentelemetry.io/auto/sdk                                        v1.2.1               Apache-2.0
   go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp       v0.69.0              Apache-2.0
