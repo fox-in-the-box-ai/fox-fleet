@@ -38,11 +38,13 @@ jobs:
       - name: Run tests with coverage
         run: go test -race -shuffle=on -count=1 -coverprofile=coverage.out ./...
       - name: Check coverage threshold
+        env:
+          LC_NUMERIC: C
         run: |
-          total=$(go tool cover -func=coverage.out | awk '/^total:/ {print $NF}' | tr -d '%')
+          total=$(go tool cover -func=coverage.out | awk 'END {print $NF}' | tr -d '%')
           echo "Total coverage: ${total}%"
           threshold=45
-          if [ "$(echo "${total} < ${threshold}" | bc)" -eq 1 ]; then
+          if awk "BEGIN {exit (${total} < ${threshold}) ? 0 : 1}"; then
             echo "::error::Coverage ${total}% is below threshold ${threshold}%"
             exit 1
           fi
