@@ -21,7 +21,81 @@ Fox Fleet eliminates that. A single `fox-control` binary manages the full lifecy
 - **Update** — rolling image rollout with automatic health-gating and one-command rollback.
 - **Destroy** — stop the container, optionally remove data, clean up the registry.
 
-Every managed instance is an unmodified Fox container. Fleet wraps instances with management infrastructure — it never modifies them. Remove Fleet, and every instance keeps running on its last-injected config. This is the same wrap-don't-fork discipline Fox uses internally.
+Every managed instance is an unmodified Fox container. Fleet wraps instances with management infrastructure — it never modifies them. Remove Fleet, and every instance keeps running on its last-injected config.
+
+---
+
+## Install
+
+Pick your platform. Each guide covers every available install channel and verification steps.
+
+| Platform | Recommended channel | Guide |
+|----------|-------------------|-------|
+| **Linux** | Install script | [docs/install/linux.md](docs/install/linux.md) |
+| **macOS** | Homebrew | [docs/install/macos.md](docs/install/macos.md) |
+| **Windows** | Docker Compose | [docs/install/windows.md](docs/install/windows.md) |
+| **Kubernetes** | Helm chart | [docs/install/kubernetes.md](docs/install/kubernetes.md) |
+
+### Verify installation
+
+```bash
+fox-control version
+# fox-control v1.0.0 (commit abc1234, built 2026-06-01)
+```
+
+For container deployments:
+
+```bash
+curl -s http://localhost:9090/healthz
+# {"status":"ok"}
+```
+
+Release artifacts are signed with [Sigstore cosign](https://docs.sigstore.dev/cosign/overview/) and include an SBOM. See [docs/security/signing.md](docs/security/signing.md) for verification commands.
+
+---
+
+## Quickstart
+
+End-to-end guides — from zero to a running Fleet with one provisioned Fox assistant, under 15 minutes.
+
+| Platform | Guide |
+|----------|-------|
+| **Linux** | [docs/quickstart/linux.md](docs/quickstart/linux.md) |
+| **macOS** | [docs/quickstart/macos.md](docs/quickstart/macos.md) |
+| **Windows** | [docs/quickstart/windows.md](docs/quickstart/windows.md) |
+| **Kubernetes** | [docs/quickstart/kubernetes.md](docs/quickstart/kubernetes.md) |
+
+For a detailed step-by-step walkthrough (12 scenes from first launch to fleet management), see [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md).
+
+---
+
+## What end users see
+
+Fox Fleet is the management plane — operators install and run it. End users interact with **Fox**, the AI assistant, through their browser.
+
+Once an operator provisions a Fox instance, end users open it at the instance URL (default `http://localhost:8787`) and follow the onboarding wizard to configure their AI provider. From there, Fox provides a chat interface with memory, multi-profile support, and skills.
+
+Fox is a separate project with its own documentation:
+
+- **Fox in the Box** — [github.com/fox-in-the-box-ai/fox-in-the-box](https://github.com/fox-in-the-box-ai/fox-in-the-box)
+
+Operators: point your team members to the Fox project README for end-user setup and usage guidance.
+
+---
+
+## Operator handbook
+
+For day-2 operations — instance lifecycle, secret rotation, skillset management, knowledge data plane, rolling updates, backup and recovery, monitoring, capacity, and security operations:
+
+[docs/operator/handbook.md](docs/operator/handbook.md)
+
+For deployment method details (Docker Compose, Helm, systemd, binary):
+
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+
+For full configuration reference:
+
+[docs/configuration.md](docs/configuration.md)
 
 ---
 
@@ -74,6 +148,51 @@ graph TB
 - **Data plane** — optional organizational knowledge layer. File and REST ingestion connectors chunk documents, embed them via an OpenAI-compatible API, and store vectors in a shared Qdrant sidecar. Instances query the data plane through the `knowledge_query` tool injected by config injection.
 - **Shared-secret auth** — `admin_secret` authenticates the operator to the panel and is injected into each instance as `FOX_PLANE_AUTH_SECRET`. The instance's `check_auth` gate validates it. `instance_password` enables upstream session auth per the managed-mode invariant.
 
+### Architecture invariants
+
+These hold across the entire Fox ecosystem. Fleet inherits all of them.
+
+1. **Wrap, don't fork** — Fleet wraps fleets of Fox instances the same way the Fox overlay wraps Hermes. Additive behavior via HTTP contracts and config injection, never source modification.
+2. **Additive and removable** — every Fleet-managed surface can be removed. Instances keep running. The panel disappearing doesn't affect containers. Data plane disappearing doesn't break chat.
+3. **Fail loud** — missing secrets, missing config, unreachable dependencies produce explicit errors. `fox-control` refuses to start if `admin_secret` or `instance_password` is empty.
+4. **Single-tenant instance** — one isolated assistant per person. Fleet is multi-instance management; instances themselves are single-tenant.
+5. **Runtime-agnostic** — HTTP contracts only. Fox (Hermes) is the reference runtime. The `DeploymentPlugin` interface and instance contract support any conformant runtime.
+
+### Known limitations
+
+Fox Fleet v1.0.0 has intentional architectural boundaries: single-host only (no multi-node), no HA (single SQLite), single admin token (no RBAC), no TLS termination (reverse proxy required), Docker socket is root-equivalent. See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) for the full list and planned improvements.
+
+---
+
+## The Fox ecosystem
+
+Fox Fleet is the middle layer of a four-repo open-core architecture:
+
+```
+fox-in-the-box (MIT)           The assistant runtime
+        ▲
+        │ contract schemas, HTTP client
+        │
+fox-fleet (Apache 2.0)         This repo — management plane for fleets
+        ▲
+        │ Go module import
+        │
+fox-fleet-enterprise           Enterprise overlay (RBAC, audit, LLM proxy,
+(Commercial)                   OIDC edge gateway, K8s plugin)
+        ▲
+        │
+fox-cloud (Commercial)         Hosted product
+```
+
+**Dependency direction is one-way.** Fox never imports Fleet. Fleet never imports Enterprise. Removing any layer leaves the layer below fully operational.
+
+| Product | License | Default cap | What it adds |
+|---------|---------|-------------|-------------|
+| **Fox in the Box** | MIT | 1 (single-user) | The assistant itself — container image, desktop app, overlay |
+| **Fox Fleet** | Apache 2.0 | 2 (configurable) | Provisioning, monitoring, updates, knowledge data plane, skillsets |
+| **Fox Fleet Enterprise** | Commercial | Unlimited | RBAC, audit logs, LLM proxy, SSO/OIDC, K8s plugin |
+| **Fox Cloud** | Commercial | Unlimited | Hosted runtime, billing, multi-tenant |
+
 ---
 
 ## Status and roadmap
@@ -89,68 +208,26 @@ Full roadmap: [FLEET_BASE_ROADMAP.md](https://github.com/fox-in-the-box-ai/fox-i
 
 ---
 
-## Quickstart
+## Development
 
-> Requires Go 1.25+ and Docker.
+### Prerequisites
 
-```bash
-# Clone and build
-git clone https://github.com/fox-in-the-box-ai/fox-fleet.git
-cd fox-fleet
-make build
+- Go 1.25+
+- Docker (for integration tests and the Docker plugin)
+- [golangci-lint](https://golangci-lint.run/) (for `make lint`)
 
-# Configure
-cat > fox-control.toml <<EOF
-[control]
-listen = "127.0.0.1:9090"
-data_root = "/var/lib/fox-control"
-
-[docker]
-image = "ghcr.io/fox-in-the-box-ai/cloud:stable"
-
-[auth]
-admin_secret = "change-me-to-a-real-secret"
-instance_password = "change-me-to-a-real-password"
-
-[instances]
-max_instances = 2
-# default_skillset = "/path/to/skillset.yaml"
-# default_role = "assistant"
-
-[data_plane]
-# enabled = true
-# listen = "127.0.0.1:9091"
-# qdrant_url = "http://127.0.0.1:6334"
-# embedding_url = "http://127.0.0.1:11434"
-# embedding_model = "nomic-embed-text"
-EOF
-
-# Run
-./fox-control serve --config fox-control.toml
-```
-
-Provision an instance:
+### Quality gate
 
 ```bash
-./fox-control provision --id my-fox --config fox-control.toml
+make lint          # golangci-lint run
+make test          # go test ./...
+make build         # go build with ldflags
+make conformance   # runtime + plugin conformance suites
 ```
 
-List running instances:
+All four commands must pass before opening a PR.
 
-```bash
-./fox-control list --config fox-control.toml
-```
-
-Destroy an instance:
-
-```bash
-./fox-control destroy --id my-fox --config fox-control.toml
-./fox-control destroy --id my-fox --remove-data --config fox-control.toml
-```
-
----
-
-## Repository layout
+### Repository layout
 
 ```
 cmd/fox-control/       CLI entry point, TOML config parsing, cobra subcommands
@@ -175,82 +252,13 @@ docs/                  Product-specific documentation
 
 ---
 
-## The Fox ecosystem
+## Security
 
-Fox Fleet is the middle layer of a four-repo open-core architecture:
+See [SECURITY.md](SECURITY.md) for vulnerability reporting policy.
 
-```
-fox-in-the-box (MIT)           The assistant runtime
-        ▲
-        │ contract schemas, HTTP client
-        │
-fox-fleet (Apache 2.0)         This repo — management plane for fleets
-        ▲
-        │ Go module import
-        │
-fox-fleet-enterprise           Enterprise overlay (RBAC, audit, LLM proxy,
-(Commercial)                   OIDC edge gateway, K8s plugin)
-        ▲
-        │
-fox-cloud (Commercial)         Hosted product
-```
+Fox Fleet's auth model uses shared secrets (not OIDC/mTLS — those are Fleet Enterprise features). The `admin_secret` authenticates operator-to-panel and panel-to-instance communication via `X-Fox-Auth` headers with constant-time comparison. Credentials are injected at provision time and never logged.
 
-**Dependency direction is one-way.** Fox never imports Fleet. Fleet never imports Enterprise. Removing any layer leaves the layer below fully operational. Removing Fleet leaves every Fox instance running standalone on its last-injected config. This is four-layer removability.
-
-| Product | License | Default cap | What it adds |
-|---------|---------|-------------|-------------|
-| **Fox in the Box** | MIT | 1 (single-user) | The assistant itself — container image, desktop app, overlay |
-| **Fox Fleet** | Apache 2.0 | 2 (configurable) | Provisioning, monitoring, updates, knowledge data plane, skillsets |
-| **Fox Fleet Enterprise** | Commercial | Unlimited | RBAC, audit logs, LLM proxy, SSO/OIDC, K8s plugin |
-| **Fox Cloud** | Commercial | Unlimited | Hosted runtime, billing, multi-tenant |
-
----
-
-## Architecture invariants
-
-These hold across the entire Fox ecosystem. Fleet inherits all of them.
-
-1. **Wrap, don't fork** — Fleet wraps fleets of Fox instances the same way the Fox overlay wraps Hermes. Additive behavior via HTTP contracts and config injection, never source modification.
-2. **Additive and removable** — every Fleet-managed surface can be removed. Instances keep running. The panel disappearing doesn't affect containers. Data plane disappearing doesn't break chat.
-3. **Fail loud** — missing secrets, missing config, unreachable dependencies produce explicit errors. `fox-control` refuses to start if `admin_secret` or `instance_password` is empty.
-4. **Single-tenant instance** — one isolated assistant per person. Fleet is multi-instance management; instances themselves are single-tenant.
-5. **Runtime-agnostic** — HTTP contracts only. Fox (Hermes) is the reference runtime. The `DeploymentPlugin` interface and instance contract support any conformant runtime.
-
----
-
-## Development
-
-### Prerequisites
-
-- Go 1.25+
-- Docker (for integration tests and the Docker plugin)
-- [golangci-lint](https://golangci-lint.run/) (for `make lint`)
-
-### Quality gate
-
-```bash
-make lint          # golangci-lint run
-make test          # go test ./...
-make build         # go build with ldflags
-make conformance   # runtime + plugin conformance suites
-```
-
-All four commands must pass before opening a PR.
-
-### Running tests
-
-```bash
-# All tests
-make test
-
-# Specific package
-go test ./internal/provisioner/...
-go test ./internal/registry/...
-go test ./cmd/fox-control/...
-go test ./plugins/docker/...
-```
-
-Tests use temporary directories and in-memory SQLite — no Docker daemon required for unit tests.
+**Release signing:** every release artifact (binaries, checksums, container images) is signed with [Sigstore cosign](https://docs.sigstore.dev/cosign/overview/) via GitHub Actions OIDC — no long-lived keys. Verify with `fox-control verify <tarball>` or cosign directly. See [docs/security/signing.md](docs/security/signing.md).
 
 ---
 
@@ -259,16 +267,6 @@ Tests use temporary directories and in-memory SQLite — no Docker daemon requir
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 **Short version:** branch from `main`, one logical change per PR, all checks green, squash-merge. Commit messages in imperative present tense, referencing ticket IDs.
-
----
-
-## Security
-
-See [SECURITY.md](SECURITY.md) for vulnerability reporting policy.
-
-Fox Fleet's auth model uses shared secrets (not OIDC/mTLS — those are Fleet Enterprise features). The `admin_secret` authenticates operator-to-panel and panel-to-instance communication via `X-Fox-Auth` headers with constant-time comparison. Credentials are injected at provision time and never logged.
-
-**Release signing:** every release artifact (binaries, checksums, container images) is signed with [Sigstore cosign](https://docs.sigstore.dev/cosign/overview/) via GitHub Actions OIDC — no long-lived keys. Verify with `fox-control verify <tarball>` or cosign directly. See [docs/security/signing.md](docs/security/signing.md).
 
 ---
 
