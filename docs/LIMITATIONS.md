@@ -95,7 +95,7 @@ forwarding, and no structured log export.
 The management panel is a vanilla HTML/CSS/JS single-page application
 embedded in the Go binary. It has no offline support, no service worker,
 no client-side routing (hash-based navigation only), and no build step.
-The panel supports English and Spanish (i18n shipped in v0.3.0).
+The panel supports English and Spanish.
 
 ## Skillset validation
 
@@ -118,7 +118,7 @@ ticket reference are scheduled; others are aspirational.
 | No HA | SQLite WAL + read replicas | — |
 | Single auth token | Multi-user with RBAC | — |
 | Event log volatile | Persistent event store | — |
-| English-only panel | i18n (POLISH-01) | Shipped (v0.3.0-alpha) |
-| No dark mode | Dark mode toggle (POLISH-02) | Shipped (v0.3.0-alpha) |
-| Desktop-only panel | Mobile responsive (POLISH-03) | Shipped (v0.3.0-alpha) |
-| Polling refresh | SSE real-time updates (POLISH-04) | Shipped (v0.3.0-alpha) |
+| English-only panel | i18n (POLISH-01) | Shipped (v1.0.0) |
+| No dark mode | Dark mode toggle (POLISH-02) | Shipped (v1.0.0) |
+| Desktop-only panel | Mobile responsive (POLISH-03) | Shipped (v1.0.0) |
+| Polling refresh | SSE real-time updates (POLISH-04) | Shipped (v1.0.0) |

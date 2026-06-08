@@ -21,5 +21,17 @@ coverage.txt
 *~
 .DS_Store
 
+# Secrets and credentials
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+credentials*
+secrets*
+docker-compose.override.yml
+
 # Go
 vendor/

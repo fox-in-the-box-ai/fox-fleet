@@ -19,20 +19,20 @@ We will acknowledge receipt within 48 hours and provide an initial assessment wi
 
 | Version | Supported |
 |---------|-----------|
-| v0.1.x (upcoming) | Yes |
-| < v0.1 | No (pre-release) |
+| v1.0.x | Yes |
+| < v1.0.0 | No (alpha pre-release) |
 
 ## Security model
 
-Fox Fleet v0.1 uses a shared-secret authentication model:
+Fox Fleet uses a shared-secret authentication model:
 
 - **`admin_secret`** — authenticates the operator to the dashboard panel and is injected into each instance as `FOX_PLANE_AUTH_SECRET`. Validated via constant-time comparison (`crypto/subtle.ConstantTimeCompare`).
 - **`instance_password`** — injected into each instance as `HERMES_WEBUI_PASSWORD`, enabling upstream session authentication. Required by the managed-mode invariant: `FOX_PLANE_AUTH_SECRET` requires upstream auth to be enabled.
 - **Fail-loud policy** — `fox-control` refuses to start if either secret is empty.
 
-### Threat model (v0.1)
+### Threat model
 
-Fox Fleet v0.1 targets single-host deployments on trusted networks. The threat model assumes the network between `fox-control` and managed instances is trusted (localhost or private LAN).
+Fox Fleet targets single-host deployments on trusted networks. The threat model assumes the network between `fox-control` and managed instances is trusted (localhost or private LAN).
 
 For zero-trust deployments, SSO/OIDC integration, mTLS, and edge gateway features, see [Fox Fleet Enterprise](https://github.com/fox-in-the-box-ai).
 
