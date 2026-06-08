@@ -24,6 +24,7 @@ import (
 	"github.com/fox-in-the-box-ai/fox-fleet/panel/api"
 	"github.com/fox-in-the-box-ai/fox-fleet/panel/spa"
 	"github.com/fox-in-the-box-ai/fox-fleet/plugins/docker"
+	"github.com/fox-in-the-box-ai/fox-fleet/rollout"
 )
 
 var (
@@ -56,6 +57,7 @@ func newRootCmd() *cobra.Command {
 		newProvisionCmd(),
 		newDestroyCmd(),
 		newListCmd(),
+		newRolloutCmd(),
 		newVersionCmd(),
 		newConformanceCmd(),
 	)
@@ -273,6 +275,52 @@ func newDestroyCmd() *cobra.Command {
 	cmd.Flags().StringVar(&instanceID, "id", "", "instance ID (required)")
 	cmd.Flags().BoolVar(&removeData, "remove-data", false, "also remove instance data directory")
 	_ = cmd.MarkFlagRequired("id")
+	return cmd
+}
+
+func newRolloutCmd() *cobra.Command {
+	var image string
+
+	cmd := &cobra.Command{
+		Use:   "rollout",
+		Short: "Rolling update of all instances to a new image",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			ref := parseImageRef(image)
+			if ref.Digest == "" {
+				return fmt.Errorf("--image must be a digest reference (repo@sha256:...)")
+			}
+
+			cfg, err := LoadConfig(cfgPath)
+			if err != nil {
+				return err
+			}
+
+			reg, plug, err := openRegistryAndPlugin(cfg)
+			if err != nil {
+				return err
+			}
+			defer reg.Close()
+			defer plug.Close()
+
+			orch := rollout.New(rollout.Options{
+				Registry: reg,
+				Plugin:   plug,
+			})
+
+			report, err := orch.Execute(cmd.Context(), ref)
+			if err != nil {
+				return err
+			}
+
+			fmt.Fprint(cmd.OutOrStdout(), report.Format())
+			if !report.OK() {
+				return fmt.Errorf("rollout did not complete successfully")
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&image, "image", "", "target image digest (repo@sha256:...) (required)")
+	_ = cmd.MarkFlagRequired("image")
 	return cmd
 }
 

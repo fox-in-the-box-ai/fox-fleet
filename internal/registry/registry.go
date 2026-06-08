@@ -130,6 +130,19 @@ func (r *Registry) UpdateStatus(id, status string) error {
 	return nil
 }
 
+// UpdateImageDigest changes the image digest of an existing instance.
+func (r *Registry) UpdateImageDigest(id, digest string) error {
+	res, err := r.db.Exec(`UPDATE instances SET image_digest = ? WHERE id = ?`, digest, id)
+	if err != nil {
+		return fmt.Errorf("registry: update image %s: %w", id, err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // Delete removes an instance from the registry.
 func (r *Registry) Delete(id string) error {
 	res, err := r.db.Exec(`DELETE FROM instances WHERE id = ?`, id)
