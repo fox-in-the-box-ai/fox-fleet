@@ -113,9 +113,9 @@ func (o *Orchestrator) Execute(ctx context.Context, target plugins.ImageRef) (*R
 		Instances: make([]InstanceResult, 0, len(instances)),
 	}
 
-	for _, inst := range instances {
+	for i, inst := range instances {
 		if err := ctx.Err(); err != nil {
-			for _, remaining := range instances[len(report.Instances)+1:] {
+			for _, remaining := range instances[i:] {
 				report.Instances = append(report.Instances, InstanceResult{
 					ID:     remaining.ID,
 					Status: StatusSkipped,
@@ -133,7 +133,7 @@ func (o *Orchestrator) Execute(ctx context.Context, target plugins.ImageRef) (*R
 		report.Instances = append(report.Instances, result)
 
 		if result.Status != StatusRolledOut {
-			for _, remaining := range instances[len(report.Instances):] {
+			for _, remaining := range instances[i+1:] {
 				report.Instances = append(report.Instances, InstanceResult{
 					ID:     remaining.ID,
 					Status: StatusSkipped,
@@ -172,7 +172,8 @@ func (o *Orchestrator) rolloutInstance(ctx context.Context, inst registry.Instan
 	if err := o.waitHealthy(ctx, inst.ID); err != nil {
 		o.log.Error("health check failed after rollout, rolling back", "id", inst.ID, "error", err)
 
-		rbCtx := context.WithoutCancel(ctx)
+		rbCtx, rbCancel := context.WithTimeout(context.WithoutCancel(ctx), 2*o.healthTimeout)
+		defer rbCancel()
 		if rbErr := o.plugin.Rollback(rbCtx, inst.ID, previous); rbErr != nil {
 			o.log.Error("rollback also failed", "id", inst.ID, "error", rbErr)
 			return InstanceResult{
@@ -192,7 +193,18 @@ func (o *Orchestrator) rolloutInstance(ctx context.Context, inst registry.Instan
 	}
 
 	if err := o.registry.UpdateImageDigest(inst.ID, target.Digest); err != nil {
-		o.log.Error("failed to update registry after successful rollout", "id", inst.ID, "error", err)
+		o.log.Error("registry update failed after successful rollout, rolling back", "id", inst.ID, "error", err)
+
+		rbCtx2, rbCancel2 := context.WithTimeout(context.WithoutCancel(ctx), 2*o.healthTimeout)
+		defer rbCancel2()
+		_ = o.plugin.Rollback(rbCtx2, inst.ID, previous)
+
+		return InstanceResult{
+			ID:       inst.ID,
+			Status:   StatusRolledBack,
+			Previous: previous,
+			Error:    fmt.Sprintf("registry update: %v", err),
+		}
 	}
 
 	o.log.Info("instance rolled out successfully", "id", inst.ID)
@@ -204,8 +216,7 @@ func (o *Orchestrator) rolloutInstance(ctx context.Context, inst registry.Instan
 }
 
 func (o *Orchestrator) waitHealthy(ctx context.Context, instanceID string) error {
-	deadline := time.Now().Add(o.healthTimeout)
-	healthCtx, cancel := context.WithDeadline(ctx, deadline)
+	healthCtx, cancel := context.WithTimeout(ctx, o.healthTimeout)
 	defer cancel()
 
 	start := time.Now()
@@ -216,14 +227,10 @@ func (o *Orchestrator) waitHealthy(ctx context.Context, instanceID string) error
 		}
 
 		elapsed := time.Since(start)
-		if time.Now().After(deadline) {
-			return fmt.Errorf("health check timed out after %s", elapsed.Round(time.Second))
-		}
-
 		wait := o.healthInterval(elapsed)
 		select {
 		case <-healthCtx.Done():
-			return healthCtx.Err()
+			return fmt.Errorf("health check timed out after %s", elapsed.Round(time.Second))
 		case <-time.After(wait):
 		}
 	}

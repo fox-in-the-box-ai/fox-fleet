@@ -272,9 +272,15 @@ func TestRolloutContextCancelled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(report.Instances) != 2 {
+		t.Fatalf("expected 2 instances in report, got %d", len(report.Instances))
+	}
 	for _, r := range report.Instances {
 		if r.Status == StatusRolledOut {
 			t.Errorf("no instance should be rolled out on cancelled context")
+		}
+		if r.Status != StatusSkipped {
+			t.Errorf("instance %s: expected skipped, got %s", r.ID, r.Status)
 		}
 	}
 }
