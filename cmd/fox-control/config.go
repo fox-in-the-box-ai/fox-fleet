@@ -20,6 +20,8 @@ type Config struct {
 	Qdrant    QdrantSection    `toml:"qdrant"`
 	DataPlane DataPlaneSection `toml:"data_plane"`
 	Embedding EmbeddingSection `toml:"embedding"`
+	TLS       TLSSection       `toml:"tls"`
+	Webhooks  []WebhookConfig  `toml:"webhooks"`
 }
 
 type QdrantSection struct {
@@ -48,6 +50,9 @@ type ControlSection struct {
 	DataRoot             string `toml:"data_root"`
 	HealthPollSeconds    int    `toml:"health_poll_seconds"`
 	SessionTokenTTLSecs  int    `toml:"session_token_ttl_seconds"`
+	LogFormat            string `toml:"log_format"`
+	LogLevel             string `toml:"log_level"`
+	MetricsEnabled       *bool  `toml:"metrics_enabled"`
 }
 
 type DockerSection struct {
@@ -65,6 +70,22 @@ type InstancesSection struct {
 	MaxInstances    int    `toml:"max_instances"`
 	DefaultSkillset string `toml:"default_skillset"`
 	DefaultRole     string `toml:"default_role"`
+}
+
+type TLSSection struct {
+	CertFile string `toml:"cert_file"`
+	KeyFile  string `toml:"key_file"`
+}
+
+type WebhookConfig struct {
+	URL    string   `toml:"url"`
+	Events []string `toml:"events"`
+	Secret string   `toml:"secret"`
+}
+
+type RateLimitSection struct {
+	RequestsPerMinute  int `toml:"requests_per_minute"`
+	ProvisionPerMinute int `toml:"provision_per_minute"`
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -107,6 +128,12 @@ func applyDefaults(cfg *Config) {
 	if cfg.Control.SessionTokenTTLSecs == 0 {
 		cfg.Control.SessionTokenTTLSecs = 600
 	}
+	if cfg.Control.LogFormat == "" {
+		cfg.Control.LogFormat = "text"
+	}
+	if cfg.Control.LogLevel == "" {
+		cfg.Control.LogLevel = "info"
+	}
 	if cfg.DataPlane.Listen == "" {
 		cfg.DataPlane.Listen = "127.0.0.1:9091"
 	}
@@ -145,6 +172,19 @@ func validateConfig(cfg *Config) error {
 	}
 	if _, _, err := net.SplitHostPort(cfg.Control.Listen); err != nil {
 		errs = append(errs, fmt.Sprintf("control.listen %q is not a valid host:port address", cfg.Control.Listen))
+	}
+	switch cfg.Control.LogFormat {
+	case "text", "json":
+	default:
+		errs = append(errs, fmt.Sprintf("control.log_format must be \"text\" or \"json\", got %q", cfg.Control.LogFormat))
+	}
+	switch cfg.Control.LogLevel {
+	case "debug", "info", "warn", "error":
+	default:
+		errs = append(errs, fmt.Sprintf("control.log_level must be one of debug, info, warn, error — got %q", cfg.Control.LogLevel))
+	}
+	if (cfg.TLS.CertFile == "") != (cfg.TLS.KeyFile == "") {
+		errs = append(errs, "tls.cert_file and tls.key_file must both be set or both be empty")
 	}
 	if cfg.Control.HealthPollSeconds < 1 || cfg.Control.HealthPollSeconds > 3600 {
 		errs = append(errs, fmt.Sprintf("control.health_poll_seconds must be between 1 and 3600, got %d", cfg.Control.HealthPollSeconds))

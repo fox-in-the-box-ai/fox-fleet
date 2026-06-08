@@ -2,9 +2,11 @@ package registry
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/subtle"
 	"database/sql"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -106,6 +108,37 @@ var migrations = []func(tx *sql.Tx) error{
 		)`)
 		return err
 	},
+	func(tx *sql.Tx) error {
+		_, _ = tx.Exec(`ALTER TABLE instances ADD COLUMN query_token_hash TEXT NOT NULL DEFAULT ''`)
+		_, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_instances_query_token_hash ON instances(query_token_hash)`)
+		if err != nil {
+			return err
+		}
+		rows, err := tx.Query(`SELECT id, query_token FROM instances WHERE query_token != '' AND query_token_hash = ''`)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		type pair struct{ id, token string }
+		var pairs []pair
+		for rows.Next() {
+			var p pair
+			if err := rows.Scan(&p.id, &p.token); err != nil {
+				return err
+			}
+			pairs = append(pairs, p)
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		for _, p := range pairs {
+			h := tokenHash(p.token)
+			if _, err := tx.Exec(`UPDATE instances SET query_token_hash = ? WHERE id = ?`, h, p.id); err != nil {
+				return err
+			}
+		}
+		return nil
+	},
 }
 
 func migrate(db *sql.DB) error {
@@ -146,8 +179,12 @@ func (r *Registry) Create(inst Instance) error {
 	if inst.CreatedAt == "" {
 		inst.CreatedAt = time.Now().UTC().Format(time.RFC3339)
 	}
-	_, err := r.db.Exec(`INSERT INTO instances (id, image_digest, port, data_dir, status, created_at, skillset_name, principal_role, query_token)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	var hash string
+	if inst.QueryToken != "" {
+		hash = tokenHash(inst.QueryToken)
+	}
+	_, err := r.db.Exec(`INSERT INTO instances (id, image_digest, port, data_dir, status, created_at, skillset_name, principal_role, query_token, query_token_hash)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			image_digest = excluded.image_digest,
 			port = excluded.port,
@@ -155,8 +192,9 @@ func (r *Registry) Create(inst Instance) error {
 			status = excluded.status,
 			skillset_name = excluded.skillset_name,
 			principal_role = excluded.principal_role,
-			query_token = excluded.query_token`,
-		inst.ID, inst.ImageDigest, inst.Port, inst.DataDir, inst.Status, inst.CreatedAt, inst.SkillsetName, inst.PrincipalRole, inst.QueryToken)
+			query_token = excluded.query_token,
+			query_token_hash = excluded.query_token_hash`,
+		inst.ID, inst.ImageDigest, inst.Port, inst.DataDir, inst.Status, inst.CreatedAt, inst.SkillsetName, inst.PrincipalRole, inst.QueryToken, hash)
 	if err != nil {
 		return fmt.Errorf("registry: create %s: %w", inst.ID, err)
 	}
@@ -254,6 +292,11 @@ func (r *Registry) UsedPorts() (map[int]bool, error) {
 	return ports, rows.Err()
 }
 
+func tokenHash(token string) string {
+	h := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(h[:])
+}
+
 // GenerateQueryToken produces a 32-byte random token as unpadded base64url.
 func GenerateQueryToken() (string, error) {
 	b := make([]byte, 32)
@@ -264,31 +307,24 @@ func GenerateQueryToken() (string, error) {
 }
 
 // ValidQueryToken returns true if the token matches any instance's query_token.
+// Uses hash-indexed lookup (O(1)) followed by constant-time comparison.
 func (r *Registry) ValidQueryToken(token string) bool {
 	if token == "" {
 		return false
 	}
-	rows, err := r.db.Query(`SELECT query_token FROM instances WHERE query_token != ''`)
+	h := tokenHash(token)
+	var stored string
+	err := r.db.QueryRow(`SELECT query_token FROM instances WHERE query_token_hash = ?`, h).Scan(&stored)
 	if err != nil {
 		return false
 	}
-	defer rows.Close()
-	tokenBytes := []byte(token)
-	for rows.Next() {
-		var stored string
-		if rows.Scan(&stored) != nil {
-			continue
-		}
-		if subtle.ConstantTimeCompare(tokenBytes, []byte(stored)) == 1 {
-			return true
-		}
-	}
-	return false
+	return subtle.ConstantTimeCompare([]byte(token), []byte(stored)) == 1
 }
 
 // UpdateQueryToken sets the query_token for an existing instance.
 func (r *Registry) UpdateQueryToken(id, token string) error {
-	res, err := r.db.Exec(`UPDATE instances SET query_token = ? WHERE id = ?`, token, id)
+	hash := tokenHash(token)
+	res, err := r.db.Exec(`UPDATE instances SET query_token = ?, query_token_hash = ? WHERE id = ?`, token, hash, id)
 	if err != nil {
 		return fmt.Errorf("registry: update query token %s: %w", id, err)
 	}
@@ -336,7 +372,8 @@ func backfillQueryTokens(db *sql.DB) error {
 		if err != nil {
 			return err
 		}
-		if _, err := db.Exec(`UPDATE instances SET query_token = ? WHERE id = ?`, token, id); err != nil {
+		hash := tokenHash(token)
+		if _, err := db.Exec(`UPDATE instances SET query_token = ?, query_token_hash = ? WHERE id = ?`, token, hash, id); err != nil {
 			return err
 		}
 	}

@@ -28,6 +28,8 @@ type Log struct {
 	subMu  sync.Mutex
 	subs   map[uint64]chan Event
 	subSeq atomic.Uint64
+
+	webhooks *WebhookDispatcher
 }
 
 func NewLog(capacity int) *Log {
@@ -96,6 +98,10 @@ func (l *Log) Emit(typ, instance, message string) {
 		}
 	}
 	l.subMu.Unlock()
+
+	if l.webhooks != nil {
+		l.webhooks.Dispatch(e)
+	}
 }
 
 func (l *Log) Emitf(typ, instance, format string, args ...any) {
@@ -135,6 +141,10 @@ func (l *Log) SinceID(lastID uint64) []Event {
 		}
 	}
 	return out
+}
+
+func (l *Log) SetWebhooks(wd *WebhookDispatcher) {
+	l.webhooks = wd
 }
 
 func (l *Log) Recent(n int) []Event {

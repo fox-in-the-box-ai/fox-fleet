@@ -34,8 +34,11 @@ type Deps struct {
 	DefaultRole     string
 	SkillsetsDir    string
 	EventLog        *events.Log
-	SigningKey       []byte
-	SessionTokenTTL time.Duration
+	SigningKey          []byte
+	SessionTokenTTL    time.Duration
+	RateLimit          int
+	ProvisionRateLimit int
+	MetricsEnabled     bool
 }
 
 const defaultSessionTokenTTL = 10 * time.Minute
@@ -62,6 +65,7 @@ type Server struct {
 	inFlightMu      sync.Mutex
 	inFlight        map[string]bool
 	wg              sync.WaitGroup
+	metrics         *metrics
 }
 
 func NewServer(d Deps) *Server {
@@ -81,6 +85,7 @@ func NewServer(d Deps) *Server {
 		ttl = defaultSessionTokenTTL
 	}
 
+	m := newMetrics()
 	s := &Server{
 		registry:        d.Registry,
 		provisioner:     d.Provisioner,
@@ -99,6 +104,7 @@ func NewServer(d Deps) *Server {
 		signer:          sessiontoken.NewSigner(d.SigningKey),
 		sessionTTL:      ttl,
 		inFlight:        make(map[string]bool),
+		metrics:         m,
 	}
 
 	s.poller = &HealthPoller{
@@ -125,10 +131,22 @@ func NewServer(d Deps) *Server {
 	apiMux.HandleFunc("GET /api/events", s.handleEvents)
 	apiMux.HandleFunc("POST /api/auth/session", s.handleSession)
 
+	var apiHandler http.Handler = s.requireAuth(apiMux)
+
+	rlRate := d.RateLimit
+	if rlRate <= 0 {
+		rlRate = 100
+	}
+	apiHandler = rateLimitMiddleware(newRateLimiter(rlRate))(apiHandler)
+	apiHandler = metricsMiddleware(m)(apiHandler)
+
 	s.mux = http.NewServeMux()
 	s.mux.HandleFunc("GET /healthz", s.handleHealthz)
+	if d.MetricsEnabled {
+		s.mux.Handle("GET /metrics", m.handler())
+	}
 	s.mux.Handle("/api/events/stream", s.requireSessionToken(http.HandlerFunc(s.handleEventsStream)))
-	s.mux.Handle("/api/", s.requireAuth(apiMux))
+	s.mux.Handle("/api/", apiHandler)
 
 	if d.WebFS != nil {
 		s.mux.Handle("/", securityHeaders(http.FileServerFS(d.WebFS)))

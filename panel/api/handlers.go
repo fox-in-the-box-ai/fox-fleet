@@ -181,6 +181,7 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 	if s.events != nil {
 		s.events.Emitf("provision", body.ID, "provisioning instance %s", body.ID)
 	}
+	s.metrics.incProvisions()
 
 	s.wg.Add(1)
 	go func() {

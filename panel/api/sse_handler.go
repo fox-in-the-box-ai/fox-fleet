@@ -36,6 +36,8 @@ func (s *Server) handleEventsStream(w http.ResponseWriter, r *http.Request) {
 	// emitted between SinceID and the live loop lands in ch.
 	ch, cancel := s.events.Subscribe()
 	defer cancel()
+	s.metrics.sseConnect()
+	defer s.metrics.sseDisconnect()
 
 	var highID uint64
 	if lastIDStr := r.Header.Get("Last-Event-ID"); lastIDStr != "" {
