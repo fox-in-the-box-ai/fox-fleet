@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **TEST-04:** Mutation testing pass — gremlins mutation testing run across critical packages (panel/api, skillsets, internal/registry, internal/events, internal/config, rollout); 89–100% efficacy confirms test suite catches real regressions
 - **RELEASE-01:** Release automation hardening — all GitHub Actions pinned to commit SHAs (supply-chain defense); `timeout-minutes` on every job; pre-release verification gate (tag format, CHANGELOG entry, lint, tests) blocks build+release on failure; CHANGELOG extraction fails hard on empty section instead of falling back to generic text
 - **RELEASE-02:** Homebrew tap + Debian packages — release workflow builds `.deb` packages for linux/amd64 and linux/arm64 and attaches them to the GitHub release; Homebrew formula template auto-renders and pushes to `homebrew-fox-fleet` tap repo on stable releases; `install.sh` convenience script detects OS/arch and downloads the correct binary from GitHub Releases
+- **RELEASE-03:** Documentation site — mkdocs-material site with installation guide, configuration reference, walkthrough, deployment guide, security docs, and changelog; GitHub Pages deployment workflow triggered on docs changes; Mermaid diagram support
 
 ## [0.3.0-alpha] - 2026-06-08
 
