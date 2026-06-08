@@ -1,0 +1,75 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/fox-in-the-box-ai/fox-control
+  tag: ""
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 9090
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: fox-control.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+persistence:
+  enabled: true
+  storageClass: ""
+  size: 1Gi
+  accessMode: ReadWriteOnce
+
+config:
+  listen: "0.0.0.0:9090"
+  dataRoot: "/var/lib/fox-control"
+  healthPollSeconds: 15
+  dockerSocket: "/var/run/docker.sock"
+  dockerImage: "ghcr.io/fox-in-the-box-ai/fox:latest"
+  portStart: 8787
+  maxInstances: 10
+
+auth:
+  existingSecret: ""
+  adminSecret: ""
+  instancePassword: ""
+
+qdrant:
+  enabled: true
+  image:
+    repository: qdrant/qdrant
+    tag: v1.14.1
+  persistence:
+    size: 5Gi
+  service:
+    httpPort: 6333
+    grpcPort: 6334
+
+dataPlane:
+  enabled: true
+  listen: "0.0.0.0:9091"
+  collection: "fox-knowledge"
+  vectorSize: 1536
+
+embedding:
+  baseURL: ""
+  model: "nomic-embed-text"
+  apiKey: ""
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

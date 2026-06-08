@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "fox-control.fullname" . }}
+  labels:
+    {{- include "fox-control.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "fox-control.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "fox-control.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: fox-control
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - serve
+            - --config
+            - /etc/fox-control/fox-control.toml
+          env:
+            - name: FOX_ADMIN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "fox-control.secretName" . }}
+                  key: admin-secret
+            - name: FOX_INSTANCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "fox-control.secretName" . }}
+                  key: instance-password
+          ports:
+            - name: http
+              containerPort: 9090
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /api/instances
+              port: http
+              httpHeaders:
+                - name: Authorization
+                  value: "Bearer $(FOX_ADMIN_SECRET)"
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/instances
+              port: http
+              httpHeaders:
+                - name: Authorization
+                  value: "Bearer $(FOX_ADMIN_SECRET)"
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/fox-control
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/fox-control
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "fox-control.fullname" . }}
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "fox-control.fullname" . }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket

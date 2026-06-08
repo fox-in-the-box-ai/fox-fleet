@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "fox-control.fullname" . }}
+  labels:
+    {{- include "fox-control.labels" . | nindent 4 }}
+data:
+  fox-control.toml: |
+    [control]
+    listen = {{ .Values.config.listen | quote }}
+    data_root = {{ .Values.config.dataRoot | quote }}
+    health_poll_seconds = {{ .Values.config.healthPollSeconds }}
+
+    [docker]
+    socket = {{ .Values.config.dockerSocket | quote }}
+    image = {{ .Values.config.dockerImage | quote }}
+
+    [auth]
+    admin_secret = "${FOX_ADMIN_SECRET}"
+    instance_password = "${FOX_INSTANCE_PASSWORD}"
+
+    [instances]
+    port_start = {{ .Values.config.portStart }}
+    max_instances = {{ .Values.config.maxInstances }}
+
+    {{- if .Values.qdrant.enabled }}
+    [qdrant]
+    enabled = true
+    http_port = {{ .Values.qdrant.service.httpPort }}
+    grpc_port = {{ .Values.qdrant.service.grpcPort }}
+    {{- end }}
+
+    {{- if .Values.dataPlane.enabled }}
+    [data_plane]
+    enabled = true
+    listen = {{ .Values.dataPlane.listen | quote }}
+    collection = {{ .Values.dataPlane.collection | quote }}
+    vector_size = {{ .Values.dataPlane.vectorSize }}
+
+    [embedding]
+    base_url = {{ .Values.embedding.baseURL | quote }}
+    model = {{ .Values.embedding.model | quote }}
+    {{- end }}
