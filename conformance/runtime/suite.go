@@ -49,7 +49,7 @@ func (s *Suite) runStandalone(ctx context.Context, cli *client.Client, result *r
 		Mode:  sut.Standalone,
 	})
 	if err != nil {
-		for _, num := range []int{6, 7, 8, 9, 11, 15} {
+		for _, num := range []int{6, 7, 8, 9, 11, 15, 19, 20} {
 			result.Add(report.Result{
 				Number: num,
 				Name:   standaloneCheckName(num),
@@ -67,6 +67,8 @@ func (s *Suite) runStandalone(ctx context.Context, cli *client.Client, result *r
 	result.Add(check09VersionStandalone(ctx, h))
 	result.Add(check11CapabilitiesStandalone(ctx, h))
 	result.Add(check15StandaloneBoot(ctx, h))
+	result.Add(check19HealthV2ContentType(ctx, h))
+	result.Add(check20ReadyzV2Schema(ctx, h))
 }
 
 func (s *Suite) runBootInvariant(ctx context.Context, cli *client.Client, result *report.Suite) {
@@ -152,17 +154,21 @@ func (s *Suite) runContractVersion(ctx context.Context, cli *client.Client, resu
 		Password:   password,
 	})
 	if err != nil {
-		result.Add(report.Result{
-			Number: 16,
-			Name:   "Contract version",
-			Status: report.Fail,
-			Detail: fmt.Sprintf("SUT failed to start: %v", err),
-		})
+		for _, num := range []int{16, 17, 18} {
+			result.Add(report.Result{
+				Number: num,
+				Name:   contractCheckName(num),
+				Status: report.Fail,
+				Detail: fmt.Sprintf("SUT failed to start: %v", err),
+			})
+		}
 		return
 	}
 	defer h.Cleanup(ctx)
 
 	result.Add(check16ContractVersion(ctx, h))
+	result.Add(check17VersionV2Schema(ctx, h))
+	result.Add(check18CapabilitiesV2Schema(ctx, h))
 }
 
 func standaloneCheckName(num int) string {
@@ -170,6 +176,7 @@ func standaloneCheckName(num int) string {
 		6: "Standalone: vanilla equivalence", 7: "GET /health",
 		8: "GET /readyz", 9: "GET /version (standalone)",
 		11: "GET /capabilities (standalone)", 15: "Standalone boot",
+		19: "Health v2.0 content-type", 20: "Readyz v2.0 schema",
 	}
 	return names[num]
 }
@@ -185,5 +192,14 @@ func managedCheckName(num int) string {
 
 func sseCheckName(num int) string {
 	names := map[int]string{13: "SSE: contract events", 14: "SSE: apperror on provider error"}
+	return names[num]
+}
+
+func contractCheckName(num int) string {
+	names := map[int]string{
+		16: "Contract version",
+		17: "Version v2.0 schema",
+		18: "Capabilities v2.0 schema",
+	}
 	return names[num]
 }

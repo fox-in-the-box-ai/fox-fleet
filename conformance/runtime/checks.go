@@ -382,6 +382,27 @@ var noFollow = func(*http.Request, []*http.Request) error {
 	return http.ErrUseLastResponse
 }
 
+func httpGetFull(ctx context.Context, url string, headers map[string]string) (int, []byte, string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return 0, nil, "", err
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	c := &http.Client{Timeout: 10 * time.Second, CheckRedirect: noFollow}
+	resp, err := c.Do(req)
+	if err != nil {
+		return 0, nil, "", err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, nil, "", fmt.Errorf("read response: %w", err)
+	}
+	return resp.StatusCode, body, resp.Header.Get("Content-Type"), nil
+}
+
 func httpGet(ctx context.Context, url string, headers map[string]string) (int, []byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -470,6 +491,141 @@ func validateVersionBody(body []byte) (report.Status, string) {
 		}
 	}
 	return report.Pass, ""
+}
+
+func check17VersionV2Schema(ctx context.Context, h *sut.Handle) report.Result {
+	return timedCheck(17, "Version v2.0 schema", func() (report.Status, string) {
+		headers := map[string]string{}
+		if h.AuthSecret != "" {
+			headers["X-Fox-Auth"] = h.AuthSecret
+		}
+		status, body, ct, err := httpGetFull(ctx, h.BaseURL+"/version", headers)
+		if err != nil {
+			return report.Fail, err.Error()
+		}
+		if status != 200 {
+			return report.Fail, fmt.Sprintf("GET /version returned %d", status)
+		}
+		if !strings.HasPrefix(ct, "application/json") {
+			return report.Fail, fmt.Sprintf("expected Content-Type application/json, got %q", ct)
+		}
+		var data map[string]any
+		if err := json.Unmarshal(body, &data); err != nil {
+			return report.Fail, fmt.Sprintf("invalid JSON: %v", err)
+		}
+		required := []string{"contract_version", "runtime", "build_version", "build_commit", "build_date"}
+		for _, field := range required {
+			v, ok := data[field]
+			if !ok {
+				return report.Fail, fmt.Sprintf("missing required field: %s", field)
+			}
+			if _, isStr := v.(string); !isStr {
+				return report.Fail, fmt.Sprintf("field %s must be a string, got %T", field, v)
+			}
+		}
+		cv := data["contract_version"].(string)
+		if !strings.HasPrefix(cv, "2.") {
+			return report.Fail, fmt.Sprintf("expected contract_version 2.x, got %q", cv)
+		}
+		return report.Pass, ""
+	})
+}
+
+func check18CapabilitiesV2Schema(ctx context.Context, h *sut.Handle) report.Result {
+	return timedCheck(18, "Capabilities v2.0 schema", func() (report.Status, string) {
+		headers := map[string]string{}
+		if h.AuthSecret != "" {
+			headers["X-Fox-Auth"] = h.AuthSecret
+		}
+		status, body, ct, err := httpGetFull(ctx, h.BaseURL+"/capabilities", headers)
+		if err != nil {
+			return report.Fail, err.Error()
+		}
+		if status != 200 {
+			return report.Fail, fmt.Sprintf("GET /capabilities returned %d", status)
+		}
+		if !strings.HasPrefix(ct, "application/json") {
+			return report.Fail, fmt.Sprintf("expected Content-Type application/json, got %q", ct)
+		}
+		var data map[string]any
+		if err := json.Unmarshal(body, &data); err != nil {
+			return report.Fail, fmt.Sprintf("invalid JSON: %v", err)
+		}
+		cv, ok := data["contract_version"].(string)
+		if !ok || cv == "" {
+			return report.Fail, "missing or empty contract_version"
+		}
+		if !strings.HasPrefix(cv, "2.") {
+			return report.Fail, fmt.Sprintf("expected contract_version 2.x, got %q", cv)
+		}
+		caps, ok := data["capabilities"].(map[string]any)
+		if !ok {
+			return report.Fail, "missing or invalid capabilities object"
+		}
+		for name, v := range caps {
+			if _, isBool := v.(bool); !isBool {
+				return report.Fail, fmt.Sprintf("capability %q must be a boolean, got %T", name, v)
+			}
+		}
+		return report.Pass, ""
+	})
+}
+
+func check19HealthV2ContentType(ctx context.Context, h *sut.Handle) report.Result {
+	return timedCheck(19, "Health v2.0 content-type", func() (report.Status, string) {
+		_, _, ct, err := httpGetFull(ctx, h.BaseURL+"/health", nil)
+		if err != nil {
+			return report.Fail, err.Error()
+		}
+		if !strings.HasPrefix(ct, "application/json") {
+			return report.Fail, fmt.Sprintf("expected Content-Type application/json, got %q", ct)
+		}
+		return report.Pass, ""
+	})
+}
+
+func check20ReadyzV2Schema(ctx context.Context, h *sut.Handle) report.Result {
+	return timedCheck(20, "Readyz v2.0 schema", func() (report.Status, string) {
+		status, body, ct, err := httpGetFull(ctx, h.BaseURL+"/readyz", nil)
+		if err != nil {
+			return report.Fail, err.Error()
+		}
+		if status != 200 {
+			return report.Fail, fmt.Sprintf("GET /readyz returned %d", status)
+		}
+		if !strings.HasPrefix(ct, "application/json") {
+			return report.Fail, fmt.Sprintf("expected Content-Type application/json, got %q", ct)
+		}
+		var data map[string]any
+		if err := json.Unmarshal(body, &data); err != nil {
+			return report.Fail, fmt.Sprintf("invalid JSON: %v", err)
+		}
+		ready, ok := data["ready"]
+		if !ok {
+			return report.Fail, "missing required field: ready"
+		}
+		if _, isBool := ready.(bool); !isBool {
+			return report.Fail, fmt.Sprintf("ready must be a boolean, got %T", ready)
+		}
+		checks, ok := data["checks"].(map[string]any)
+		if !ok {
+			return report.Fail, "missing or invalid field: checks"
+		}
+		for name, v := range checks {
+			check, isObj := v.(map[string]any)
+			if !isObj {
+				return report.Fail, fmt.Sprintf("check %q must be an object", name)
+			}
+			okVal, hasOK := check["ok"]
+			if !hasOK {
+				return report.Fail, fmt.Sprintf("check %q missing required field: ok", name)
+			}
+			if _, isBool := okVal.(bool); !isBool {
+				return report.Fail, fmt.Sprintf("check %q ok must be a boolean, got %T", name, okVal)
+			}
+		}
+		return report.Pass, ""
+	})
 }
 
 type sseEvent struct {
