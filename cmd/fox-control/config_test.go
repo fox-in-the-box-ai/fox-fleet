@@ -399,6 +399,9 @@ func TestLoadConfig_QdrantEnabledDefaultsDataDir(t *testing.T) {
 	content := validTOML() + `
 [qdrant]
 enabled = true
+image = "qdrant/qdrant:v1.14.0"
+http_port = 6333
+grpc_port = 6334
 `
 	cfg, err := LoadConfig(writeConfig(t, content))
 	if err != nil {
@@ -407,5 +410,172 @@ enabled = true
 	want := cfg.Control.DataRoot + "/qdrant"
 	if cfg.Qdrant.DataDir != want {
 		t.Errorf("Qdrant.DataDir = %q, want %q", cfg.Qdrant.DataDir, want)
+	}
+}
+
+func TestLoadConfig_ValidationHardening(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  string
+		wantErr string
+	}{
+		{
+			name: "negative port_start",
+			config: `
+[control]
+data_root = "/tmp/fox-test"
+listen = "127.0.0.1:9090"
+[docker]
+image = "ghcr.io/fox/runtime:stable"
+[auth]
+admin_secret = "s"
+instance_password = "p"
+[instances]
+port_start = -1
+max_instances = 2
+`,
+			wantErr: "instances.port_start",
+		},
+		{
+			name: "port_start exceeds 65535",
+			config: `
+[control]
+data_root = "/tmp/fox-test"
+listen = "127.0.0.1:9090"
+[docker]
+image = "ghcr.io/fox/runtime:stable"
+[auth]
+admin_secret = "s"
+instance_password = "p"
+[instances]
+port_start = 70000
+max_instances = 2
+`,
+			wantErr: "instances.port_start",
+		},
+		{
+			name: "max_instances exceeds 1000",
+			config: `
+[control]
+data_root = "/tmp/fox-test"
+listen = "127.0.0.1:9090"
+[docker]
+image = "ghcr.io/fox/runtime:stable"
+[auth]
+admin_secret = "s"
+instance_password = "p"
+[instances]
+max_instances = 1500
+port_start = 8787
+`,
+			wantErr: "instances.max_instances",
+		},
+		{
+			name: "port range overflows 65535",
+			config: `
+[control]
+data_root = "/tmp/fox-test"
+listen = "127.0.0.1:9090"
+[docker]
+image = "ghcr.io/fox/runtime:stable"
+[auth]
+admin_secret = "s"
+instance_password = "p"
+[instances]
+port_start = 65000
+max_instances = 600
+`,
+			wantErr: "exceeds port 65535",
+		},
+		{
+			name: "unparseable control.listen",
+			config: `
+[control]
+listen = "not-a-host-port"
+data_root = "/tmp/fox-test"
+[docker]
+image = "ghcr.io/fox/runtime:stable"
+[auth]
+admin_secret = "s"
+instance_password = "p"
+`,
+			wantErr: "control.listen",
+		},
+		{
+			name: "negative health_poll_seconds",
+			config: `
+[control]
+health_poll_seconds = -5
+listen = "127.0.0.1:9090"
+data_root = "/tmp/fox-test"
+[docker]
+image = "ghcr.io/fox/runtime:stable"
+[auth]
+admin_secret = "s"
+instance_password = "p"
+`,
+			wantErr: "health_poll_seconds",
+		},
+		{
+			name: "qdrant enabled missing image",
+			config: validTOML() + `
+[qdrant]
+enabled = true
+http_port = 6333
+grpc_port = 6334
+`,
+			wantErr: "qdrant.image",
+		},
+		{
+			name: "qdrant ports equal",
+			config: validTOML() + `
+[qdrant]
+enabled = true
+image = "qdrant:v1"
+http_port = 6333
+grpc_port = 6333
+`,
+			wantErr: "must differ",
+		},
+		{
+			name: "qdrant port out of range",
+			config: validTOML() + `
+[qdrant]
+enabled = true
+image = "qdrant:v1"
+http_port = 0
+grpc_port = 6334
+`,
+			wantErr: "qdrant.http_port",
+		},
+		{
+			name: "port collision control vs instances",
+			config: `
+[control]
+listen = "127.0.0.1:8787"
+data_root = "/tmp/fox-test"
+[docker]
+image = "ghcr.io/fox/runtime:stable"
+[auth]
+admin_secret = "s"
+instance_password = "p"
+[instances]
+port_start = 8787
+max_instances = 2
+`,
+			wantErr: "collides with instances.port_start",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := LoadConfig(writeConfig(t, tt.config))
+			if err == nil {
+				t.Fatal("expected validation error")
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("error = %q, want to contain %q", err, tt.wantErr)
+			}
+		})
 	}
 }
