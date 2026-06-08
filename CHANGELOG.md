@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **DEPLOY-03:** Helm chart — full Kubernetes deployment with ConfigMap, Secret (existingSecret support), PVC, Ingress, security context, `/healthz` probe endpoint (#64)
 - `/healthz` unauthenticated health endpoint for Kubernetes probes
 - Environment variable overrides for `FOX_ADMIN_SECRET` and `FOX_INSTANCE_PASSWORD` (takes precedence over TOML config)
+- **DEPLOY-04:** systemd unit and install script — dedicated system user, security hardening, env-based secrets, idempotent installer (#65)
 
 ## [0.2.0-alpha] - 2026-06-08
 
