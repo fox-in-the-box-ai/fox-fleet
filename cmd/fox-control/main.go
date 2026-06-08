@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -21,6 +22,7 @@ import (
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/provisioner"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
 	"github.com/fox-in-the-box-ai/fox-fleet/panel/api"
+	"github.com/fox-in-the-box-ai/fox-fleet/panel/spa"
 	"github.com/fox-in-the-box-ai/fox-fleet/plugins/docker"
 )
 
@@ -98,6 +100,11 @@ func newServeCmd() *cobra.Command {
 
 			pollInterval := time.Duration(cfg.Control.HealthPollSeconds) * time.Second
 
+			webFS, err := fs.Sub(spa.Static, "static")
+			if err != nil {
+				return fmt.Errorf("embed web assets: %w", err)
+			}
+
 			apiServer := api.NewServer(api.Deps{
 				Registry:     reg,
 				Provisioner:  prov,
@@ -107,6 +114,7 @@ func newServeCmd() *cobra.Command {
 				Image:        parseImageRef(cfg.Docker.Image),
 				MaxInstances: cfg.Instances.MaxInstances,
 				PollInterval: pollInterval,
+				WebFS:        webFS,
 			})
 
 			ctx := cmd.Context()

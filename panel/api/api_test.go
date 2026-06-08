@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/provisioner"
@@ -479,5 +480,53 @@ func TestPollerMiss(t *testing.T) {
 	_, ok := env.server.poller.Get("nonexistent")
 	if ok {
 		t.Fatal("expected no health status for nonexistent instance")
+	}
+}
+
+// --- SPA serving tests ---
+
+func TestSPAServed(t *testing.T) {
+	dir := t.TempDir()
+	reg, err := registry.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { reg.Close() })
+
+	webFS := fstest.MapFS{
+		"index.html": &fstest.MapFile{Data: []byte("<html>fox fleet</html>")},
+	}
+
+	srv := NewServer(Deps{
+		Registry:     reg,
+		Provisioner:  &fakeProvisioner{provisionCh: make(chan struct{}, 1)},
+		Plugin:       &fakePlugin{},
+		AdminSecret:  testSecret,
+		InstancePwd:  "test-pwd",
+		MaxInstances: 2,
+		PollInterval: time.Hour,
+		WebFS:        webFS,
+	})
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "fox fleet") {
+		t.Fatal("expected SPA content in response")
+	}
+}
+
+func TestSPANotServedWithoutWebFS(t *testing.T) {
+	env := newTestEnv(t)
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	env.server.Handler().ServeHTTP(w, req)
+
+	if w.Code == http.StatusOK {
+		t.Fatal("expected non-200 when WebFS is nil")
 	}
 }
