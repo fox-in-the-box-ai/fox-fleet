@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/source"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/provisioner"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
 	"github.com/fox-in-the-box-ai/fox-fleet/plugins"
@@ -14,16 +15,18 @@ import (
 const defaultPollInterval = 15 * time.Second
 
 type Deps struct {
-	Registry     *registry.Registry
-	Provisioner  provisioner.Provisioner
-	Plugin       plugins.DeploymentPlugin
-	AdminSecret  string
-	InstancePwd  string
-	Image        plugins.ImageRef
-	MaxInstances int
-	PollInterval time.Duration
-	Logger       *slog.Logger
-	WebFS        fs.FS
+	Registry       *registry.Registry
+	Provisioner    provisioner.Provisioner
+	Plugin         plugins.DeploymentPlugin
+	AdminSecret    string
+	InstancePwd    string
+	Image          plugins.ImageRef
+	MaxInstances   int
+	PollInterval   time.Duration
+	Logger         *slog.Logger
+	WebFS          fs.FS
+	SourceRegistry *source.Registry
+	DataPlaneURL   string
 }
 
 type Server struct {
@@ -37,6 +40,8 @@ type Server struct {
 	maxInst     int
 	log         *slog.Logger
 	mux         *http.ServeMux
+	sources     *source.Registry
+	dpURL       string
 }
 
 func NewServer(d Deps) *Server {
@@ -56,6 +61,8 @@ func NewServer(d Deps) *Server {
 		image:       d.Image,
 		maxInst:     d.MaxInstances,
 		log:         d.Logger,
+		sources:     d.SourceRegistry,
+		dpURL:       d.DataPlaneURL,
 	}
 
 	s.poller = &HealthPoller{
@@ -71,6 +78,7 @@ func NewServer(d Deps) *Server {
 	apiMux.HandleFunc("GET /api/instances/{id}", s.handleDetail)
 	apiMux.HandleFunc("POST /api/instances", s.handleCreate)
 	apiMux.HandleFunc("DELETE /api/instances/{id}", s.handleDestroy)
+	apiMux.HandleFunc("GET /api/sources", s.handleListSources)
 
 	s.mux = http.NewServeMux()
 	s.mux.Handle("/api/", s.requireAuth(apiMux))

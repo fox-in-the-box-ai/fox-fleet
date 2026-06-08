@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +17,9 @@ import (
 	"testing/fstest"
 	"time"
 
+	_ "modernc.org/sqlite"
+
+	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/source"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/provisioner"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
 	"github.com/fox-in-the-box-ai/fox-fleet/plugins"
@@ -517,6 +521,129 @@ func TestSPAServed(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "fox fleet") {
 		t.Fatal("expected SPA content in response")
+	}
+}
+
+func TestSourcesEndpointNoRegistry(t *testing.T) {
+	env := newTestEnv(t)
+	w := env.doRequest("GET", "/api/sources", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	var sources []any
+	if err := json.NewDecoder(w.Body).Decode(&sources); err != nil {
+		t.Fatal(err)
+	}
+	if len(sources) != 0 {
+		t.Fatalf("expected empty list, got %d", len(sources))
+	}
+}
+
+func TestSourcesEndpointWithRegistry(t *testing.T) {
+	dir := t.TempDir()
+	reg, err := registry.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { reg.Close() })
+
+	srcDB, err := sql.Open("sqlite", filepath.Join(dir, "sources.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	srcDB.SetMaxOpenConns(1)
+	t.Cleanup(func() { srcDB.Close() })
+
+	srcReg, err := source.OpenRegistry(srcDB)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = srcReg.Create(source.Source{
+		ID:         "src-1",
+		Type:       "file",
+		Name:       "Test Docs",
+		Collection: "test",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	srv := NewServer(Deps{
+		Registry:       reg,
+		Provisioner:    &fakeProvisioner{provisionCh: make(chan struct{}, 1)},
+		Plugin:         &fakePlugin{},
+		AdminSecret:    testSecret,
+		InstancePwd:    "test-pwd",
+		MaxInstances:   2,
+		PollInterval:   time.Hour,
+		SourceRegistry: srcReg,
+	})
+
+	req := httptest.NewRequest("GET", "/api/sources", nil)
+	req.Header.Set("Authorization", "Bearer "+testSecret)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var sources []source.Source
+	if err := json.NewDecoder(w.Body).Decode(&sources); err != nil {
+		t.Fatal(err)
+	}
+	if len(sources) != 1 {
+		t.Fatalf("expected 1 source, got %d", len(sources))
+	}
+	if sources[0].Name != "Test Docs" {
+		t.Errorf("name = %q, want 'Test Docs'", sources[0].Name)
+	}
+}
+
+func TestCreatePassesDataPlaneURL(t *testing.T) {
+	dir := t.TempDir()
+	reg, err := registry.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { reg.Close() })
+
+	prov := &fakeProvisioner{provisionCh: make(chan struct{}, 1)}
+
+	srv := NewServer(Deps{
+		Registry:     reg,
+		Provisioner:  prov,
+		Plugin:       &fakePlugin{},
+		AdminSecret:  testSecret,
+		InstancePwd:  "test-pwd",
+		MaxInstances: 2,
+		PollInterval: time.Hour,
+		DataPlaneURL: "http://127.0.0.1:9091",
+	})
+
+	req := httptest.NewRequest("POST", "/api/instances", strings.NewReader(`{"id":"fox-dp"}`))
+	req.Header.Set("Authorization", "Bearer "+testSecret)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", w.Code)
+	}
+
+	select {
+	case <-prov.provisionCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("provisioner not called within timeout")
+	}
+
+	prov.mu.Lock()
+	defer prov.mu.Unlock()
+	if len(prov.provisions) != 1 {
+		t.Fatalf("expected 1 provision, got %d", len(prov.provisions))
+	}
+	if prov.provisions[0].DataPlaneURL != "http://127.0.0.1:9091" {
+		t.Errorf("DataPlaneURL = %q, want http://127.0.0.1:9091", prov.provisions[0].DataPlaneURL)
 	}
 }
 

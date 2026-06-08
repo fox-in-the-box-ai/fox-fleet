@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/source"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/provisioner"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
 	"github.com/fox-in-the-box-ai/fox-fleet/plugins"
@@ -152,6 +153,7 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 			AdminSecret:      string(s.secret),
 			InstancePassword: s.instPwd,
 			Image:            s.image,
+			DataPlaneURL:     s.dpURL,
 		})
 		if err != nil {
 			s.log.Error("background provision failed",
@@ -164,6 +166,22 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 		ID:     body.ID,
 		Status: "provisioning",
 	})
+}
+
+func (s *Server) handleListSources(w http.ResponseWriter, _ *http.Request) {
+	if s.sources == nil {
+		writeJSON(w, http.StatusOK, []any{})
+		return
+	}
+	list, err := s.sources.List()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal_error", "failed to list sources")
+		return
+	}
+	if list == nil {
+		list = []source.Source{}
+	}
+	writeJSON(w, http.StatusOK, list)
 }
 
 func (s *Server) handleDestroy(w http.ResponseWriter, r *http.Request) {

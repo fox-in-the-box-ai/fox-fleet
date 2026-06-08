@@ -34,7 +34,7 @@ func TestInjectCreatesAllFiles(t *testing.T) {
 	if err := Inject(p); err != nil {
 		t.Fatalf("Inject: %v", err)
 	}
-	for _, name := range []string{"hermes.env", "config.yaml", "settings.json"} {
+	for _, name := range []string{"hermes.env", "config.yaml", "settings.json", "tools.json"} {
 		path := filepath.Join(p.DataDir, name)
 		if _, err := os.Stat(path); err != nil {
 			t.Errorf("%s not created: %v", name, err)
@@ -201,6 +201,39 @@ func TestValidateSecrets(t *testing.T) {
 	}
 	if err != nil && !strings.Contains(err.Error(), "instance_password") {
 		t.Errorf("error should mention instance_password: %v", err)
+	}
+}
+
+func TestToolsJSONEmpty(t *testing.T) {
+	p := validParams(t)
+	if err := Inject(p); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(filepath.Join(p.DataDir, "tools.json"))
+	content := string(data)
+	if !strings.Contains(content, `"tools": []`) {
+		t.Errorf("tools.json without DataPlaneURL should have empty tools, got:\n%s", content)
+	}
+}
+
+func TestToolsJSONWithDataPlane(t *testing.T) {
+	p := validParams(t)
+	p.Config.DataPlaneURL = "http://127.0.0.1:9091"
+	if err := Inject(p); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(filepath.Join(p.DataDir, "tools.json"))
+	content := string(data)
+	for _, want := range []string{
+		`"name": "knowledge_query"`,
+		`"url": "http://127.0.0.1:9091/v1/query"`,
+		`"method": "POST"`,
+		`"header": "X-Fox-Auth"`,
+		`"env": "FOX_PLANE_AUTH_SECRET"`,
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("tools.json missing %q, got:\n%s", want, content)
+		}
 	}
 }
 
