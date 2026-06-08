@@ -6,7 +6,7 @@
 
 Open-source management plane for [Fox in the Box](https://github.com/fox-in-the-box-ai/fox-in-the-box) AI assistants. One binary, one config file, one Docker host — provision, monitor, update, and destroy a fleet of Fox instances through a CLI and browser-based panel.
 
-> **Status: v0.2.0-alpha.** Management plane (v0.1) and data plane (v0.2) are feature-complete — provision, monitor, update, destroy, plus organizational knowledge ingestion, vector search, query API, and skillset assignment. Not production-ready yet.
+> **Status: v0.3.0-alpha.** UI/UX overhaul (branded panel, i18n, dark mode, mobile responsive, SSE real-time updates), containerized deployment (Docker Compose, Helm, systemd, Caddy TLS), and end-to-end documentation. Not production-ready yet.
 
 ---
 
@@ -84,6 +84,7 @@ Fox Fleet ships in three milestones.
 |-----------|-------|--------|
 | **v0.1** | Management plane MVP — provision, monitor, update, destroy through CLI and panel | Shipped (0.1.0-alpha) |
 | **v0.2** | Data plane — organizational knowledge (ingestion, vector search, query API, skillsets) | Shipped (0.2.0-alpha) |
+| **v0.3** | Product polish — branded UI, i18n, dark mode, mobile, SSE, deployment infra, docs | Shipped (0.3.0-alpha) |
 | **v1.0** | Apache GA — conformance CI, cosign + SBOM, all PRODUCTS.md promises shipped | Condition-gated |
 
 v1.0 ships when 3 operators have run Fleet with zero critical bugs for 2 consecutive releases.
