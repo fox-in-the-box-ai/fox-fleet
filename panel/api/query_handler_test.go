@@ -40,11 +40,13 @@ func TestQueryProxy_ForwardsToDataPlane(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]any{
+		if err := json.NewEncoder(w).Encode(map[string]any{
 			"results": []map[string]any{
 				{"text": "hello world", "score": 0.95, "source_id": "src1"},
 			},
-		})
+		}); err != nil {
+			t.Errorf("encode response: %v", err)
+		}
 	}))
 	defer fakeDP.Close()
 
