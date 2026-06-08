@@ -16,9 +16,11 @@ Before serving real users, verify each item:
 - [ ] **Secrets are not in config files** — use environment variables
   (`FOX_ADMIN_SECRET`, `FOX_INSTANCE_PASSWORD`) or a secrets manager.
   The TOML `[auth]` section is a fallback; env vars take precedence.
-- [ ] **TLS terminates before fox-control** — fox-control serves plain
-  HTTP. Put Caddy, nginx, or a cloud load balancer in front. See
-  [Caddy add-on](../DEPLOYMENT.md#6-add-tls-with-caddy-optional).
+- [ ] **TLS is enabled** — either configure built-in TLS via
+  `tls.cert_file` and `tls.key_file` in `fox-control.toml`, or
+  terminate TLS at a reverse proxy (Caddy, nginx, cloud load
+  balancer). See [Caddy add-on](../DEPLOYMENT.md#6-add-tls-with-caddy-optional).
+  Do not serve plain HTTP to the internet.
 - [ ] **Listen address is restricted** — in production, bind to
   `127.0.0.1:9090` (behind a reverse proxy) or a private interface.
   Never bind `0.0.0.0` without a firewall or reverse proxy.
@@ -374,6 +376,7 @@ appears as an event.
 |-----------|---------------|----------|
 | Instance registry | `<data_root>/registry.db` | Instance metadata, ports, status, skillset assignments |
 | Source registry | `<data_root>/sources.db` | Data plane source metadata |
+| Event store | `<data_root>/events.db` | Persistent event history |
 | Instance data | `<data_root>/<instance-id>/` | Per-instance config, conversation history, settings |
 | Qdrant vectors | Qdrant data directory or Docker volume `qdrant-data` | Knowledge embeddings |
 | Config | `/etc/fox-control/fox-control.toml` or `deploy/docker-compose/fox-control.toml` | Server configuration |
@@ -386,6 +389,33 @@ Default `data_root`:
 - Binary: whatever you set in `fox-control.toml`
 
 ### Backup procedure
+
+**CLI (recommended):**
+
+```bash
+fox-control backup --dest /backup/fox-control-$(date +%Y%m%d) \
+  --config /etc/fox-control/fox-control.toml
+```
+
+The `backup` command uses SQLite `VACUUM INTO` to produce consistent
+snapshots of `registry.db`, `sources.db`, and `events.db` without
+stopping the service. No downtime required.
+
+To restore from a CLI backup:
+
+```bash
+# Stop fox-control first
+sudo systemctl stop fox-control
+
+fox-control restore --from /backup/fox-control-20260607 \
+  --config /etc/fox-control/fox-control.toml
+
+sudo systemctl start fox-control
+```
+
+The restore command checks for a lock file to prevent concurrent
+restores. It copies the backed-up databases to the configured
+`data_root`.
 
 **Docker Compose:**
 
@@ -474,12 +504,23 @@ The panel receives real-time events via Server-Sent Events at
 `GET /api/events/stream`. Lifecycle events (provision, destroy,
 health changes) appear within seconds.
 
-The event buffer holds the 200 most recent events in memory. Events
-are lost on restart — there is no persistent event store.
+Events are persisted to a SQLite-backed event store (`events.db`).
+The in-memory buffer still holds the 200 most recent events for fast
+SSE delivery, but the full history survives restarts.
 
 ### Log output
 
-fox-control logs to stdout. In a Docker Compose deployment, use
+fox-control logs to stdout. The log format is configurable via
+`control.log_format`:
+
+- `text` (default) — human-readable, one line per event.
+- `json` — structured JSON, one object per line. Recommended for
+  production log aggregation (ELK, Loki, Datadog, etc.).
+
+Log verbosity is controlled by `control.log_level`: `debug`, `info`
+(default), `warn`, or `error`.
+
+In a Docker Compose deployment, use
 `docker compose logs -f fox-control`. In a systemd deployment, use
 `journalctl -u fox-control -f`.
 
@@ -491,13 +532,113 @@ Key log lines to watch for:
 - `rollout` — rolling update progress
 - `listening on` — fox-control started and is accepting connections
 
+### Prometheus metrics
+
+fox-control exposes a Prometheus-compatible metrics endpoint at
+`GET /metrics` when enabled. To enable, set `metrics.enabled = true`
+in `fox-control.toml`.
+
+Exposed metrics:
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `foxcontrol_requests_total` | counter | Total API requests |
+| `foxcontrol_errors_total` | counter | Total error responses |
+| `foxcontrol_provisions_total` | counter | Instance provision count |
+| `foxcontrol_sse_connections` | gauge | Active SSE connections |
+| `foxcontrol_uptime_seconds` | gauge | Process uptime in seconds |
+
+The `/metrics` endpoint does not require authentication, so restrict
+access via firewall or reverse proxy rules if needed.
+
+Scrape config for Prometheus:
+
+```yaml
+scrape_configs:
+  - job_name: fox-control
+    static_configs:
+      - targets: ['localhost:9090']
+    metrics_path: /metrics
+```
+
+### Health history and resource statistics
+
+The panel displays per-instance health history (24-hour timeline)
+and resource usage gauges (CPU, memory, network). The underlying
+data is available via the API:
+
+- `GET /api/instances/{id}/health-history` — health event timeline
+  for the last 24 hours.
+- `GET /api/instances/{id}/stats` — live container resource
+  statistics (CPU percentage, memory usage, network I/O).
+
+Both endpoints require `Authorization: Bearer <admin_secret>`.
+
+### Instance auto-restart
+
+fox-control can automatically restart instances that fail consecutive
+health checks. Enable and tune in `fox-control.toml`:
+
+```toml
+[auto_restart]
+enabled = true
+threshold = 3        # consecutive failures before restart
+cooldown = "60s"     # minimum interval between auto-restarts
+```
+
+When enabled, the health poller tracks consecutive failures per
+instance. Once the threshold is exceeded, fox-control restarts the
+container and resets the counter. A cooldown prevents restart loops
+for persistently failing instances. Auto-restart events appear in
+the activity feed.
+
+### Webhook event forwarding
+
+fox-control can forward lifecycle events to external HTTP endpoints.
+Configure one or more webhook targets in `fox-control.toml`:
+
+```toml
+[[webhooks]]
+url = "https://ops.example.com/hooks/fox-fleet"
+secret = "whsec_your-hmac-secret"
+events = ["instance.provisioned", "instance.destroyed", "instance.unhealthy"]
+rate_limit = 10  # max deliveries per second per target
+```
+
+Each webhook delivery includes an `X-Fox-Signature` header containing
+an HMAC-SHA256 signature of the request body, computed with the
+configured `secret`. Verify this signature on the receiving end to
+authenticate the payload.
+
+Event type filtering is per-target — omit the `events` key to
+receive all event types. Per-target rate limiting prevents
+overwhelming downstream services.
+
+### Rate limiting
+
+API requests are subject to token-bucket rate limiting. When a client
+exceeds the allowed rate, the server returns `429 Too Many Requests`
+with a `Retry-After` header indicating how many seconds to wait.
+
+Rate limits are configurable in `fox-control.toml`:
+
+```toml
+[rate_limit]
+requests_per_second = 20
+burst = 50
+```
+
+The `/healthz` and `/metrics` endpoints are exempt from rate limiting.
+
 ### External monitoring integration
 
-fox-control does not expose Prometheus metrics or structured log
-export. For production monitoring:
+For production monitoring:
 
 - Point your uptime checker at `/healthz`
-- Parse stdout logs for alerts (health failures, provisioning errors)
+- Scrape `/metrics` with Prometheus (when `metrics.enabled = true`)
+- Enable structured JSON logging (`control.log_format = "json"`) for
+  log aggregation
+- Configure webhooks for real-time alerting on health transitions
 - Monitor Docker container status for managed instances:
   `docker ps --filter label=managed-by=fox-control`
 
@@ -543,7 +684,8 @@ and does not conflict with other services.
 
 | Surface | Default bind | Auth | Notes |
 |---------|-------------|------|-------|
-| Management panel + API | `127.0.0.1:9090` | Bearer token (`admin_secret`) | Put behind TLS reverse proxy for production |
+| Management panel + API | `127.0.0.1:9090` | Bearer token (`admin_secret`) | Use built-in TLS or a reverse proxy for production |
+| Prometheus metrics | `127.0.0.1:9090/metrics` | None | Only active when `metrics.enabled = true`; restrict via firewall or proxy |
 | Fox instances | `0.0.0.0:<port>` | Instance-level auth | Ports 8787+ |
 | Data plane API | `127.0.0.1:9091` | See data plane docs | Only when `data_plane.enabled = true` |
 | Qdrant | `6333` (HTTP), `6334` (gRPC) | None by default | Restrict to localhost or private network |
@@ -555,7 +697,7 @@ Run periodically (monthly or after significant changes):
 
 - [ ] Admin secret is not the demo value or a weak string
 - [ ] Admin secret has been rotated within the last 90 days
-- [ ] TLS is terminating before fox-control (not plain HTTP to the internet)
+- [ ] TLS is active — either built-in (`tls.cert_file` / `tls.key_file`) or via reverse proxy
 - [ ] No unnecessary ports are open to the public internet
 - [ ] Docker socket is not exposed over TCP
 - [ ] fox-control runs as a non-root, dedicated user
@@ -591,6 +733,14 @@ If you suspect the admin secret has been compromised:
 | Panel shows stale data | SSE disconnected | The panel falls back to 5-second polling. Hard refresh the browser. Check DevTools for EventSource errors. |
 | Rollout stopped mid-way | Instance failed health check after update | The failed instance rolls back automatically. Check its logs. Fix the issue, then re-run the rollout. |
 | Port conflict on instance start | Another service on the port | Change `instances.port_start` in the config, or stop the conflicting service. |
+| Rate limited (429 response) | Client exceeding API rate limit | Check the `Retry-After` header for wait time. Increase `rate_limit.requests_per_second` and `rate_limit.burst` if the load is legitimate. |
+| Metrics endpoint returns 404 | Metrics not enabled | Set `metrics.enabled = true` in `fox-control.toml` and restart. |
+| Webhook not firing | Target unreachable or event filter mismatch | Verify the webhook URL is reachable from the fox-control host. Check that the `events` filter in the webhook config includes the event type you expect. |
+| Auto-restart not working | Feature disabled or misconfigured | Verify `auto_restart.enabled = true` in config. Check `threshold` and `cooldown` values. Review logs for auto-restart decisions. |
+| TLS handshake failure | Certificate or key issue | Verify `tls.cert_file` and `tls.key_file` paths exist and are readable by the fox-control user. Check certificate chain completeness and expiry. |
+| Backup fails | Destination issue or concurrent backup | Verify the `--dest` directory exists and is writable. Ensure no other backup or restore is in progress (check for lock file). |
+| Instance stats return 503 | Docker stats unavailable | The container may not be running, or the Docker daemon stats API is unresponsive. Verify the instance is in a healthy or running state. |
+| Health history empty | No transitions recorded | The instance has had no health state changes in the last 24 hours, or the event store is not configured. Check `events.db` exists in `data_root`. |
 
 ---
 
@@ -616,8 +766,11 @@ except `/healthz`.
 | `GET` | `/api/skillsets/{name}/download` | Download skillset file |
 | `DELETE` | `/api/skillsets/{name}` | Delete a skillset |
 | `POST` | `/api/query` | Query the knowledge base (proxied to data plane) |
+| `GET` | `/api/instances/{id}/stats` | Container resource statistics |
+| `GET` | `/api/instances/{id}/health-history` | Health event history (24h) |
 | `GET` | `/api/events` | Get recent events |
 | `GET` | `/api/events/stream` | SSE event stream |
+| `GET` | `/metrics` | Prometheus metrics (no auth, when `metrics.enabled = true`) |
 
 ### Data plane admin API (port 9091)
 
@@ -645,6 +798,10 @@ when `data_plane.enabled = true`.
 | `fox-control list` | List all instances |
 | `fox-control rollout --image <ref>` | Rolling update (digest reference) |
 | `fox-control version` | Print version |
+| `fox-control backup --dest <dir>` | SQLite VACUUM INTO backup of all databases |
+| `fox-control restore --from <dir>` | Restore databases from backup |
+| `fox-control diagnostics` | Run 8 built-in health checks |
+| `fox-control generate-secret` | Generate a cryptographic secret |
 | `fox-control verify <file>` | Verify cosign signature |
 | `fox-control conformance run --image <img>` | Run runtime conformance |
 | `fox-control conformance plugin --image <img>` | Run plugin conformance |
@@ -653,14 +810,12 @@ when `data_plane.enabled = true`.
 
 ## Known limitations
 
-Fox Fleet v1.0.0 has architectural boundaries documented in
+Fox Fleet has architectural boundaries documented in
 [LIMITATIONS.md](../LIMITATIONS.md). Key items for operators:
 
 - **Single-host only** — no multi-node orchestration
 - **No high availability** — single process, local SQLite
 - **Single admin token** — no user accounts or RBAC
-- **Event log is volatile** — 200-event in-memory buffer, lost on restart
-- **No TLS termination** — requires a reverse proxy
 - **Docker socket is root-equivalent** — inherent to the architecture
 
 ---

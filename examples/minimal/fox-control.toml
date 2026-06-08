@@ -1,0 +1,38 @@
+# Minimal fox-control configuration.
+#
+# This is the smallest valid config to get fox-control running locally.
+# Secrets are read from environment variables (FOX_ADMIN_SECRET,
+# FOX_INSTANCE_PASSWORD) so they stay out of version control.
+
+# ---------- Control plane ----------
+
+[control]
+# Address the control API listens on.
+listen = "127.0.0.1:9090"
+
+# Writable directory for instance data, event database, skillsets.
+data_root = "/var/lib/fox-control"
+
+# ---------- Docker ----------
+
+[docker]
+# Fox container image to provision instances from.
+image = "ghcr.io/fox-in-the-box-ai/fox:latest"
+
+# ---------- Authentication ----------
+
+[auth]
+# Override via FOX_ADMIN_SECRET env var (minimum 16 characters).
+admin_secret = "${FOX_ADMIN_SECRET}"
+
+# Override via FOX_INSTANCE_PASSWORD env var.
+instance_password = "${FOX_INSTANCE_PASSWORD}"
+
+# ---------- Instances ----------
+
+[instances]
+# First host port assigned to provisioned Fox instances.
+port_start = 8787
+
+# Maximum number of concurrent Fox instances.
+max_instances = 2

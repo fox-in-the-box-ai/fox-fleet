@@ -1,0 +1,1379 @@
+openapi: 3.0.3
+info:
+  title: Fox Fleet API
+  description: >-
+    Fox Fleet exposes two HTTP servers: a Panel API (management plane) and a
+    Data Plane API (knowledge ingestion and vector search).
+  version: 0.1.0
+  license:
+    name: Business Source License 1.1
+    url: https://github.com/fox-in-the-box-ai/fox-fleet/blob/main/LICENSE
+
+servers:
+  - url: http://localhost:9090
+    description: Panel API (management plane)
+  - url: http://localhost:9091
+    description: Data Plane API (knowledge ingestion and vector search)
+
+tags:
+  - name: panel-health
+    description: Panel health and metrics
+  - name: auth
+    description: Session management
+  - name: instances
+    description: Instance lifecycle
+  - name: sources
+    description: Data sources (panel view)
+  - name: skillsets
+    description: Skillset management
+  - name: query
+    description: Query proxy (panel to data plane)
+  - name: events
+    description: Event log and SSE stream
+  - name: dp-health
+    description: Data plane health and readiness
+  - name: dp-query
+    description: Data plane query
+  - name: dp-sources
+    description: Data plane source listing (query auth)
+  - name: dp-admin
+    description: Data plane admin operations
+
+paths:
+  # ── Panel: Health & Metrics ───────────────────────────────────────────
+  /healthz:
+    get:
+      operationId: panelHealthz
+      tags: [panel-health]
+      summary: Health check
+      description: Returns server health. Includes optional Qdrant status when configured.
+      security: []
+      responses:
+        "200":
+          description: Server is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthzResponse"
+
+  /metrics:
+    get:
+      operationId: panelMetrics
+      tags: [panel-health]
+      summary: Prometheus metrics
+      description: Prometheus exposition format. Only available when metrics are enabled.
+      security: []
+      responses:
+        "200":
+          description: Metrics in Prometheus text format.
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  # ── Panel: Auth ───────────────────────────────────────────────────────
+  /api/auth/session:
+    post:
+      operationId: createSession
+      tags: [auth]
+      summary: Create a session token
+      description: >-
+        Exchanges an admin Bearer token for a short-lived session token.
+        Sets an HttpOnly cookie (`fox_sse_token`) for SSE authentication.
+      security:
+        - bearerAdmin: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionRequest"
+      responses:
+        "200":
+          description: Session token issued. An HttpOnly cookie is also set.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: fox_sse_token=<token>; Path=/api/events; HttpOnly; SameSite=Strict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Panel: Instances ──────────────────────────────────────────────────
+  /api/instances:
+    get:
+      operationId: listInstances
+      tags: [instances]
+      summary: List all instances
+      security:
+        - bearerAdmin: []
+      responses:
+        "200":
+          description: Array of instance summaries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InstanceItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      operationId: createInstance
+      tags: [instances]
+      summary: Provision a new instance
+      description: >-
+        Kicks off asynchronous provisioning. Returns 201 immediately with
+        status "provisioning". The instance ID must match `[a-zA-Z0-9._-]{1,64}`.
+      security:
+        - bearerAdmin: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInstanceRequest"
+      responses:
+        "201":
+          description: Provisioning started.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateInstanceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Instance already exists or is already being provisioned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Maximum instance count reached.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/instances/{id}:
+    get:
+      operationId: getInstance
+      tags: [instances]
+      summary: Get instance detail
+      description: Returns instance metadata, health status, and recent container logs.
+      security:
+        - bearerAdmin: []
+      parameters:
+        - $ref: "#/components/parameters/instanceId"
+      responses:
+        "200":
+          description: Instance detail with logs.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstanceDetail"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    delete:
+      operationId: destroyInstance
+      tags: [instances]
+      summary: Destroy an instance
+      security:
+        - bearerAdmin: []
+      parameters:
+        - $ref: "#/components/parameters/instanceId"
+        - name: remove_data
+          in: query
+          required: false
+          description: Also remove persistent data associated with the instance.
+          schema:
+            type: string
+            enum: ["true"]
+      responses:
+        "204":
+          description: Instance destroyed.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/instances/{id}/stats:
+    get:
+      operationId: getInstanceStats
+      tags: [instances]
+      summary: Get container resource stats
+      security:
+        - bearerAdmin: []
+      parameters:
+        - $ref: "#/components/parameters/instanceId"
+      responses:
+        "200":
+          description: Point-in-time container stats.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContainerStats"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Stats unavailable for this instance.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/instances/{id}/health-history:
+    get:
+      operationId: getInstanceHealthHistory
+      tags: [instances]
+      summary: Get health-check event history
+      description: Returns up to 200 health events from the last 24 hours.
+      security:
+        - bearerAdmin: []
+      parameters:
+        - $ref: "#/components/parameters/instanceId"
+      responses:
+        "200":
+          description: Array of health events.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Event"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Panel: Sources ────────────────────────────────────────────────────
+  /api/sources:
+    get:
+      operationId: listSources
+      tags: [sources]
+      summary: List data sources
+      security:
+        - bearerAdmin: []
+      responses:
+        "200":
+          description: Array of sources.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Source"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/sources/{id}:
+    get:
+      operationId: getSource
+      tags: [sources]
+      summary: Get source detail
+      security:
+        - bearerAdmin: []
+      parameters:
+        - $ref: "#/components/parameters/sourceId"
+      responses:
+        "200":
+          description: Source detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Panel: Skillsets ──────────────────────────────────────────────────
+  /api/skillsets:
+    get:
+      operationId: listSkillsets
+      tags: [skillsets]
+      summary: List skillsets
+      security:
+        - bearerAdmin: []
+      responses:
+        "200":
+          description: Array of skillset summaries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SkillsetSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      operationId: uploadSkillset
+      tags: [skillsets]
+      summary: Upload a skillset
+      description: >-
+        Upload a YAML skillset manifest as a multipart file. The file field
+        must be named "file". Maximum upload size is 1 MB.
+      security:
+        - bearerAdmin: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: YAML skillset manifest file.
+      responses:
+        "201":
+          description: Skillset uploaded and validated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillsetSummary"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/skillsets/{name}:
+    get:
+      operationId: getSkillset
+      tags: [skillsets]
+      summary: Get skillset detail
+      description: Returns the full parsed skillset manifest.
+      security:
+        - bearerAdmin: []
+      parameters:
+        - $ref: "#/components/parameters/skillsetName"
+      responses:
+        "200":
+          description: Full skillset manifest.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillsetManifest"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    delete:
+      operationId: deleteSkillset
+      tags: [skillsets]
+      summary: Delete a skillset
+      security:
+        - bearerAdmin: []
+      parameters:
+        - $ref: "#/components/parameters/skillsetName"
+      responses:
+        "204":
+          description: Skillset deleted.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/skillsets/{name}/download:
+    get:
+      operationId: downloadSkillset
+      tags: [skillsets]
+      summary: Download skillset YAML file
+      security:
+        - bearerAdmin: []
+      parameters:
+        - $ref: "#/components/parameters/skillsetName"
+      responses:
+        "200":
+          description: Raw YAML file.
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: attachment; filename="my-skillset.yaml"
+          content:
+            application/x-yaml:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Panel: Query ──────────────────────────────────────────────────────
+  /api/query:
+    post:
+      operationId: panelQuery
+      tags: [query]
+      summary: Proxy a vector query to the data plane
+      description: >-
+        Forwards the request body to the data plane `/v1/query` endpoint
+        using the admin secret. Returns the data plane response as-is.
+      security:
+        - bearerAdmin: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryRequest"
+      responses:
+        "200":
+          description: Query results from the data plane.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueryResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          description: Data plane unreachable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Data plane not configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ── Panel: Events ─────────────────────────────────────────────────────
+  /api/events:
+    get:
+      operationId: listEvents
+      tags: [events]
+      summary: List recent events
+      description: Returns up to 50 recent events.
+      security:
+        - bearerAdmin: []
+      responses:
+        "200":
+          description: Array of events (newest first).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Event"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/events/stream:
+    get:
+      operationId: streamEvents
+      tags: [events]
+      summary: SSE event stream
+      description: >-
+        Server-Sent Events stream of real-time events. Requires a session
+        token cookie (`fox_sse_token`) obtained from `POST /api/auth/session`.
+        Supports `Last-Event-ID` header for replay.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: Resume from this event ID (events after this ID are replayed).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: SSE stream opened.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: >-
+                  Each SSE message has `id` (numeric) and `data` (JSON-encoded Event).
+                  The initial message is `event: connected` with `data: {}`.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Event log not configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ── Data Plane: Health ────────────────────────────────────────────────
+  /v1/health:
+    get:
+      operationId: dpHealth
+      tags: [dp-health]
+      summary: Data plane health check
+      description: Returns healthy/unhealthy based on Qdrant connectivity.
+      security: []
+      servers:
+        - url: http://localhost:9091
+      responses:
+        "200":
+          description: Data plane is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DPHealthResponse"
+        "503":
+          description: Data plane is unhealthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DPHealthResponse"
+
+  /v1/readyz:
+    get:
+      operationId: dpReadyz
+      tags: [dp-health]
+      summary: Data plane readiness check
+      security: []
+      servers:
+        - url: http://localhost:9091
+      responses:
+        "200":
+          description: Data plane is ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DPReadyzResponse"
+        "503":
+          description: Data plane is not ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DPReadyzResponse"
+
+  # ── Data Plane: Query-auth routes ─────────────────────────────────────
+  /v1/sources:
+    get:
+      operationId: dpListSources
+      tags: [dp-sources]
+      summary: List sources (query auth)
+      description: >-
+        Available to instance tokens and admin tokens. Returns the same
+        source list as the admin endpoint.
+      security:
+        - bearerAdmin: []
+        - bearerInstanceToken: []
+      servers:
+        - url: http://localhost:9091
+      responses:
+        "200":
+          description: Array of sources.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Source"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/query:
+    post:
+      operationId: dpQuery
+      tags: [dp-query]
+      summary: Vector similarity search
+      description: >-
+        Embeds the query text and searches the vector store. Accepts admin
+        or instance tokens.
+      security:
+        - bearerAdmin: []
+        - bearerInstanceToken: []
+      servers:
+        - url: http://localhost:9091
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DPQueryRequest"
+      responses:
+        "200":
+          description: Search results.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueryResponse"
+        "400":
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DPError"
+        "401":
+          $ref: "#/components/responses/DPUnauthorized"
+        "503":
+          description: Embedding or vector service unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DPError"
+
+  # ── Data Plane: Admin routes ──────────────────────────────────────────
+  /v1/admin/sources:
+    get:
+      operationId: dpAdminListSources
+      tags: [dp-admin]
+      summary: List sources (admin)
+      security:
+        - bearerAdmin: []
+      servers:
+        - url: http://localhost:9091
+      responses:
+        "200":
+          description: Array of sources.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Source"
+        "401":
+          $ref: "#/components/responses/DPUnauthorized"
+        "500":
+          $ref: "#/components/responses/DPInternalError"
+
+    post:
+      operationId: dpAdminCreateSource
+      tags: [dp-admin]
+      summary: Create a source
+      security:
+        - bearerAdmin: []
+      servers:
+        - url: http://localhost:9091
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSourceRequest"
+      responses:
+        "201":
+          description: Source created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+        "400":
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DPError"
+        "401":
+          $ref: "#/components/responses/DPUnauthorized"
+        "409":
+          description: Source with this ID already exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DPError"
+        "500":
+          $ref: "#/components/responses/DPInternalError"
+
+  /v1/admin/sources/{id}:
+    get:
+      operationId: dpAdminGetSource
+      tags: [dp-admin]
+      summary: Get source detail
+      security:
+        - bearerAdmin: []
+      servers:
+        - url: http://localhost:9091
+      parameters:
+        - $ref: "#/components/parameters/sourceId"
+      responses:
+        "200":
+          description: Source detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+        "401":
+          $ref: "#/components/responses/DPUnauthorized"
+        "404":
+          description: Source not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DPError"
+        "500":
+          $ref: "#/components/responses/DPInternalError"
+
+    delete:
+      operationId: dpAdminDeleteSource
+      tags: [dp-admin]
+      summary: Delete a source
+      description: >-
+        Deletes the source record and its associated vector points from Qdrant.
+      security:
+        - bearerAdmin: []
+      servers:
+        - url: http://localhost:9091
+      parameters:
+        - $ref: "#/components/parameters/sourceId"
+      responses:
+        "200":
+          description: Source and associated vector points deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: deleted
+        "401":
+          $ref: "#/components/responses/DPUnauthorized"
+        "404":
+          description: Source not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DPError"
+        "500":
+          $ref: "#/components/responses/DPInternalError"
+
+  /v1/admin/sources/{id}/ingest:
+    post:
+      operationId: dpAdminIngestSource
+      tags: [dp-admin]
+      summary: Trigger ingestion for a source
+      description: >-
+        Runs ingestion synchronously for the given source. The source status
+        transitions through "ingesting" and then to "active" (or "error").
+      security:
+        - bearerAdmin: []
+      servers:
+        - url: http://localhost:9091
+      parameters:
+        - $ref: "#/components/parameters/sourceId"
+      responses:
+        "200":
+          description: Ingestion completed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestResult"
+        "400":
+          description: Source type unsupported or connector configuration error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DPError"
+        "401":
+          $ref: "#/components/responses/DPUnauthorized"
+        "404":
+          description: Source not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DPError"
+        "500":
+          description: Ingestion failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DPError"
+
+components:
+  # ── Security schemes ──────────────────────────────────────────────────
+  securitySchemes:
+    bearerAdmin:
+      type: http
+      scheme: bearer
+      description: Admin secret passed as a Bearer token.
+
+    bearerInstanceToken:
+      type: http
+      scheme: bearer
+      description: >-
+        Instance query token or admin token. Validated via constant-time
+        comparison against admin secret or the token validator.
+
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: fox_sse_token
+      description: >-
+        Short-lived HMAC-signed session token issued by `POST /api/auth/session`.
+
+  # ── Reusable parameters ──────────────────────────────────────────────
+  parameters:
+    instanceId:
+      name: id
+      in: path
+      required: true
+      description: "Instance identifier. Must match `[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}`."
+      schema:
+        type: string
+        pattern: "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$"
+
+    sourceId:
+      name: id
+      in: path
+      required: true
+      description: Source identifier.
+      schema:
+        type: string
+
+    skillsetName:
+      name: name
+      in: path
+      required: true
+      description: "Skillset name. Must match `[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}`."
+      schema:
+        type: string
+        pattern: "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$"
+
+  # ── Reusable responses ───────────────────────────────────────────────
+  responses:
+    BadRequest:
+      description: Invalid request.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    Unauthorized:
+      description: Missing or invalid credentials.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    InternalError:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    DPUnauthorized:
+      description: Missing or invalid credentials.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DPError"
+
+    DPInternalError:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DPError"
+
+  # ── Schemas ───────────────────────────────────────────────────────────
+  schemas:
+    # -- Shared error formats --
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Machine-readable error code.
+          example: not_found
+        message:
+          type: string
+          description: Human-readable message.
+          example: instance demo not found
+
+    DPError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Machine-readable error string.
+          example: unauthorized
+
+    # -- Panel: Health --
+    HealthzResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        qdrant:
+          type: string
+          enum: [healthy, unhealthy]
+          description: Present only when a Qdrant health checker is configured.
+
+    # -- Panel: Auth --
+    SessionRequest:
+      type: object
+      required: [purpose]
+      properties:
+        purpose:
+          type: string
+          enum: [sse]
+          description: Purpose of the session token. Currently only "sse" is supported.
+
+    SessionResponse:
+      type: object
+      required: [token, expires_at, purpose]
+      properties:
+        token:
+          type: string
+          description: HMAC-signed session token.
+        expires_at:
+          type: string
+          format: date-time
+          description: Token expiration time (RFC 3339).
+        purpose:
+          type: string
+          enum: [sse]
+
+    # -- Panel: Instances --
+    InstanceItem:
+      type: object
+      required: [id, status, port, created_at]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        port:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        health:
+          $ref: "#/components/schemas/HealthStatus"
+
+    InstanceDetail:
+      type: object
+      required: [id, status, port, created_at, logs]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        port:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        health:
+          $ref: "#/components/schemas/HealthStatus"
+        logs:
+          type: string
+          description: Recent container logs (up to 1 MB).
+        skillset_name:
+          type: string
+        principal_role:
+          type: string
+
+    CreateInstanceRequest:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          description: "Unique instance ID. Must match `[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}`."
+          pattern: "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$"
+        skillset_path:
+          type: string
+          description: Path to the skillset file. Uses server default if omitted.
+        role:
+          type: string
+          description: Principal role for the instance. Uses server default if omitted.
+
+    CreateInstanceResponse:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [provisioning]
+
+    HealthStatus:
+      type: object
+      required: [healthy, ready, checked_at]
+      properties:
+        healthy:
+          type: boolean
+        ready:
+          type: boolean
+        checks:
+          type: object
+          additionalProperties:
+            type: boolean
+          description: Named sub-checks and their pass/fail state.
+        checked_at:
+          type: string
+          format: date-time
+
+    ContainerStats:
+      type: object
+      required: [cpu_percent, memory_used, memory_limit, net_rx_bytes, net_tx_bytes]
+      properties:
+        cpu_percent:
+          type: number
+          format: double
+        memory_used:
+          type: integer
+          format: int64
+        memory_limit:
+          type: integer
+          format: int64
+        net_rx_bytes:
+          type: integer
+          format: int64
+        net_tx_bytes:
+          type: integer
+          format: int64
+
+    # -- Events --
+    Event:
+      type: object
+      required: [id, type, message, created_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        type:
+          type: string
+          description: "Event type (e.g. provision, destroy, error, health_down, health_up)."
+        instance:
+          type: string
+          description: Instance ID this event relates to, if any.
+        message:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    # -- Sources --
+    Source:
+      type: object
+      required: [id, type, name, collection, status, doc_count, chunk_count, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [file, rest]
+        name:
+          type: string
+        collection:
+          type: string
+        status:
+          type: string
+          enum: [pending, ingesting, active, error]
+        doc_count:
+          type: integer
+        chunk_count:
+          type: integer
+        error_detail:
+          type: string
+          description: Error message when status is "error".
+        config:
+          type: object
+          additionalProperties:
+            type: string
+          description: Source-type-specific configuration.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateSourceRequest:
+      type: object
+      required: [id, type, name]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [file, rest]
+        name:
+          type: string
+        collection:
+          type: string
+          description: Qdrant collection name. Uses server default if omitted.
+        config:
+          type: object
+          additionalProperties:
+            type: string
+          description: Source-type-specific configuration.
+
+    # -- Skillsets --
+    SkillsetSummary:
+      type: object
+      required: [name, version, contract_version, tool_count, source_count, filename]
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+          description: Semver version of the skillset.
+        contract_version:
+          type: string
+          description: Semver version of the skillset contract.
+        tool_count:
+          type: integer
+        source_count:
+          type: integer
+        filename:
+          type: string
+          description: On-disk filename.
+
+    SkillsetManifest:
+      type: object
+      required: [name, version, contract_version]
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        contract_version:
+          type: string
+        persona:
+          $ref: "#/components/schemas/Persona"
+        tools:
+          type: array
+          items:
+            $ref: "#/components/schemas/SkillsetTool"
+        data_sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/DataSource"
+        memory:
+          $ref: "#/components/schemas/Memory"
+        ui:
+          $ref: "#/components/schemas/SkillsetUI"
+        capabilities:
+          type: object
+          additionalProperties:
+            type: boolean
+
+    Persona:
+      type: object
+      properties:
+        system_prompt_file:
+          type: string
+
+    SkillsetTool:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [builtin, custom]
+
+    DataSource:
+      type: object
+      required: [binding, query_mode]
+      properties:
+        binding:
+          type: string
+        query_mode:
+          type: string
+          enum: [rag, function_call]
+
+    Memory:
+      type: object
+      properties:
+        provider:
+          type: string
+        config:
+          type: object
+          additionalProperties:
+            type: string
+
+    SkillsetUI:
+      type: object
+      properties:
+        branding:
+          $ref: "#/components/schemas/Branding"
+        removals:
+          type: array
+          items:
+            type: string
+
+    Branding:
+      type: object
+      properties:
+        bot_name:
+          type: string
+        avatar:
+          type: string
+
+    # -- Query --
+    QueryRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          description: Natural language query text.
+        top_k:
+          type: integer
+          default: 5
+          description: Maximum number of results to return.
+
+    DPQueryRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          description: Natural language query text.
+        collection:
+          type: string
+          description: Qdrant collection to search. Uses server default if omitted.
+        top_k:
+          type: integer
+          default: 5
+          description: Maximum number of results to return.
+        source_id:
+          type: string
+          description: Filter results to this source ID.
+        min_score:
+          type: number
+          format: float
+          description: Minimum similarity score threshold. Uses server default if omitted.
+
+    QueryResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/QueryResult"
+
+    QueryResult:
+      type: object
+      required: [score, chunk_idx]
+      properties:
+        text:
+          type: string
+          description: Matched text chunk.
+        score:
+          type: number
+          format: float
+          description: Similarity score.
+        source_id:
+          type: string
+        file:
+          type: string
+          description: Source file path, if applicable.
+        doc_id:
+          type: string
+        chunk_idx:
+          type: integer
+          description: Zero-based chunk index within the document.
+
+    # -- Data Plane: Health --
+    DPHealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+
+    DPReadyzResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ready, not_ready]
+
+    # -- Data Plane: Ingestion --
+    IngestResult:
+      type: object
+      required: [documents_processed, chunks_stored]
+      properties:
+        documents_processed:
+          type: integer
+        chunks_stored:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string
+          description: Non-fatal errors encountered during ingestion.
+        duration_ns:
+          type: integer
+          format: int64
+          description: Ingestion duration in nanoseconds.
+
+security:
+  - bearerAdmin: []

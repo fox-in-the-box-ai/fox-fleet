@@ -1,0 +1,99 @@
+# Production fox-control configuration.
+#
+# Intended for deployment behind TLS with Qdrant, the data plane,
+# structured logging, metrics, and webhooks enabled.
+# Secrets are injected via environment variables — see .env.example.
+
+# ---------- Control plane ----------
+
+[control]
+# Bind to all interfaces; TLS terminates here (see [tls] below).
+listen = "0.0.0.0:9090"
+
+# Writable directory for instance data, event database, skillsets.
+data_root = "/var/lib/fox-control"
+
+# How often (seconds) to poll instance health. Range: 1–3600.
+health_poll_seconds = 15
+
+# Session token lifetime in seconds. Range: 60–3600.
+session_token_ttl_seconds = 600
+
+# Structured JSON logs for log aggregation (text | json).
+log_format = "json"
+
+# Minimum log level (debug | info | warn | error).
+log_level = "info"
+
+# Expose Prometheus-compatible /metrics endpoint.
+metrics_enabled = true
+
+# ---------- TLS ----------
+
+[tls]
+# Both fields are required for TLS; omit both to disable.
+cert_file = "/etc/fox-control/tls/tls.crt"
+key_file  = "/etc/fox-control/tls/tls.key"
+
+# ---------- Docker ----------
+
+[docker]
+# Pin to a digest for reproducible deployments:
+#   image = "ghcr.io/fox-in-the-box-ai/fox@sha256:abc123..."
+image = "ghcr.io/fox-in-the-box-ai/fox:latest"
+
+# ---------- Authentication ----------
+
+[auth]
+# Override via FOX_ADMIN_SECRET env var (minimum 16 characters).
+admin_secret = "${FOX_ADMIN_SECRET}"
+
+# Override via FOX_INSTANCE_PASSWORD env var.
+instance_password = "${FOX_INSTANCE_PASSWORD}"
+
+# ---------- Instances ----------
+
+[instances]
+# First host port assigned to Fox instances.
+port_start = 8787
+
+# Maximum concurrent Fox instances. Ensure port_start + max_instances <= 65535.
+max_instances = 10
+
+# Default skillset applied to new instances (empty = none).
+# default_skillset = "general"
+
+# Default principal role for new instances (empty = none).
+# default_role = "assistant"
+
+# ---------- Qdrant (vector database) ----------
+
+[qdrant]
+enabled   = true
+image     = "qdrant/qdrant:v1.14.1"
+http_port = 6333
+grpc_port = 6334
+# data_dir defaults to <data_root>/qdrant when omitted.
+
+# ---------- Data plane ----------
+
+[data_plane]
+enabled     = true
+listen      = "0.0.0.0:9091"
+collection  = "fox-knowledge"
+vector_size = 1536
+
+# ---------- Embedding provider ----------
+
+[embedding]
+# OpenAI-compatible embedding API endpoint.
+base_url = "http://host.docker.internal:11434"
+model    = "nomic-embed-text"
+# api_key = "${EMBEDDING_API_KEY}"   # Uncomment for providers that require a key.
+
+# ---------- Webhooks ----------
+
+[[webhooks]]
+url    = "https://hooks.example.com/fox-events"
+events = ["instance.created", "instance.deleted", "instance.unhealthy"]
+secret = "${FOX_WEBHOOK_SECRET}"
