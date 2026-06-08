@@ -27,6 +27,8 @@ import (
 
 const testSecret = "test-admin-secret-9f4a"
 
+var testSigningKey = []byte("test-signing-key-32-bytes-long!ab")
+
 // --- compile-time interface checks ---
 
 var (
@@ -113,6 +115,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		MaxInstances: 2,
 		PollInterval: time.Hour,
 		Logger:       logger,
+		SigningKey:   testSigningKey,
 	})
 
 	return &testEnv{

@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -67,6 +68,17 @@ func migrate(db *sql.DB) error {
 	for _, col := range []string{"skillset_name", "principal_role"} {
 		_, _ = db.Exec(fmt.Sprintf(`ALTER TABLE instances ADD COLUMN %s TEXT NOT NULL DEFAULT ''`, col))
 	}
+
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS signing_keys (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		key        BLOB NOT NULL,
+		active     INTEGER NOT NULL DEFAULT 1,
+		created_at TEXT NOT NULL
+	)`)
+	if err != nil {
+		return fmt.Errorf("registry: migrate signing_keys: %w", err)
+	}
+
 	return nil
 }
 
@@ -181,6 +193,59 @@ func (r *Registry) UsedPorts() (map[int]bool, error) {
 		ports[p] = true
 	}
 	return ports, rows.Err()
+}
+
+// ActiveSigningKey returns the currently active HMAC signing key.
+func (r *Registry) ActiveSigningKey() ([]byte, error) {
+	var key []byte
+	err := r.db.QueryRow(`SELECT key FROM signing_keys WHERE active = 1 ORDER BY id DESC LIMIT 1`).Scan(&key)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("registry: no active signing key")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("registry: active signing key: %w", err)
+	}
+	return key, nil
+}
+
+// EnsureSigningKey returns the active signing key, creating one if none exists.
+func (r *Registry) EnsureSigningKey() ([]byte, error) {
+	key, err := r.ActiveSigningKey()
+	if err == nil {
+		return key, nil
+	}
+
+	newKey := make([]byte, 32)
+	if _, err := rand.Read(newKey); err != nil {
+		return nil, fmt.Errorf("registry: generate signing key: %w", err)
+	}
+	_, err = r.db.Exec(
+		`INSERT INTO signing_keys (key, active, created_at) VALUES (?, 1, ?)`,
+		newKey, time.Now().UTC().Format(time.RFC3339),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("registry: insert signing key: %w", err)
+	}
+	return newKey, nil
+}
+
+// RotateSigningKey deactivates the current key and creates a new one.
+func (r *Registry) RotateSigningKey() ([]byte, error) {
+	if _, err := r.db.Exec(`UPDATE signing_keys SET active = 0`); err != nil {
+		return nil, fmt.Errorf("registry: deactivate signing keys: %w", err)
+	}
+	newKey := make([]byte, 32)
+	if _, err := rand.Read(newKey); err != nil {
+		return nil, fmt.Errorf("registry: generate signing key: %w", err)
+	}
+	_, err := r.db.Exec(
+		`INSERT INTO signing_keys (key, active, created_at) VALUES (?, 1, ?)`,
+		newKey, time.Now().UTC().Format(time.RFC3339),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("registry: insert rotated signing key: %w", err)
+	}
+	return newKey, nil
 }
 
 // Close closes the database connection.

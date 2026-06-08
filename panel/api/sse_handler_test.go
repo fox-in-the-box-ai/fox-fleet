@@ -2,7 +2,10 @@ package api
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -16,7 +19,13 @@ import (
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
 )
 
-func newSSETestEnv(t *testing.T) (*Server, *events.Log) {
+type sseTestEnv struct {
+	server *Server
+	elog   *events.Log
+	logBuf *bytes.Buffer
+}
+
+func newSSETestEnv(t *testing.T) *sseTestEnv {
 	t.Helper()
 	dir := t.TempDir()
 	reg, err := registry.Open(filepath.Join(dir, "test.db"))
@@ -24,6 +33,9 @@ func newSSETestEnv(t *testing.T) (*Server, *events.Log) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { reg.Close() })
+
+	var logBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuf, nil))
 
 	elog := events.NewLog(100)
 
@@ -35,31 +47,79 @@ func newSSETestEnv(t *testing.T) (*Server, *events.Log) {
 		InstancePwd:  "test-pwd",
 		MaxInstances: 2,
 		EventLog:     elog,
+		SigningKey:    testSigningKey,
+		Logger:       logger,
 	})
 
-	return srv, elog
+	return &sseTestEnv{server: srv, elog: elog, logBuf: &logBuf}
+}
+
+func getSessionToken(t *testing.T, ts *httptest.Server) string {
+	t.Helper()
+	body := strings.NewReader(`{"purpose":"sse"}`)
+	req, _ := http.NewRequest("POST", ts.URL+"/api/auth/session", body)
+	req.Header.Set("Authorization", "Bearer "+testSecret)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("session endpoint returned %d", resp.StatusCode)
+	}
+	var data struct {
+		Token string `json:"token"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		t.Fatal(err)
+	}
+	return data.Token
 }
 
 func TestSSE_AuthRequired(t *testing.T) {
-	srv, _ := newSSETestEnv(t)
+	env := newSSETestEnv(t)
 	req := httptest.NewRequest("GET", "/api/events/stream", nil)
 	w := httptest.NewRecorder()
-	srv.Handler().ServeHTTP(w, req)
+	env.server.Handler().ServeHTTP(w, req)
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", w.Code)
 	}
 }
 
-func TestSSE_QueryParamAuth(t *testing.T) {
-	srv, _ := newSSETestEnv(t)
+func TestSSE_AdminSecretInQueryRejected(t *testing.T) {
+	env := newSSETestEnv(t)
 
-	ts := httptest.NewServer(srv.Handler())
+	ts := httptest.NewServer(env.server.Handler())
 	defer ts.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream?token="+testSecret, nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for admin secret in query param, got %d", resp.StatusCode)
+	}
+}
+
+func TestSSE_SessionTokenQueryParam(t *testing.T) {
+	env := newSSETestEnv(t)
+
+	ts := httptest.NewServer(env.server.Handler())
+	defer ts.Close()
+
+	token := getSessionToken(t, ts)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream?token="+token, nil)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -87,16 +147,42 @@ func TestSSE_QueryParamAuth(t *testing.T) {
 	}
 }
 
-func TestSSE_StreamsLiveEvents(t *testing.T) {
-	srv, elog := newSSETestEnv(t)
+func TestSSE_CookieAuth(t *testing.T) {
+	env := newSSETestEnv(t)
 
-	ts := httptest.NewServer(srv.Handler())
+	ts := httptest.NewServer(env.server.Handler())
 	defer ts.Close()
+
+	token := getSessionToken(t, ts)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream", nil)
+	req.AddCookie(&http.Cookie{Name: "fox_sse_token", Value: token})
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+}
+
+func TestSSE_StreamsLiveEvents(t *testing.T) {
+	env := newSSETestEnv(t)
+
+	ts := httptest.NewServer(env.server.Handler())
+	defer ts.Close()
+
+	token := getSessionToken(t, ts)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream?token="+testSecret, nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream?token="+token, nil)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -110,7 +196,7 @@ func TestSSE_StreamsLiveEvents(t *testing.T) {
 		}
 	}
 
-	elog.Emit("provision", "fox-test", "test event")
+	env.elog.Emit("provision", "fox-test", "test event")
 
 	var found bool
 	for scanner.Scan() {
@@ -126,19 +212,21 @@ func TestSSE_StreamsLiveEvents(t *testing.T) {
 }
 
 func TestSSE_LastEventIDReplay(t *testing.T) {
-	srv, elog := newSSETestEnv(t)
+	env := newSSETestEnv(t)
 
-	elog.Emit("a", "", "first")
-	elog.Emit("b", "", "second")
-	elog.Emit("c", "", "third")
+	env.elog.Emit("a", "", "first")
+	env.elog.Emit("b", "", "second")
+	env.elog.Emit("c", "", "third")
 
-	ts := httptest.NewServer(srv.Handler())
+	ts := httptest.NewServer(env.server.Handler())
 	defer ts.Close()
+
+	token := getSessionToken(t, ts)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream?token="+testSecret, nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream?token="+token, nil)
 	req.Header.Set("Last-Event-ID", "1")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -167,4 +255,81 @@ func TestSSE_LastEventIDReplay(t *testing.T) {
 	if !strings.Contains(dataLines[1], "third") {
 		t.Errorf("second replay should contain 'third', got: %s", dataLines[1])
 	}
+}
+
+func TestSSE_TokenNotInLogs(t *testing.T) {
+	env := newSSETestEnv(t)
+
+	ts := httptest.NewServer(env.server.Handler())
+	defer ts.Close()
+
+	token := getSessionToken(t, ts)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream?token=bogus-token", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
+	}
+
+	logOutput := env.logBuf.String()
+	if strings.Contains(logOutput, token) {
+		t.Fatal("session token found in log output")
+	}
+	if strings.Contains(logOutput, testSecret) {
+		t.Fatal("admin secret found in log output")
+	}
+	if strings.Contains(logOutput, "bogus-token") {
+		t.Fatal("rejected token value found in log output")
+	}
+}
+
+func TestSessionEndpoint(t *testing.T) {
+	env := newSSETestEnv(t)
+
+	ts := httptest.NewServer(env.server.Handler())
+	defer ts.Close()
+
+	t.Run("success", func(t *testing.T) {
+		token := getSessionToken(t, ts)
+		if token == "" {
+			t.Fatal("empty token returned")
+		}
+	})
+
+	t.Run("no_auth", func(t *testing.T) {
+		body := strings.NewReader(`{"purpose":"sse"}`)
+		req, _ := http.NewRequest("POST", ts.URL+"/api/auth/session", body)
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", resp.StatusCode)
+		}
+	})
+
+	t.Run("bad_purpose", func(t *testing.T) {
+		body := strings.NewReader(`{"purpose":"admin"}`)
+		req, _ := http.NewRequest("POST", ts.URL+"/api/auth/session", body)
+		req.Header.Set("Authorization", "Bearer "+testSecret)
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", resp.StatusCode)
+		}
+	})
 }
