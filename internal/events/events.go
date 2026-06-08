@@ -143,6 +143,10 @@ func (l *Log) SinceID(lastID uint64) []Event {
 	return out
 }
 
+func (l *Log) Store() *Store {
+	return l.store
+}
+
 func (l *Log) SetWebhooks(wd *WebhookDispatcher) {
 	l.webhooks = wd
 }

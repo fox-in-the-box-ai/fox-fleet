@@ -284,6 +284,28 @@ func (s *Server) handleDestroy(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (s *Server) handleHealthHistory(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if !validInstanceID.MatchString(id) {
+		writeError(w, http.StatusBadRequest, "bad_request",
+			fmt.Sprintf("invalid instance ID %q", id))
+		return
+	}
+
+	if s.events == nil || s.events.Store() == nil {
+		writeJSON(w, http.StatusOK, []any{})
+		return
+	}
+
+	since := time.Now().UTC().Add(-24 * time.Hour).Format(time.RFC3339)
+	evts, err := s.events.Store().ByInstance(id, since, 200)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal_error", "cannot retrieve health history")
+		return
+	}
+	writeJSON(w, http.StatusOK, evts)
+}
+
 func (s *Server) handleInstanceStats(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if !validInstanceID.MatchString(id) {

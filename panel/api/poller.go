@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fox-in-the-box-ai/fox-fleet/internal/events"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
 	"github.com/fox-in-the-box-ai/fox-fleet/plugins"
 )
@@ -34,6 +35,7 @@ type HealthPoller struct {
 	autoRestart   AutoRestartConfig
 	unhealthyRuns map[string]int
 	lastRestart   map[string]time.Time
+	events        *events.Log
 }
 
 func (p *HealthPoller) Run(ctx context.Context) {
@@ -97,6 +99,7 @@ loop:
 	}
 
 	p.mu.Lock()
+	oldCache := p.cache
 	if p.qdrant != nil && p.qdrantHealthy != qHealth {
 		if qHealth {
 			p.log.Info("qdrant health restored")
@@ -107,6 +110,22 @@ loop:
 	p.cache = newCache
 	p.qdrantHealthy = qHealth
 	p.mu.Unlock()
+
+	if p.events != nil {
+		for _, r := range results {
+			if r.id == "" {
+				continue
+			}
+			prev, hadPrev := oldCache[r.id]
+			if !hadPrev || prev.Healthy != r.status.Healthy {
+				if r.status.Healthy {
+					p.events.Emitf("health", r.id, "instance %s is healthy", r.id)
+				} else {
+					p.events.Emitf("health", r.id, "instance %s is unhealthy", r.id)
+				}
+			}
+		}
+	}
 
 	if p.autoRestart.Enabled {
 		p.checkAutoRestart(ctx, results)

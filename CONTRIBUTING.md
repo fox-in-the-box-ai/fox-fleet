@@ -18,6 +18,24 @@ Use the issue templates. Bug reports need: steps to reproduce, expected behavior
 - No `Co-authored-by` trailers in commits.
 - No AI tool names in commits, PR descriptions, or code comments.
 
+## Internationalization (i18n)
+
+The panel SPA loads translations from `panel/spa/static/i18n/<locale>.json`. English (`en.json`) is the reference locale.
+
+**Adding a new language:**
+
+1. Copy `en.json` to `<locale>.json` (e.g. `de.json`).
+2. Translate every value. Keep the JSON keys identical to `en.json`.
+3. Add the `<option>` to the language selector in `panel/spa/static/index.html`.
+4. Run `scripts/validate-i18n.sh` — it checks that all locales have the same keys as `en.json`.
+
+**Adding a new UI string:**
+
+1. Add the key and English value to `en.json`.
+2. Add the same key with translated values to every other locale file.
+3. Reference it in HTML with `data-i18n="your.key"` or in JS with `t("your.key")`.
+4. Run `scripts/validate-i18n.sh` to verify key parity.
+
 ## PR checklist
 
 Before requesting review:

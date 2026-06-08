@@ -54,6 +54,27 @@ func (s *Store) Recent(n int) ([]Event, error) {
 	return out, rows.Err()
 }
 
+func (s *Store) ByInstance(instanceID string, since string, limit int) ([]Event, error) {
+	rows, err := s.db.Query(
+		`SELECT id, type, instance, message, created_at FROM events
+		 WHERE instance = ? AND created_at >= ?
+		 ORDER BY id DESC LIMIT ?`, instanceID, since, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("events: by_instance: %w", err)
+	}
+	defer rows.Close()
+	var out []Event
+	for rows.Next() {
+		var e Event
+		if err := rows.Scan(&e.ID, &e.Type, &e.Instance, &e.Message, &e.CreatedAt); err != nil {
+			return nil, fmt.Errorf("events: by_instance scan: %w", err)
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) SinceID(lastID uint64) ([]Event, error) {
 	rows, err := s.db.Query(
 		`SELECT id, type, instance, message, created_at FROM events WHERE id > ? ORDER BY id ASC`, lastID,
