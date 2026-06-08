@@ -13,12 +13,14 @@ var ErrNotFound = errors.New("instance not found")
 
 // Instance represents a provisioned Fox instance in the registry.
 type Instance struct {
-	ID          string `json:"id"`
-	ImageDigest string `json:"image_digest"`
-	Port        int    `json:"port"`
-	DataDir     string `json:"data_dir"`
-	Status      string `json:"status"`
-	CreatedAt   string `json:"created_at"`
+	ID            string `json:"id"`
+	ImageDigest   string `json:"image_digest"`
+	Port          int    `json:"port"`
+	DataDir       string `json:"data_dir"`
+	Status        string `json:"status"`
+	CreatedAt     string `json:"created_at"`
+	SkillsetName  string `json:"skillset_name,omitempty"`
+	PrincipalRole string `json:"principal_role,omitempty"`
 }
 
 // Registry is the SQLite-backed instance store.
@@ -50,15 +52,20 @@ func Open(path string) (*Registry, error) {
 
 func migrate(db *sql.DB) error {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS instances (
-		id           TEXT PRIMARY KEY,
-		image_digest TEXT NOT NULL,
-		port         INTEGER NOT NULL UNIQUE,
-		data_dir     TEXT NOT NULL,
-		status       TEXT NOT NULL DEFAULT 'provisioning',
-		created_at   TEXT NOT NULL
+		id              TEXT PRIMARY KEY,
+		image_digest    TEXT NOT NULL,
+		port            INTEGER NOT NULL UNIQUE,
+		data_dir        TEXT NOT NULL,
+		status          TEXT NOT NULL DEFAULT 'provisioning',
+		created_at      TEXT NOT NULL,
+		skillset_name   TEXT NOT NULL DEFAULT '',
+		principal_role  TEXT NOT NULL DEFAULT ''
 	)`)
 	if err != nil {
 		return fmt.Errorf("registry: migrate: %w", err)
+	}
+	for _, col := range []string{"skillset_name", "principal_role"} {
+		_, _ = db.Exec(fmt.Sprintf(`ALTER TABLE instances ADD COLUMN %s TEXT NOT NULL DEFAULT ''`, col))
 	}
 	return nil
 }
@@ -69,14 +76,16 @@ func (r *Registry) Create(inst Instance) error {
 	if inst.CreatedAt == "" {
 		inst.CreatedAt = time.Now().UTC().Format(time.RFC3339)
 	}
-	_, err := r.db.Exec(`INSERT INTO instances (id, image_digest, port, data_dir, status, created_at)
-		VALUES (?, ?, ?, ?, ?, ?)
+	_, err := r.db.Exec(`INSERT INTO instances (id, image_digest, port, data_dir, status, created_at, skillset_name, principal_role)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			image_digest = excluded.image_digest,
 			port = excluded.port,
 			data_dir = excluded.data_dir,
-			status = excluded.status`,
-		inst.ID, inst.ImageDigest, inst.Port, inst.DataDir, inst.Status, inst.CreatedAt)
+			status = excluded.status,
+			skillset_name = excluded.skillset_name,
+			principal_role = excluded.principal_role`,
+		inst.ID, inst.ImageDigest, inst.Port, inst.DataDir, inst.Status, inst.CreatedAt, inst.SkillsetName, inst.PrincipalRole)
 	if err != nil {
 		return fmt.Errorf("registry: create %s: %w", inst.ID, err)
 	}
@@ -87,8 +96,8 @@ func (r *Registry) Create(inst Instance) error {
 func (r *Registry) Get(id string) (Instance, error) {
 	var inst Instance
 	err := r.db.QueryRow(
-		`SELECT id, image_digest, port, data_dir, status, created_at FROM instances WHERE id = ?`, id,
-	).Scan(&inst.ID, &inst.ImageDigest, &inst.Port, &inst.DataDir, &inst.Status, &inst.CreatedAt)
+		`SELECT id, image_digest, port, data_dir, status, created_at, skillset_name, principal_role FROM instances WHERE id = ?`, id,
+	).Scan(&inst.ID, &inst.ImageDigest, &inst.Port, &inst.DataDir, &inst.Status, &inst.CreatedAt, &inst.SkillsetName, &inst.PrincipalRole)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Instance{}, ErrNotFound
 	}
@@ -101,7 +110,7 @@ func (r *Registry) Get(id string) (Instance, error) {
 // List returns all instances ordered by creation time.
 func (r *Registry) List() ([]Instance, error) {
 	rows, err := r.db.Query(
-		`SELECT id, image_digest, port, data_dir, status, created_at FROM instances ORDER BY created_at`)
+		`SELECT id, image_digest, port, data_dir, status, created_at, skillset_name, principal_role FROM instances ORDER BY created_at`)
 	if err != nil {
 		return nil, fmt.Errorf("registry: list: %w", err)
 	}
@@ -109,7 +118,7 @@ func (r *Registry) List() ([]Instance, error) {
 	var out []Instance
 	for rows.Next() {
 		var inst Instance
-		if err := rows.Scan(&inst.ID, &inst.ImageDigest, &inst.Port, &inst.DataDir, &inst.Status, &inst.CreatedAt); err != nil {
+		if err := rows.Scan(&inst.ID, &inst.ImageDigest, &inst.Port, &inst.DataDir, &inst.Status, &inst.CreatedAt, &inst.SkillsetName, &inst.PrincipalRole); err != nil {
 			return nil, fmt.Errorf("registry: list scan: %w", err)
 		}
 		out = append(out, inst)

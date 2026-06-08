@@ -231,6 +231,62 @@ func TestPortUniqueConstraint(t *testing.T) {
 	}
 }
 
+func TestSkillsetAndRoleColumns(t *testing.T) {
+	reg := tempDB(t)
+	inst := seedInstance("fox-skill", 9010)
+	inst.SkillsetName = "customer-support"
+	inst.PrincipalRole = "agent"
+
+	if err := reg.Create(inst); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := reg.Get("fox-skill")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.SkillsetName != "customer-support" {
+		t.Errorf("SkillsetName = %q, want %q", got.SkillsetName, "customer-support")
+	}
+	if got.PrincipalRole != "agent" {
+		t.Errorf("PrincipalRole = %q, want %q", got.PrincipalRole, "agent")
+	}
+}
+
+func TestSkillsetColumnsDefaultEmpty(t *testing.T) {
+	reg := tempDB(t)
+	if err := reg.Create(seedInstance("fox-no-skill", 9011)); err != nil {
+		t.Fatal(err)
+	}
+	got, err := reg.Get("fox-no-skill")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.SkillsetName != "" {
+		t.Errorf("SkillsetName = %q, want empty", got.SkillsetName)
+	}
+	if got.PrincipalRole != "" {
+		t.Errorf("PrincipalRole = %q, want empty", got.PrincipalRole)
+	}
+}
+
+func TestSkillsetInList(t *testing.T) {
+	reg := tempDB(t)
+	inst := seedInstance("fox-listed", 9012)
+	inst.SkillsetName = "sales"
+	inst.PrincipalRole = "rep"
+	if err := reg.Create(inst); err != nil {
+		t.Fatal(err)
+	}
+	list, err := reg.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].SkillsetName != "sales" || list[0].PrincipalRole != "rep" {
+		t.Errorf("List[0] = %+v, want skillset=sales role=rep", list[0])
+	}
+}
+
 func TestWALEnabled(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "wal-test.db")
 	reg, err := Open(path)

@@ -12,6 +12,7 @@ import (
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/config"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
 	"github.com/fox-in-the-box-ai/fox-fleet/plugins"
+	"github.com/fox-in-the-box-ai/fox-fleet/skillsets"
 )
 
 var (
@@ -117,6 +118,15 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 		return nil, fmt.Errorf("provisioner: %w", err)
 	}
 
+	var skillsetName string
+	if req.SkillsetPath != "" {
+		manifest, err := skillsets.LoadFile(req.SkillsetPath)
+		if err != nil {
+			return nil, fmt.Errorf("provisioner: validate skillset: %w", err)
+		}
+		skillsetName = manifest.Name
+	}
+
 	// --- Critical section: cap check + port alloc + registry reserve ---
 	s.mu.Lock()
 
@@ -153,12 +163,14 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 	now := time.Now().UTC()
 
 	regInst := registry.Instance{
-		ID:          req.InstanceID,
-		ImageDigest: req.Image.Digest,
-		Port:        port,
-		DataDir:     dataDir,
-		Status:      "provisioning",
-		CreatedAt:   now.Format(time.RFC3339),
+		ID:            req.InstanceID,
+		ImageDigest:   req.Image.Digest,
+		Port:          port,
+		DataDir:       dataDir,
+		Status:        "provisioning",
+		CreatedAt:     now.Format(time.RFC3339),
+		SkillsetName:  skillsetName,
+		PrincipalRole: req.PrincipalRole,
 	}
 	if err := s.registry.Create(regInst); err != nil {
 		s.mu.Unlock()
@@ -181,6 +193,20 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 	if err := os.MkdirAll(dataDir, 0o700); err != nil {
 		s.rollback(ctx, req.InstanceID, dataDir, false)
 		return nil, fmt.Errorf("provisioner: create data dir: %w", err)
+	}
+
+	if req.SkillsetPath != "" {
+		src, err := os.ReadFile(req.SkillsetPath)
+		if err != nil {
+			s.rollback(ctx, req.InstanceID, dataDir, false)
+			return nil, fmt.Errorf("provisioner: read skillset: %w", err)
+		}
+		dst := filepath.Join(dataDir, "skillset.yaml")
+		if err := os.WriteFile(dst, src, 0o644); err != nil {
+			s.rollback(ctx, req.InstanceID, dataDir, false)
+			return nil, fmt.Errorf("provisioner: copy skillset: %w", err)
+		}
+		instanceCfg.SkillsetPath = "/data/skillset.yaml"
 	}
 
 	if err := s.configWriter(config.InjectParams{

@@ -58,8 +58,10 @@ type AuthSection struct {
 }
 
 type InstancesSection struct {
-	PortStart    int `toml:"port_start"`
-	MaxInstances int `toml:"max_instances"`
+	PortStart       int    `toml:"port_start"`
+	MaxInstances    int    `toml:"max_instances"`
+	DefaultSkillset string `toml:"default_skillset"`
+	DefaultRole     string `toml:"default_role"`
 }
 
 func LoadConfig(path string) (*Config, error) {

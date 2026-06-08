@@ -15,33 +15,37 @@ import (
 const defaultPollInterval = 15 * time.Second
 
 type Deps struct {
-	Registry       *registry.Registry
-	Provisioner    provisioner.Provisioner
-	Plugin         plugins.DeploymentPlugin
-	AdminSecret    string
-	InstancePwd    string
-	Image          plugins.ImageRef
-	MaxInstances   int
-	PollInterval   time.Duration
-	Logger         *slog.Logger
-	WebFS          fs.FS
-	SourceRegistry *source.Registry
-	DataPlaneURL   string
+	Registry        *registry.Registry
+	Provisioner     provisioner.Provisioner
+	Plugin          plugins.DeploymentPlugin
+	AdminSecret     string
+	InstancePwd     string
+	Image           plugins.ImageRef
+	MaxInstances    int
+	PollInterval    time.Duration
+	Logger          *slog.Logger
+	WebFS           fs.FS
+	SourceRegistry  *source.Registry
+	DataPlaneURL    string
+	DefaultSkillset string
+	DefaultRole     string
 }
 
 type Server struct {
-	registry    *registry.Registry
-	provisioner provisioner.Provisioner
-	plugin      plugins.DeploymentPlugin
-	poller      *HealthPoller
-	secret      []byte
-	instPwd     string
-	image       plugins.ImageRef
-	maxInst     int
-	log         *slog.Logger
-	mux         *http.ServeMux
-	sources     *source.Registry
-	dpURL       string
+	registry        *registry.Registry
+	provisioner     provisioner.Provisioner
+	plugin          plugins.DeploymentPlugin
+	poller          *HealthPoller
+	secret          []byte
+	instPwd         string
+	image           plugins.ImageRef
+	maxInst         int
+	log             *slog.Logger
+	mux             *http.ServeMux
+	sources         *source.Registry
+	dpURL           string
+	defaultSkillset string
+	defaultRole     string
 }
 
 func NewServer(d Deps) *Server {
@@ -53,16 +57,18 @@ func NewServer(d Deps) *Server {
 	}
 
 	s := &Server{
-		registry:    d.Registry,
-		provisioner: d.Provisioner,
-		plugin:      d.Plugin,
-		secret:      []byte(d.AdminSecret),
-		instPwd:     d.InstancePwd,
-		image:       d.Image,
-		maxInst:     d.MaxInstances,
-		log:         d.Logger,
-		sources:     d.SourceRegistry,
-		dpURL:       d.DataPlaneURL,
+		registry:        d.Registry,
+		provisioner:     d.Provisioner,
+		plugin:          d.Plugin,
+		secret:          []byte(d.AdminSecret),
+		instPwd:         d.InstancePwd,
+		image:           d.Image,
+		maxInst:         d.MaxInstances,
+		log:             d.Logger,
+		sources:         d.SourceRegistry,
+		dpURL:           d.DataPlaneURL,
+		defaultSkillset: d.DefaultSkillset,
+		defaultRole:     d.DefaultRole,
 	}
 
 	s.poller = &HealthPoller{

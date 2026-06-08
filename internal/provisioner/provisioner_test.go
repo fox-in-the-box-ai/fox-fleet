@@ -527,6 +527,131 @@ func TestDefaultHealthInterval(t *testing.T) {
 	}
 }
 
+func TestProvisionWithSkillset(t *testing.T) {
+	reg := testRegistry(t)
+	plug := &fakePlugin{}
+	dataRoot := t.TempDir()
+
+	skillsetDir := t.TempDir()
+	skillsetPath := filepath.Join(skillsetDir, "test-skillset.yaml")
+	skillsetContent := `name: customer-support
+version: "1.0.0"
+contract_version: "1.0.0"
+persona:
+  system_prompt_file: prompt.txt
+tools: []
+data_sources: []
+memory:
+  provider: none
+ui:
+  branding:
+    bot_name: Support Bot
+    avatar: ""
+  removals: []
+capabilities: {}
+`
+	if err := os.WriteFile(skillsetPath, []byte(skillsetContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var captured config.InjectParams
+	prov := New(Options{
+		Registry:       reg,
+		Plugin:         plug,
+		ConfigWriter:   func(p config.InjectParams) error { captured = p; return nil },
+		DataRoot:       dataRoot,
+		PortRangeStart: 9100,
+		MaxInstances:   2,
+	})
+
+	req := baseRequest("fox-skill")
+	req.SkillsetPath = skillsetPath
+	req.PrincipalRole = "agent"
+
+	inst, err := prov.Provision(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Provision: %v", err)
+	}
+
+	copiedPath := filepath.Join(inst.DataDir, "skillset.yaml")
+	data, err := os.ReadFile(copiedPath)
+	if err != nil {
+		t.Fatalf("skillset not copied: %v", err)
+	}
+	if !strings.Contains(string(data), "customer-support") {
+		t.Error("copied skillset missing expected content")
+	}
+
+	if captured.Config.SkillsetPath != "/data/skillset.yaml" {
+		t.Errorf("injected SkillsetPath = %q, want /data/skillset.yaml", captured.Config.SkillsetPath)
+	}
+	if captured.Config.PrincipalRole != "agent" {
+		t.Errorf("injected PrincipalRole = %q, want agent", captured.Config.PrincipalRole)
+	}
+
+	regInst, _ := reg.Get("fox-skill")
+	if regInst.SkillsetName != "customer-support" {
+		t.Errorf("registry SkillsetName = %q, want customer-support", regInst.SkillsetName)
+	}
+	if regInst.PrincipalRole != "agent" {
+		t.Errorf("registry PrincipalRole = %q, want agent", regInst.PrincipalRole)
+	}
+}
+
+func TestProvisionWithInvalidSkillset(t *testing.T) {
+	reg := testRegistry(t)
+	plug := &fakePlugin{}
+	dataRoot := t.TempDir()
+
+	skillsetPath := filepath.Join(t.TempDir(), "bad.yaml")
+	if err := os.WriteFile(skillsetPath, []byte("not valid yaml: ["), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	prov := New(Options{
+		Registry:       reg,
+		Plugin:         plug,
+		ConfigWriter:   okConfigWriter,
+		DataRoot:       dataRoot,
+		PortRangeStart: 9100,
+		MaxInstances:   2,
+	})
+
+	req := baseRequest("fox-bad-skill")
+	req.SkillsetPath = skillsetPath
+
+	_, err := prov.Provision(context.Background(), req)
+	if err == nil {
+		t.Fatal("expected error for invalid skillset")
+	}
+	if !strings.Contains(err.Error(), "skillset") {
+		t.Errorf("error should mention skillset: %v", err)
+	}
+}
+
+func TestProvisionWithMissingSkillset(t *testing.T) {
+	reg := testRegistry(t)
+	plug := &fakePlugin{}
+	dataRoot := t.TempDir()
+
+	prov := New(Options{
+		Registry:       reg,
+		Plugin:         plug,
+		ConfigWriter:   okConfigWriter,
+		DataRoot:       dataRoot,
+		PortRangeStart: 9100,
+		MaxInstances:   2,
+	})
+
+	req := baseRequest("fox-missing")
+	req.SkillsetPath = "/nonexistent/skillset.yaml"
+
+	_, err := prov.Provision(context.Background(), req)
+	if err == nil {
+		t.Fatal("expected error for missing skillset file")
+	}
+}
+
 func TestInterfaceCompliance(t *testing.T) {
 	var _ Provisioner = (*service)(nil)
 }

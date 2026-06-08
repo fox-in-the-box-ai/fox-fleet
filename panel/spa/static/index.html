@@ -172,6 +172,8 @@ async function renderList() {
   let html = renderTabs();
   html += '<div class="toolbar">';
   html += '<input type="text" id="new-id" placeholder="Instance ID">';
+  html += '<input type="text" id="new-skillset" placeholder="Skillset path (optional)" style="width:220px">';
+  html += '<input type="text" id="new-role" placeholder="Role (optional)" style="width:140px">';
   html += '<button onclick="createInstance()">Create</button>';
   html += '</div>';
 
@@ -213,6 +215,8 @@ async function renderDetail(id) {
   html += '<dt>Port</dt><dd>' + escapeHtml(String(inst.port)) + '</dd>';
   html += '<dt>Health</dt><dd>' + label + '</dd>';
   if (h && h.checked_at) html += '<dt>Last Check</dt><dd>' + escapeHtml(h.checked_at) + '</dd>';
+  if (inst.skillset_name) html += '<dt>Skillset</dt><dd>' + escapeHtml(inst.skillset_name) + '</dd>';
+  if (inst.principal_role) html += '<dt>Role</dt><dd>' + escapeHtml(inst.principal_role) + '</dd>';
   html += '<dt>Created</dt><dd>' + escapeHtml(inst.created_at || "-") + '</dd>';
   html += '</dl>';
   if (inst.logs) {
@@ -232,10 +236,15 @@ async function createInstance() {
   if (!id) return;
   input.disabled = true;
   try {
+    const payload = { id: id };
+    const skillset = document.getElementById("new-skillset").value.trim();
+    const role = document.getElementById("new-role").value.trim();
+    if (skillset) payload.skillset_path = skillset;
+    if (role) payload.role = role;
     const res = await apiFetch("/api/instances", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: id })
+      body: JSON.stringify(payload)
     });
     if (!res.ok) {
       try { const err = await res.json(); alert(err.message || err.error || "Failed to create instance"); }
@@ -243,6 +252,8 @@ async function createInstance() {
       return;
     }
     input.value = "";
+    document.getElementById("new-skillset").value = "";
+    document.getElementById("new-role").value = "";
     await refresh();
   } finally {
     input.disabled = false;

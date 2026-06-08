@@ -27,16 +27,20 @@ type instanceItem struct {
 }
 
 type instanceDetail struct {
-	ID        string                `json:"id"`
-	Status    string                `json:"status"`
-	Port      int                   `json:"port"`
-	CreatedAt string                `json:"created_at"`
-	Health    *plugins.HealthStatus `json:"health,omitempty"`
-	Logs      string                `json:"logs"`
+	ID            string                `json:"id"`
+	Status        string                `json:"status"`
+	Port          int                   `json:"port"`
+	CreatedAt     string                `json:"created_at"`
+	Health        *plugins.HealthStatus `json:"health,omitempty"`
+	Logs          string                `json:"logs"`
+	SkillsetName  string                `json:"skillset_name,omitempty"`
+	PrincipalRole string                `json:"principal_role,omitempty"`
 }
 
 type createRequest struct {
-	ID string `json:"id"`
+	ID           string `json:"id"`
+	SkillsetPath string `json:"skillset_path,omitempty"`
+	Role         string `json:"role,omitempty"`
 }
 
 type createResponse struct {
@@ -89,10 +93,12 @@ func (s *Server) handleDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := instanceDetail{
-		ID:        inst.ID,
-		Status:    inst.Status,
-		Port:      inst.Port,
-		CreatedAt: inst.CreatedAt,
+		ID:            inst.ID,
+		Status:        inst.Status,
+		Port:          inst.Port,
+		CreatedAt:     inst.CreatedAt,
+		SkillsetName:  inst.SkillsetName,
+		PrincipalRole: inst.PrincipalRole,
 	}
 
 	if hs, ok := s.poller.Get(inst.ID); ok {
@@ -145,6 +151,15 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	skillset := body.SkillsetPath
+	if skillset == "" {
+		skillset = s.defaultSkillset
+	}
+	role := body.Role
+	if role == "" {
+		role = s.defaultRole
+	}
+
 	go func() {
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), provisionTimeout)
 		defer cancel()
@@ -154,6 +169,8 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 			InstancePassword: s.instPwd,
 			Image:            s.image,
 			DataPlaneURL:     s.dpURL,
+			SkillsetPath:     skillset,
+			PrincipalRole:    role,
 		})
 		if err != nil {
 			s.log.Error("background provision failed",
