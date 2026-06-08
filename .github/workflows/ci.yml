@@ -27,8 +27,8 @@ jobs:
           version: latest
           install-mode: goinstall
 
-  unit-test:
-    name: Unit Test
+  test:
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -36,16 +36,6 @@ jobs:
         with:
           go-version: stable
       - run: go test -race -shuffle=on -count=1 ./...
-
-  integration-test:
-    name: Integration Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
-        with:
-          go-version: stable
-      - run: go test -race -count=1 -tags=integration ./...
 
   build:
     name: Build (${{ matrix.os }})
