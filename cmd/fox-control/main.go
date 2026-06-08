@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,8 +14,6 @@ import (
 	"syscall"
 	"text/tabwriter"
 	"time"
-
-	"io/fs"
 
 	"github.com/docker/docker/client"
 	"github.com/spf13/cobra"

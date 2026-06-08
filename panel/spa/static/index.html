@@ -133,11 +133,10 @@ async function renderList() {
     for (const inst of instances) {
       const h = inst.health;
       const dot = h ? (h.healthy ? "healthy" : "unhealthy") : "unknown";
-      const digest = (inst.image_digest || "").substring(0, 19) || "-";
-      html += '<div class="card" onclick="showDetail(\'' + escapeHtml(inst.id) + '\')">';
+      html += '<div class="card" data-action="detail" data-id="' + escapeHtml(inst.id) + '">';
       html += '<div class="card-header"><span class="card-id">' + escapeHtml(inst.id) + '</span><span class="dot ' + dot + '"></span></div>';
       html += '<div class="card-meta">';
-      html += '<span>Port ' + inst.port + '</span>';
+      html += '<span>Port ' + escapeHtml(String(inst.port)) + '</span>';
       html += '<span>Status: ' + escapeHtml(inst.status) + '</span>';
       html += '<span>' + escapeHtml(inst.created_at || "") + '</span>';
       html += '</div></div>';
@@ -159,10 +158,10 @@ async function renderDetail(id) {
   let html = '<button class="btn-back" onclick="showList()">&larr; Back to fleet</button>';
   html += '<div class="detail">';
   html += '<h2><span>' + escapeHtml(inst.id) + ' <span class="dot ' + dot + '"></span></span>';
-  html += '<button class="btn-destroy" onclick="destroyInstance(\'' + escapeHtml(inst.id) + '\')">Destroy</button></h2>';
+  html += '<button class="btn-destroy" data-action="destroy" data-id="' + escapeHtml(inst.id) + '">Destroy</button></h2>';
   html += '<dl class="detail-grid">';
   html += '<dt>Status</dt><dd>' + escapeHtml(inst.status) + '</dd>';
-  html += '<dt>Port</dt><dd>' + inst.port + '</dd>';
+  html += '<dt>Port</dt><dd>' + escapeHtml(String(inst.port)) + '</dd>';
   html += '<dt>Health</dt><dd>' + label + '</dd>';
   if (h && h.checked_at) html += '<dt>Last Check</dt><dd>' + escapeHtml(h.checked_at) + '</dd>';
   html += '<dt>Created</dt><dd>' + escapeHtml(inst.created_at || "-") + '</dd>';
@@ -190,8 +189,8 @@ async function createInstance() {
       body: JSON.stringify({ id: id })
     });
     if (!res.ok) {
-      const err = await res.json();
-      alert(err.message || err.error || "Failed to create instance");
+      try { const err = await res.json(); alert(err.message || err.error || "Failed to create instance"); }
+      catch (_) { alert("Failed to create instance"); }
       return;
     }
     input.value = "";
@@ -205,15 +204,28 @@ async function destroyInstance(id) {
   if (!confirm("Destroy instance " + id + "? This cannot be undone.")) return;
   const remove = confirm("Also remove instance data?");
   const url = "/api/instances/" + encodeURIComponent(id) + (remove ? "?remove_data=true" : "");
-  await apiFetch(url, { method: "DELETE" });
+  const res = await apiFetch(url, { method: "DELETE" });
+  if (!res.ok) {
+    try { const err = await res.json(); alert(err.message || err.error || "Failed to destroy instance"); }
+    catch (_) { alert("Failed to destroy instance"); }
+    return;
+  }
   showList();
 }
 
 function escapeHtml(s) {
+  if (s == null) return "";
   const d = document.createElement("div");
   d.textContent = s;
   return d.innerHTML;
 }
+
+document.getElementById("app").addEventListener("click", function(e) {
+  const card = e.target.closest("[data-action='detail']");
+  if (card) { showDetail(card.dataset.id); return; }
+  const btn = e.target.closest("[data-action='destroy']");
+  if (btn) { destroyInstance(btn.dataset.id); return; }
+});
 </script>
 </body>
 </html>
