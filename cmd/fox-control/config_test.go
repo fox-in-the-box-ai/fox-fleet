@@ -28,7 +28,7 @@ socket = "/var/run/docker.sock"
 image = "ghcr.io/fox/runtime:stable"
 
 [auth]
-admin_secret = "test-secret"
+admin_secret = "test-secret-long-enough"
 instance_password = "test-pass"
 
 [instances]
@@ -51,7 +51,7 @@ func TestLoadConfig_Valid(t *testing.T) {
 	if cfg.Docker.Image != "ghcr.io/fox/runtime:stable" {
 		t.Errorf("Image = %q", cfg.Docker.Image)
 	}
-	if cfg.Auth.AdminSecret != "test-secret" {
+	if cfg.Auth.AdminSecret != "test-secret-long-enough" {
 		t.Errorf("AdminSecret = %q", cfg.Auth.AdminSecret)
 	}
 	if cfg.Auth.InstancePassword != "test-pass" {
@@ -74,7 +74,7 @@ data_root = "/tmp/fox-test"
 image = "ghcr.io/fox/runtime:stable"
 
 [auth]
-admin_secret = "s"
+admin_secret = "default-test-secret-ok"
 instance_password = "p"
 `
 	cfg, err := LoadConfig(writeConfig(t, content))
@@ -303,7 +303,7 @@ data_root = %q
 image = "test:latest"
 
 [auth]
-admin_secret = "s"
+admin_secret = "list-empty-test-secret"
 instance_password = "p"
 `, dir)
 
@@ -557,7 +557,7 @@ data_root = "/tmp/fox-test"
 [docker]
 image = "ghcr.io/fox/runtime:stable"
 [auth]
-admin_secret = "s"
+admin_secret = "collision-test-secret"
 instance_password = "p"
 [instances]
 port_start = 8787
