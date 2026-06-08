@@ -83,13 +83,9 @@ jobs:
 
       - uses: sigstore/cosign-installer@v3
 
-      - uses: anchore/sbom-action/download-syft@v0
+      - uses: anchore/sbom-action/download-syft@95a15b6ca863c73e13e8cf14dd3e41099e032397
         with:
           syft-version: v1.20.0
-
-      - uses: actions/setup-go@v6
-        with:
-          go-version: stable
 
       - uses: actions/download-artifact@v8
         with:
@@ -115,7 +111,8 @@ jobs:
       - name: Generate SBOM
         run: |
           TAG="${{ github.ref_name }}"
-          syft dir:. --output cyclonedx-json=artifacts/fox-control-${TAG}.sbom.cdx.json
+          syft dir:. --select-catalogers go-module-file-cataloger \
+            --output "cyclonedx-json=artifacts/fox-control-${TAG}.sbom.cdx.json"
 
       - name: Generate checksums
         run: |
@@ -205,7 +202,7 @@ jobs:
     steps:
       - uses: sigstore/cosign-installer@v3
 
-      - uses: anchore/sbom-action/download-syft@v0
+      - uses: anchore/sbom-action/download-syft@95a15b6ca863c73e13e8cf14dd3e41099e032397
         with:
           syft-version: v1.20.0
 
@@ -220,8 +217,8 @@ jobs:
           cosign sign --yes \
             ghcr.io/${{ github.repository_owner }}/fox-control@${{ needs.container.outputs.digest }}
 
-      - name: Generate and attach container SBOM
+      - name: Generate and attest container SBOM
         run: |
           IMAGE="ghcr.io/${{ github.repository_owner }}/fox-control@${{ needs.container.outputs.digest }}"
           syft "${IMAGE}" --output cyclonedx-json=/tmp/container-sbom.cdx.json
-          cosign attach sbom --sbom /tmp/container-sbom.cdx.json "${IMAGE}"
+          cosign attest --yes --predicate /tmp/container-sbom.cdx.json --type cyclonedx "${IMAGE}"

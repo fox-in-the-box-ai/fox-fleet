@@ -92,7 +92,7 @@ Replace `v1.0.0` with the version you are verifying.
 
 Each GitHub Release includes a CycloneDX JSON SBOM (`fox-control-<tag>.sbom.cdx.json`) listing Go module dependencies of the `fox-control` binary. The SBOM is signed with cosign alongside the other release artifacts.
 
-The container image has an additional SBOM attached in the registry, covering both the Go binary and the Alpine base image system libraries.
+The container image has an additional SBOM attested in the registry as a signed in-toto attestation, covering both the Go binary and the Alpine base image system libraries.
 
 ### Verifying the binary SBOM signature
 
@@ -105,14 +105,16 @@ cosign verify-blob \
   fox-control-v1.0.0.sbom.cdx.json
 ```
 
-### Downloading the container SBOM
+### Verifying the container SBOM attestation
 
 ```bash
-cosign download sbom \
+cosign verify-attestation --type cyclonedx \
+  --certificate-identity "https://github.com/fox-in-the-box-ai/fox-fleet/.github/workflows/release.yml@refs/tags/v1.0.0" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
   ghcr.io/fox-in-the-box-ai/fox-control@sha256:<digest>
 ```
 
-Replace `<digest>` with the image digest from the release notes or `docker inspect`.
+Replace `v1.0.0` and `<digest>` with the version and image digest you are verifying.
 
 ---
 
@@ -129,4 +131,4 @@ A valid signature does **not** prove:
 
 - That the source code is free of vulnerabilities.
 - That the tag was created by a specific person (tags are not signed with GPG by default).
-- That the binary matches a specific commit (use the SBOM for dependency-level traceability).
+- That the binary matches a specific commit. Use the SBOM for dependency-level traceability.
