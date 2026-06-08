@@ -2,14 +2,17 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"runtime"
 	"syscall"
 	"text/tabwriter"
+	"time"
 
 	"github.com/docker/docker/client"
 	"github.com/spf13/cobra"
@@ -17,6 +20,7 @@ import (
 	conformance "github.com/fox-in-the-box-ai/fox-fleet/conformance/runtime"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/provisioner"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
+	"github.com/fox-in-the-box-ai/fox-fleet/panel/api"
 	"github.com/fox-in-the-box-ai/fox-fleet/plugins/docker"
 )
 
@@ -77,17 +81,59 @@ func newServeCmd() *cobra.Command {
 				return err
 			}
 
-			reg, err := registry.Open(filepath.Join(cfg.Control.DataRoot, "registry.db"))
+			reg, plug, err := openRegistryAndPlugin(cfg)
 			if err != nil {
 				return err
 			}
 			defer reg.Close()
+			defer plug.Close()
 
-			slog.Info("panel server not yet implemented — see PANEL-01",
-				"listen", cfg.Control.Listen)
+			prov := provisioner.New(provisioner.Options{
+				Registry:       reg,
+				Plugin:         plug,
+				DataRoot:       cfg.Control.DataRoot,
+				PortRangeStart: cfg.Instances.PortStart,
+				MaxInstances:   cfg.Instances.MaxInstances,
+			})
 
-			<-cmd.Context().Done()
-			slog.Info("shutting down")
+			pollInterval := time.Duration(cfg.Control.HealthPollSeconds) * time.Second
+
+			apiServer := api.NewServer(api.Deps{
+				Registry:     reg,
+				Provisioner:  prov,
+				Plugin:       plug,
+				AdminSecret:  cfg.Auth.AdminSecret,
+				InstancePwd:  cfg.Auth.InstancePassword,
+				Image:        parseImageRef(cfg.Docker.Image),
+				MaxInstances: cfg.Instances.MaxInstances,
+				PollInterval: pollInterval,
+			})
+
+			ctx := cmd.Context()
+
+			pollerCtx, pollerCancel := context.WithCancel(ctx)
+			defer pollerCancel()
+			go apiServer.Poller().Run(pollerCtx)
+
+			srv := &http.Server{
+				Addr:              cfg.Control.Listen,
+				Handler:           apiServer.Handler(),
+				ReadHeaderTimeout: 10 * time.Second,
+			}
+
+			go func() {
+				<-ctx.Done()
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				if err := srv.Shutdown(shutdownCtx); err != nil {
+					slog.Error("server shutdown error", "error", err)
+				}
+			}()
+
+			slog.Info("panel server listening", "addr", cfg.Control.Listen)
+			if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				return err
+			}
 			return nil
 		},
 	}

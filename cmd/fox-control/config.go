@@ -18,8 +18,9 @@ type Config struct {
 }
 
 type ControlSection struct {
-	Listen   string `toml:"listen"`
-	DataRoot string `toml:"data_root"`
+	Listen            string `toml:"listen"`
+	DataRoot          string `toml:"data_root"`
+	HealthPollSeconds int    `toml:"health_poll_seconds"`
 }
 
 type DockerSection struct {
@@ -69,6 +70,9 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.Instances.MaxInstances == 0 {
 		cfg.Instances.MaxInstances = 2
+	}
+	if cfg.Control.HealthPollSeconds == 0 {
+		cfg.Control.HealthPollSeconds = 15
 	}
 }
 
