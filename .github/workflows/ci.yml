@@ -35,7 +35,17 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: stable
-      - run: go test -race -shuffle=on -count=1 ./...
+      - name: Run tests with coverage
+        run: go test -race -shuffle=on -count=1 -coverprofile=coverage.out ./...
+      - name: Check coverage threshold
+        run: |
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ {print $NF}' | tr -d '%')
+          echo "Total coverage: ${total}%"
+          threshold=45
+          if [ "$(echo "${total} < ${threshold}" | bc)" -eq 1 ]; then
+            echo "::error::Coverage ${total}% is below threshold ${threshold}%"
+            exit 1
+          fi
 
   build:
     name: Build (${{ matrix.os }})
