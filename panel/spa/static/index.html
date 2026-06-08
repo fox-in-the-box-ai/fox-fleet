@@ -579,6 +579,46 @@ body {
   overflow-y: auto;
 }
 
+/* ── Query Results ─────────────────────────────────────────────────── */
+.query-input-row {
+  display: flex; gap: 10px; margin-bottom: 20px;
+}
+.query-input-row .input { flex: 1; }
+.result-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.result-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.result-score {
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 600;
+  color: var(--color-success);
+}
+.result-meta {
+  font-size: 11px; color: var(--color-text-muted);
+  display: flex; gap: 12px; flex-wrap: wrap;
+}
+.result-text {
+  font-size: 13px; line-height: 1.6;
+  margin-top: 8px;
+  white-space: pre-wrap;
+}
+.query-opts {
+  display: flex; gap: 10px; align-items: center;
+  margin-bottom: 12px; font-size: 13px;
+}
+.query-opts label {
+  color: var(--color-text-muted);
+  font-size: 12px; font-weight: 500;
+}
+.query-opts .input { width: 80px; }
+
 /* ── Placeholder Pages ─────────────────────────────────────────────── */
 .placeholder-page {
   text-align: center;
@@ -638,7 +678,7 @@ body {
     <ul class="sb-nav">
       <li><button class="sb-link" data-page="query">
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        Query<span class="soon">Soon</span>
+        Query
       </button></li>
       <li><button class="sb-link" data-page="activity">
         <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
@@ -755,6 +795,7 @@ function refresh() {
   else if (p === "sources") { renderSources(); }
   else if (p === "skillsets" && state.skillsetDetail) { renderSkillsetDetail(state.skillsetDetail); }
   else if (p === "skillsets") { renderSkillsets(); }
+  else if (p === "query") { return; }
   else { renderPlaceholder(p); }
   document.getElementById("last-updated").textContent = "Updated " + new Date().toLocaleTimeString();
 }
@@ -773,6 +814,7 @@ function navigate(page) {
     query: "Query", activity: "Activity", settings: "Settings"
   };
   document.getElementById("page-title").textContent = titles[page] || page;
+  if (page === "query") { renderQuery(); return; }
   refresh();
 }
 
@@ -1233,11 +1275,93 @@ function showDeleteSkillsetModal(name) {
   });
 }
 
+/* ── Query Playground ──────────────────────────────────────────────── */
+
+function renderQuery() {
+  var content = document.getElementById("content");
+  document.getElementById("page-meta").textContent = "";
+
+  content.innerHTML = '<div class="query-input-row">'
+    + '<input class="input" id="q-input" placeholder="Search your organizational knowledge..." autofocus>'
+    + '<button class="btn btn-primary" id="q-submit">Query</button>'
+    + '</div>'
+    + '<div class="query-opts">'
+    + '<label>Top K</label><input class="input" id="q-topk" type="number" value="5" min="1" max="50">'
+    + '<label>Source</label><input class="input" id="q-source" placeholder="All" style="width:140px">'
+    + '</div>'
+    + '<div id="q-results"></div>';
+
+  document.getElementById("q-submit").addEventListener("click", doQuery);
+  document.getElementById("q-input").addEventListener("keydown", function(e) {
+    if (e.key === "Enter") doQuery();
+  });
+}
+
+function doQuery() {
+  var query = document.getElementById("q-input").value.trim();
+  if (!query) return;
+  var topk = parseInt(document.getElementById("q-topk").value, 10) || 5;
+  var sourceId = document.getElementById("q-source").value.trim();
+  var btn = document.getElementById("q-submit");
+  var results = document.getElementById("q-results");
+  btn.disabled = true;
+  btn.textContent = "Searching...";
+  results.innerHTML = skeletonCards(2);
+
+  var payload = { query: query, top_k: topk };
+  if (sourceId) payload.source_id = sourceId;
+
+  apiFetch("/api/query", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  }).then(function(res) {
+    if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || "Query failed"); });
+    return res.json();
+  }).then(function(data) {
+    btn.disabled = false;
+    btn.textContent = "Query";
+    var items = data.results || [];
+    document.getElementById("page-meta").textContent = items.length + " result" + (items.length !== 1 ? "s" : "");
+
+    if (items.length === 0) {
+      results.innerHTML = '<div class="empty-state">'
+        + '<svg class="empty-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
+        + '<div class="empty-title">No results found</div>'
+        + '<div class="empty-desc">Try a different query or check that sources have been ingested.</div>'
+        + '</div>';
+      return;
+    }
+
+    var html = '';
+    for (var i = 0; i < items.length; i++) {
+      var r = items[i];
+      var score = (r.score * 100).toFixed(1);
+      html += '<div class="result-card">'
+        + '<div class="result-header">'
+        + '<div class="result-meta">';
+      if (r.file) html += '<span>File: ' + esc(r.file) + '</span>';
+      if (r.source_id) html += '<span>Source: ' + esc(r.source_id) + '</span>';
+      if (r.chunk_idx !== undefined) html += '<span>Chunk: ' + r.chunk_idx + '</span>';
+      html += '</div>'
+        + '<span class="result-score">' + score + '%</span>'
+        + '</div>'
+        + '<div class="result-text">' + esc(r.text) + '</div>'
+        + '</div>';
+    }
+    results.innerHTML = html;
+  }).catch(function(e) {
+    btn.disabled = false;
+    btn.textContent = "Query";
+    results.innerHTML = '';
+    if (e.message !== "Unauthorized") showToast(e.message);
+  });
+}
+
 /* ── Placeholder Pages ─────────────────────────────────────────────── */
 
 function renderPlaceholder(page) {
   var descs = {
-    query: "Test knowledge retrieval by querying the data plane directly.",
     activity: "View a chronological feed of fleet events and state changes.",
     settings: "Configure fleet defaults, data plane connection, and panel preferences."
   };
