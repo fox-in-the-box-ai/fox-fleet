@@ -7,22 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0-alpha] - 2026-06-08
+
 ### Added
 
 - **DP-01:** Qdrant vector DB container management — shared sidecar lifecycle, health polling, auto-start with provisioner (#51)
 - **PLAT-01:** Skillset manifest spec — YAML schema, parser, validator, and conformance tests (#51)
-- **DP-02:** File ingestion connector — local file/directory upload, chunking, embedding, Qdrant upsert with 50 MB limit
-- **DP-03:** REST ingestion connector — paginated JSON API fetch, SSRF protection, 1000-page limit, bearer auth
-- **DP-07a:** Source management API — SQLite registry, admin CRUD endpoints with auth, ingest trigger
-- Data plane server with health/readyz probes, public source listing, admin auth via `crypto/subtle`
-- Text chunker — 512-token fixed-size with 64-token overlap, rune-aware Unicode support
-- Embedding client — OpenAI-compatible HTTP API adapter
-- Qdrant REST client — collection CRUD, point upsert, vector search with payload filtering
-- **DP-05:** Query API — `POST /v1/query` with embedding + vector search, source filtering, top-k control, 503 on infra failure
-- **DP-08:** Panel sources view — tabbed UI with Instances/Sources navigation, source table with status badges, auto-refresh
-- **PLAT-02:** Hermes adapter — panel wires source registry and data plane URL through to provisioner when data plane is enabled
-- **PLAT-03:** Data plane agent plugin — config injection writes `tools.json` with `knowledge_query` tool manifest (URL, auth header, parameters)
-- **PLAT-10:** Skillset + role assignment — provisioner validates and copies skillset manifests, registry stores skillset name and principal role, panel create accepts optional skillset path and role with config defaults, detail view shows assigned skillset and role
+- **DP-02:** File ingestion connector — local file/directory upload, chunking, embedding, Qdrant upsert with 50 MB limit (#52)
+- **DP-03:** REST ingestion connector — paginated JSON API fetch, SSRF protection, 1000-page limit, bearer auth (#52)
+- **DP-07a:** Source management API — SQLite registry, admin CRUD endpoints with auth, ingest trigger (#52)
+- Data plane server with health/readyz probes, public source listing, admin auth via `crypto/subtle` (#52)
+- Text chunker — 512-token fixed-size with 64-token overlap, rune-aware Unicode support (#52)
+- Embedding client — OpenAI-compatible HTTP API adapter (#52)
+- Qdrant REST client — collection CRUD, point upsert, vector search with payload filtering (#52)
+- **DP-05:** Query API — `POST /v1/query` with embedding + vector search, source filtering, top-k control, 503 on infra failure (#53)
+- **DP-08:** Panel sources view — tabbed UI with Instances/Sources navigation, source table with status badges, auto-refresh (#54)
+- **PLAT-02:** Hermes adapter — panel wires source registry and data plane URL through to provisioner when data plane is enabled (#54)
+- **PLAT-03:** Data plane agent plugin — config injection writes `tools.json` with `knowledge_query` tool manifest (URL, auth header, parameters) (#54)
+- **PLAT-10:** Skillset + role assignment — provisioner validates and copies skillset manifests, registry stores skillset name and principal role, panel create accepts optional skillset path and role with config defaults, detail view shows assigned skillset and role (#55)
 
 ## [0.1.0-alpha] - 2026-06-08
 
