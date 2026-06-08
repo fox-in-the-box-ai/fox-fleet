@@ -277,7 +277,7 @@ Fox Fleet's auth model uses shared secrets (not OIDC/mTLS — those are Fleet En
 
 [Apache License 2.0](LICENSE)
 
-Copyright 2026 Fox in the Box AI
+Copyright 2026 Vulpy, Inc.
 
 ---
 
