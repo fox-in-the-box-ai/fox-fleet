@@ -28,6 +28,7 @@ func (s *Server) handleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	proxyReq.Header.Set("Content-Type", "application/json")
+	proxyReq.Header.Set("Authorization", "Bearer "+string(s.secret))
 
 	resp, err := http.DefaultClient.Do(proxyReq)
 	if err != nil {
