@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-06-09
+
+### Fixed
+
+- **C-01:** Wire data-plane HTTP server into `fox-control` binary — was defined but never started
+- **C-02:** Wire `AutoRestart` config through `Deps` to `HealthPoller` — threshold and cooldown were ignored
+- **C-03:** Run container as non-root user 65532 in Dockerfile
+- **C-04:** Set `CGO_ENABLED=0` in Dockerfile for pure-Go modernc/sqlite build
+- **C-05:** Remove `MemoryDenyWriteExecute=true` from systemd unit — incompatible with modernc/sqlite JIT
+- **C-06:** Replace stale `--dest`/`--from` CLI flag references with `--output`/`--input` in operator handbook
+- **C-07:** Correct OpenAPI spec version to 1.4.1 and license to Apache-2.0
+- **H-01:** Add Google Fonts domains to CSP `style-src` and `font-src` directives
+- **H-02:** Wire `RateLimitSection` from config into `Deps` — rate limit settings were parsed but not forwarded
+- **H-03:** Update install docs version references from v1.0.0 to v1.4.1
+- **H-04:** Surface Qdrant health in `/healthz` — returns `"degraded"` when Qdrant is unhealthy
+- **H-05:** Add `?token=` query-param fallback for SSE auth (EventSource cannot set headers)
+- **H-06:** Add actionable CTA to sources empty state with i18n (en/es/fr)
+- **H-07:** Add `tabindex` and keyboard event handlers to interactive table rows for accessibility
+
 ## [1.4.0] - 2026-06-08
 
 ### Added
