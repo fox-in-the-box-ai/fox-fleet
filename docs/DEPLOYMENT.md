@@ -53,7 +53,7 @@ FOX_INSTANCE_PASSWORD=<your-generated-password>
 Optional overrides:
 
 ```bash
-FOX_VERSION=latest          # pin to a release tag (e.g. 1.0.0)
+FOX_VERSION=latest          # pin to a release tag (e.g. 1.4.2)
 FOX_LISTEN_PORT=9090        # host port for the panel
 QDRANT_HTTP_PORT=6333       # host port for Qdrant HTTP
 QDRANT_GRPC_PORT=6334       # host port for Qdrant gRPC
