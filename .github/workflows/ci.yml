@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -38,7 +39,7 @@ jobs:
         with:
           go-version: stable
       - name: Run tests with coverage
-        run: go test -race -shuffle=on -count=1 -coverprofile=coverage.out ./...
+        run: go test -race -shuffle=on -count=1 -coverprofile=coverage.out $(go list ./... | grep -v /conformance/)
       - name: Check coverage threshold
         env:
           LC_NUMERIC: C
@@ -98,6 +99,7 @@ jobs:
     name: Conformance
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 

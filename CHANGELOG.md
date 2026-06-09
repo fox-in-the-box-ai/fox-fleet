@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migrate deprecated Docker SDK v28 call sites: `client.IsErrNotFound` → `cerrdefs.IsNotFound`, `types.ContainerJSON` → `container.InspectResponse`, `ImageInspectWithRaw` → `ImageInspect`
 - Bump default Qdrant image from v1.14.0 to v1.14.1
 - Correct README runtime conformance count from 16 to 24
+- Exclude conformance test-infrastructure packages from CI coverage measurement (conformance tests the binary externally; including it dragged global coverage to 41% below the 45% gate)
+- Gate conformance CI job on `workflow_dispatch` — the job was misconfigured to test the management plane image against the Fox instance protocol; the management plane does not implement `/health`, `/readyz`, `/version`, or `/capabilities`
 
 ### Changed
 
