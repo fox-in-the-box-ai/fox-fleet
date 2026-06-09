@@ -6,7 +6,7 @@
 
 Open-source management plane for [Fox in the Box](https://github.com/fox-in-the-box-ai/fox-in-the-box) AI assistants. One binary, one config file, one Docker host — provision, monitor, update, and destroy a fleet of Fox instances through a CLI and browser-based panel.
 
-> **Status: v1.4.2 GA.** Production-ready. Signed releases (cosign + SBOM), conformance in CI, full deployment paths (Compose / Helm / systemd / Homebrew / apt / container image).
+> **Status: v1.4.2 GA.** Production-ready. Signed releases (cosign + SBOM), conformance suite, full deployment paths (Compose / Helm / systemd / Homebrew / apt / container image).
 
 ---
 
@@ -202,7 +202,7 @@ fox-cloud (Commercial)         Hosted product
 | **v0.1** | Management plane MVP — provision, monitor, update, destroy through CLI and panel | Shipped (0.1.0-alpha) |
 | **v0.2** | Data plane — organizational knowledge (ingestion, vector search, query API, skillsets) | Shipped (0.2.0-alpha) |
 | **v0.3** | Product polish — branded UI, i18n, dark mode, mobile, SSE, deployment infra, docs | Shipped (0.3.0-alpha) |
-| **v1.0** | Apache GA — conformance CI, cosign + SBOM, full deployment paths, all PRODUCTS.md promises | Shipped (1.0.0) |
+| **v1.0** | Apache GA — conformance suite, cosign + SBOM, full deployment paths, all PRODUCTS.md promises | Shipped (1.0.0) |
 | **v1.0.1** | SSE auth hardened (session tokens), data plane query auth | Shipped (1.0.1) |
 | **v1.1** | Security hardening — file permissions, SSRF, path traversal, WriteTimeout, env blocklist, security headers, persistent events | Shipped (1.1.0) |
 | **v1.2** | Operations — Prometheus metrics, built-in TLS, backup CLI, diagnostics, webhooks, structured logging, rate limiting | Shipped (1.2.0) |
