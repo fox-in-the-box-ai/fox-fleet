@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **LOOSE-02:** Repair broken `README.md` link in DEPLOYMENT.md
 - **LOOSE-03:** Ratify ADR-0015 — binary integration tests required; add PR template checklist item
 - Prevent nil pointer crash in health poller when Qdrant is disabled (Go nil-interface footgun: nil `*qdrant.Client` assigned to interface became non-nil)
+- Migrate deprecated Docker SDK v28 call sites: `client.IsErrNotFound` → `cerrdefs.IsNotFound`, `types.ContainerJSON` → `container.InspectResponse`, `ImageInspectWithRaw` → `ImageInspect`
+- Bump default Qdrant image from v1.14.0 to v1.14.1
+- Correct README runtime conformance count from 16 to 24
 
 ### Changed
 
@@ -30,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Regression test `TestPollerQdrantDisabledNoPanic` for the nil pointer crash fix
+- CI status checklist item in PR template
 - Documentation completeness audit (`docs/audits/DOC_COMPLETENESS_v1.4.2.md`) — 54 markdown files, 14 doc.go files, OpenAPI spec, Makefile, and Helm chart verified against actual codebase
 - Screenshot matrix (`docs/screenshots/`) — 142 screenshots across 7 views × 2 themes × 3 locales × 3 viewports plus interactive states
 - Operator walkthrough (`docs/walkthroughs/first-deployment.md`) — step-by-step guide from clone to running instance with visual references
