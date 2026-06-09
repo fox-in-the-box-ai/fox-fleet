@@ -43,21 +43,31 @@ curl http://localhost:9090/healthz
 
 Open `http://localhost:9090` in your browser.
 
-**What you see:** A login screen with the Fox Fleet branding — dark header bar, Fox logo, and a single input field for the admin secret.
+**What you see:** The auth screen with Fox Fleet branding, a tagline, and a
+single password field for the admin secret.
+
+![Auth screen](screenshots/auth-light-en-desktop.png)
 
 1. Paste your `FOX_ADMIN_SECRET` (`demo-secret-do-not-use-in-production` if using demo values).
-2. Click **Log In**.
+2. Click **Connect**.
 
-**What you see next:** The dashboard with three main navigation tabs: **Instances**, **Sources**, and **Skillsets**. The instances tab is active and shows an empty state — no Fox instances running yet.
+**What you see next:** The app shell with a sidebar containing six navigation
+items in three sections — **Manage** (Instances, Sources, Skillsets),
+**Observe** (Query, Activity), and **Configure** (Settings). The Instances
+view is active and shows an empty state — no Fox instances running yet.
+
+![Empty instances](screenshots/instances-light-en-desktop.png)
 
 ---
 
 ## Scene 3: Provision your first Fox instance
 
-1. Click the **Create Instance** button.
-2. In the dialog, enter an instance ID: `fox-1`.
+1. Click **Provision Instance** (or **Create Instance** in the empty state).
+2. In the modal, enter an instance ID: `fox-1`.
 3. (Optional) Select a skillset and role if you have them configured.
 4. Click **Create**.
+
+![Provision modal](screenshots/modal-provision-light-en-desktop.png)
 
 **What happens behind the scenes:** fox-control allocates port 8787, writes instance config files (`config.yaml`, `settings.json`, `hermes.env`), pulls the Fox image if not cached, and starts a Docker container.
 
@@ -90,8 +100,8 @@ The detail view auto-updates — if the instance health changes, you see it with
 
 ## Scene 5: Provision a second instance
 
-1. Go back to the Instances tab.
-2. Click **Create Instance** again.
+1. Go back to the Instances view.
+2. Click **Provision Instance** again.
 3. ID: `fox-2`.
 4. Click **Create**.
 
@@ -105,7 +115,7 @@ The activity feed shows both provisioning events interleaved.
 
 If the data plane is enabled (default in the Docker Compose stack), you can ingest documents for your Fox instances to query.
 
-1. Switch to the **Sources** tab.
+1. Switch to **Sources** in the sidebar (under **Manage**).
 2. Click a source to see its details — status, document count, last ingestion time.
 
 Via API (since file upload requires curl):
@@ -127,7 +137,7 @@ The Sources tab updates to show the new source with its ingestion status.
 
 ## Scene 7: Query the knowledge base
 
-1. Switch to the **Query** tab (under Sources).
+1. Switch to **Query** in the sidebar (under **Observe**).
 
 Via API:
 
@@ -144,7 +154,7 @@ curl -X POST http://localhost:9090/api/query \
 
 ## Scene 8: Manage skillsets
 
-1. Switch to the **Skillsets** tab.
+1. Switch to **Skillsets** in the sidebar (under **Manage**).
 
 **What you see:** A list of uploaded skillset manifests. Each skillset defines the tools and capabilities available to Fox instances.
 
@@ -162,11 +172,14 @@ Skillsets appear in the create-instance dialog and can be assigned to new instan
 
 ## Scene 9: Dark mode and language
 
-1. In the top bar, click the **theme toggle** (sun/moon icon).
+1. In the sidebar footer, change the **Theme** dropdown from **System** to **Dark**.
 
-**What you see:** The entire panel switches to dark mode — dark background, light text, the Fox palette adapts. The preference is saved in your browser.
+**What you see:** The entire panel switches to dark mode — dark background,
+light text, the Fox palette adapts. The preference is saved in your browser.
 
-2. Click the **language selector** and switch to **Espaol**.
+![Dark theme](screenshots/instances-dark-en-desktop.png)
+
+2. Change the **Language** dropdown to **Español**.
 
 **What you see:** All UI text switches to Spanish. Navigation labels, buttons, table headers, status badges, toast messages — everything updates. Switch back to English anytime.
 
@@ -182,7 +195,11 @@ Resize your browser window to a narrow width (below 768px), or open DevTools and
 - Tables become scrollable.
 - The detail views and modals adapt to full-width.
 
-Tap the hamburger to slide the sidebar in as an overlay. Tap the overlay or press Escape to close it.
+Tap the hamburger to slide the sidebar in as an overlay. Tap the overlay or
+press Escape to close it.
+
+![Mobile view](screenshots/instances-light-en-mobile.png)
+![Sidebar open on mobile](screenshots/sidebar-open-light-en-mobile.png)
 
 ---
 
