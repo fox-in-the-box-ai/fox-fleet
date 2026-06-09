@@ -331,14 +331,17 @@ func (s *Server) clearInFlight(id string) {
 }
 
 func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
-	resp := map[string]any{"status": "ok"}
+	status := "ok"
+	resp := map[string]any{}
 	if s.poller.qdrant != nil {
 		if s.poller.QdrantHealthy() {
 			resp["qdrant"] = "healthy"
 		} else {
 			resp["qdrant"] = "unhealthy"
+			status = "degraded"
 		}
 	}
+	resp["status"] = status
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)
 }

@@ -61,6 +61,7 @@
   "dest.destroyed": "Instance {id} destroyed",
   "src.empty_title": "Connect your knowledge",
   "src.empty_desc": "Add file or REST sources to give your assistants access to organizational knowledge.",
+  "src.empty_cta": "Use the Data Plane API (POST /v1/admin/sources) to create your first source.",
   "src.name": "Name",
   "src.type": "Type",
   "src.status": "Status",

@@ -25,6 +25,9 @@ import (
 
 	plugconf "github.com/fox-in-the-box-ai/fox-fleet/conformance/plugin"
 	conformance "github.com/fox-in-the-box-ai/fox-fleet/conformance/runtime"
+	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/embedding"
+	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/qdrant"
+	dpserver "github.com/fox-in-the-box-ai/fox-fleet/data-plane/server"
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/source"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/config"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/events"
@@ -150,6 +153,35 @@ func newServeCmd() *cobra.Command {
 				}
 			}
 
+			var vectorClient *qdrant.Client
+			if cfg.Qdrant.Enabled {
+				qdrantURL := fmt.Sprintf("http://127.0.0.1:%d", cfg.Qdrant.HTTPPort)
+				vectorClient = qdrant.NewClient(qdrantURL)
+			}
+
+			var dpSrv *http.Server
+			if cfg.DataPlane.Enabled {
+				embedClient := embedding.NewClient(embedding.Config{
+					BaseURL: cfg.Embedding.BaseURL,
+					APIKey:  cfg.Embedding.APIKey,
+					Model:   cfg.Embedding.Model,
+				})
+
+				dpS := dpserver.New(dpserver.Config{
+					Listen:      cfg.DataPlane.Listen,
+					AdminSecret: cfg.Auth.AdminSecret,
+					Collection:  cfg.DataPlane.Collection,
+					VectorSize:  cfg.DataPlane.VectorSize,
+				}, srcReg, embedClient, vectorClient, nil, dpserver.WithTokenValidator(reg))
+
+				dpSrv = &http.Server{
+					Addr:              cfg.DataPlane.Listen,
+					Handler:           dpS.Handler(),
+					ReadHeaderTimeout: 10 * time.Second,
+					WriteTimeout:      300 * time.Second,
+				}
+			}
+
 			signingKey, err := reg.EnsureSigningKey()
 			if err != nil {
 				return fmt.Errorf("cannot initialize signing key: %w", err)
@@ -190,24 +222,32 @@ func newServeCmd() *cobra.Command {
 			metricsEnabled := cfg.Control.MetricsEnabled == nil || *cfg.Control.MetricsEnabled
 
 			apiServer := api.NewServer(api.Deps{
-				Registry:        reg,
-				Provisioner:     prov,
-				Plugin:          plug,
-				AdminSecret:     cfg.Auth.AdminSecret,
-				InstancePwd:     cfg.Auth.InstancePassword,
-				Image:           imageRef,
-				MaxInstances:    cfg.Instances.MaxInstances,
-				PollInterval:    pollInterval,
-				WebFS:           webFS,
-				SourceRegistry:  srcReg,
-				DataPlaneURL:    dpURL,
-				DefaultSkillset: cfg.Instances.DefaultSkillset,
-				DefaultRole:     cfg.Instances.DefaultRole,
-				SkillsetsDir:    filepath.Join(cfg.Control.DataRoot, "skillsets"),
-				EventLog:        eventLog,
-				SigningKey:      signingKey,
-				SessionTokenTTL: sessionTTL,
-				MetricsEnabled:  metricsEnabled,
+				Registry:           reg,
+				Provisioner:        prov,
+				Plugin:             plug,
+				AdminSecret:        cfg.Auth.AdminSecret,
+				InstancePwd:        cfg.Auth.InstancePassword,
+				Image:              imageRef,
+				MaxInstances:       cfg.Instances.MaxInstances,
+				PollInterval:       pollInterval,
+				WebFS:              webFS,
+				SourceRegistry:     srcReg,
+				DataPlaneURL:       dpURL,
+				DefaultSkillset:    cfg.Instances.DefaultSkillset,
+				DefaultRole:        cfg.Instances.DefaultRole,
+				SkillsetsDir:       filepath.Join(cfg.Control.DataRoot, "skillsets"),
+				EventLog:           eventLog,
+				SigningKey:         signingKey,
+				SessionTokenTTL:    sessionTTL,
+				MetricsEnabled:     metricsEnabled,
+				QdrantHealth:       vectorClient,
+				RateLimit:          cfg.RateLimit.RequestsPerMinute,
+				ProvisionRateLimit: cfg.RateLimit.ProvisionPerMinute,
+				AutoRestart: api.AutoRestartConfig{
+					Enabled:   cfg.AutoRestart.Enabled,
+					Threshold: cfg.AutoRestart.Threshold,
+					Cooldown:  time.Duration(cfg.AutoRestart.CooldownSeconds) * time.Second,
+				},
 			})
 
 			ctx := cmd.Context()
@@ -223,11 +263,25 @@ func newServeCmd() *cobra.Command {
 				WriteTimeout:      30 * time.Second,
 			}
 
+			if dpSrv != nil {
+				go func() {
+					slog.Info("data plane server listening", "addr", dpSrv.Addr)
+					if err := dpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+						slog.Error("data plane server error", "error", err)
+					}
+				}()
+			}
+
 			go func() {
 				<-ctx.Done()
 				slog.Info("shutting down: stopping new requests")
 				shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
+				if dpSrv != nil {
+					if err := dpSrv.Shutdown(shutdownCtx); err != nil {
+						slog.Error("data plane shutdown error", "error", err)
+					}
+				}
 				if err := srv.Shutdown(shutdownCtx); err != nil {
 					slog.Error("server shutdown error", "error", err)
 				}

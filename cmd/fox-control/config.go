@@ -13,15 +13,23 @@ import (
 )
 
 type Config struct {
-	Control   ControlSection   `toml:"control"`
-	Docker    DockerSection    `toml:"docker"`
-	Auth      AuthSection      `toml:"auth"`
-	Instances InstancesSection `toml:"instances"`
-	Qdrant    QdrantSection    `toml:"qdrant"`
-	DataPlane DataPlaneSection `toml:"data_plane"`
-	Embedding EmbeddingSection `toml:"embedding"`
-	TLS       TLSSection       `toml:"tls"`
-	Webhooks  []WebhookConfig  `toml:"webhooks"`
+	Control     ControlSection     `toml:"control"`
+	Docker      DockerSection      `toml:"docker"`
+	Auth        AuthSection        `toml:"auth"`
+	Instances   InstancesSection   `toml:"instances"`
+	Qdrant      QdrantSection      `toml:"qdrant"`
+	DataPlane   DataPlaneSection   `toml:"data_plane"`
+	Embedding   EmbeddingSection   `toml:"embedding"`
+	TLS         TLSSection         `toml:"tls"`
+	Webhooks    []WebhookConfig    `toml:"webhooks"`
+	RateLimit   RateLimitSection   `toml:"rate_limit"`
+	AutoRestart AutoRestartSection `toml:"auto_restart"`
+}
+
+type AutoRestartSection struct {
+	Enabled         bool `toml:"enabled"`
+	Threshold       int  `toml:"threshold"`
+	CooldownSeconds int  `toml:"cooldown_seconds"`
 }
 
 type QdrantSection struct {
@@ -133,6 +141,12 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.Control.LogLevel == "" {
 		cfg.Control.LogLevel = "info"
+	}
+	if cfg.AutoRestart.Threshold == 0 {
+		cfg.AutoRestart.Threshold = 3
+	}
+	if cfg.AutoRestart.CooldownSeconds == 0 {
+		cfg.AutoRestart.CooldownSeconds = 300
 	}
 	if cfg.DataPlane.Listen == "" {
 		cfg.DataPlane.Listen = "127.0.0.1:9091"

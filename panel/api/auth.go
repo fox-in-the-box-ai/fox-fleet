@@ -49,5 +49,8 @@ func extractSessionToken(r *http.Request) string {
 	if c, err := r.Cookie("fox_sse_token"); err == nil && c.Value != "" {
 		return c.Value
 	}
+	if t := r.URL.Query().Get("token"); t != "" {
+		return t
+	}
 	return ""
 }

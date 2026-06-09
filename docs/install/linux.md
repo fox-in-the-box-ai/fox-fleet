@@ -14,7 +14,7 @@ curl -fsSL https://raw.githubusercontent.com/fox-in-the-box-ai/fox-fleet/main/in
 Pin a version:
 
 ```bash
-FOX_VERSION=1.0.0 curl -fsSL https://raw.githubusercontent.com/fox-in-the-box-ai/fox-fleet/main/install.sh | bash
+FOX_VERSION=1.4.1 curl -fsSL https://raw.githubusercontent.com/fox-in-the-box-ai/fox-fleet/main/install.sh | bash
 ```
 
 The script auto-detects your architecture, downloads the release
@@ -26,7 +26,7 @@ Verify:
 
 ```bash
 fox-control version
-# fox-control v1.0.0 (commit ..., built ...)
+# fox-control v1.4.1 (commit ..., built ...)
 ```
 
 Uninstall:
@@ -44,12 +44,12 @@ Download the `.deb` package from
 
 ```bash
 # amd64
-curl -fsSLO https://github.com/fox-in-the-box-ai/fox-fleet/releases/download/v1.0.0/fox-control_1.0.0_amd64.deb
-sudo dpkg -i fox-control_1.0.0_amd64.deb
+curl -fsSLO https://github.com/fox-in-the-box-ai/fox-fleet/releases/download/v1.4.1/fox-control_1.4.1_amd64.deb
+sudo dpkg -i fox-control_1.4.1_amd64.deb
 
 # arm64
-curl -fsSLO https://github.com/fox-in-the-box-ai/fox-fleet/releases/download/v1.0.0/fox-control_1.0.0_arm64.deb
-sudo dpkg -i fox-control_1.0.0_arm64.deb
+curl -fsSLO https://github.com/fox-in-the-box-ai/fox-fleet/releases/download/v1.4.1/fox-control_1.4.1_arm64.deb
+sudo dpkg -i fox-control_1.4.1_arm64.deb
 ```
 
 Verify:
@@ -92,12 +92,12 @@ Download the tarball for your architecture from
 
 | Architecture | File |
 |-------------|------|
-| x86_64 (amd64) | `fox-control-v1.0.0-linux-amd64.tar.gz` |
-| ARM64 (aarch64) | `fox-control-v1.0.0-linux-arm64.tar.gz` |
+| x86_64 (amd64) | `fox-control-v1.4.1-linux-amd64.tar.gz` |
+| ARM64 (aarch64) | `fox-control-v1.4.1-linux-arm64.tar.gz` |
 
 ```bash
-tar xzf fox-control-v1.0.0-linux-amd64.tar.gz
-sudo install -m 755 fox-control-v1.0.0-linux-amd64/fox-control /usr/local/bin/
+tar xzf fox-control-v1.4.1-linux-amd64.tar.gz
+sudo install -m 755 fox-control-v1.4.1-linux-amd64/fox-control /usr/local/bin/
 ```
 
 Verify:
@@ -218,22 +218,22 @@ RPM packaging is planned for a future release.
 
 ```bash
 # Download the tarball + signature + certificate
-gh release download v1.0.0 --repo fox-in-the-box-ai/fox-fleet \
-  --pattern 'fox-control-v1.0.0-linux-amd64.tar.gz*'
+gh release download v1.4.1 --repo fox-in-the-box-ai/fox-fleet \
+  --pattern 'fox-control-v1.4.1-linux-amd64.tar.gz*'
 
 cosign verify-blob \
-  --certificate fox-control-v1.0.0-linux-amd64.tar.gz.pem \
-  --signature fox-control-v1.0.0-linux-amd64.tar.gz.sig \
+  --certificate fox-control-v1.4.1-linux-amd64.tar.gz.pem \
+  --signature fox-control-v1.4.1-linux-amd64.tar.gz.sig \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   --certificate-identity-regexp 'github.com/fox-in-the-box-ai/fox-fleet' \
-  fox-control-v1.0.0-linux-amd64.tar.gz
+  fox-control-v1.4.1-linux-amd64.tar.gz
 # Verified OK
 ```
 
 Verify checksums:
 
 ```bash
-gh release download v1.0.0 --repo fox-in-the-box-ai/fox-fleet \
+gh release download v1.4.1 --repo fox-in-the-box-ai/fox-fleet \
   --pattern 'checksums-sha256.txt'
 sha256sum -c checksums-sha256.txt --ignore-missing
 ```

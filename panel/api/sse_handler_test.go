@@ -123,7 +123,7 @@ func TestSSE_AdminSecretInQueryRejected(t *testing.T) {
 	}
 }
 
-func TestSSE_QueryParamSessionTokenRejected(t *testing.T) {
+func TestSSE_QueryParamSessionTokenAccepted(t *testing.T) {
 	env := newSSETestEnv(t)
 
 	ts := httptest.NewServer(env.server.Handler())
@@ -141,8 +141,8 @@ func TestSSE_QueryParamSessionTokenRejected(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Fatalf("expected 401 for session token in query param, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 for session token in query param, got %d", resp.StatusCode)
 	}
 }
 

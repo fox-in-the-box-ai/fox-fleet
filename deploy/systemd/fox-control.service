@@ -33,7 +33,6 @@ RestrictNamespaces=true
 RestrictRealtime=true
 LockPersonality=true
 RemoveIPC=true
-MemoryDenyWriteExecute=true
 ReadWritePaths=/var/lib/fox-control
 UMask=0077
 CapabilityBoundingSet=
