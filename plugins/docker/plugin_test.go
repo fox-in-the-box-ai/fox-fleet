@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 
@@ -18,13 +17,13 @@ func TestInterfaceCompliance(t *testing.T) {
 func TestExtractHostPort(t *testing.T) {
 	tests := []struct {
 		name string
-		info types.ContainerJSON
+		info container.InspectResponse
 		want int
 	}{
 		{
 			name: "valid port binding",
-			info: types.ContainerJSON{
-				ContainerJSONBase: &types.ContainerJSONBase{
+			info: container.InspectResponse{
+				ContainerJSONBase: &container.ContainerJSONBase{
 					HostConfig: &container.HostConfig{
 						PortBindings: nat.PortMap{
 							nat.Port(internalPort): []nat.PortBinding{
@@ -38,8 +37,8 @@ func TestExtractHostPort(t *testing.T) {
 		},
 		{
 			name: "no bindings",
-			info: types.ContainerJSON{
-				ContainerJSONBase: &types.ContainerJSONBase{
+			info: container.InspectResponse{
+				ContainerJSONBase: &container.ContainerJSONBase{
 					HostConfig: &container.HostConfig{
 						PortBindings: nat.PortMap{},
 					},
@@ -49,8 +48,8 @@ func TestExtractHostPort(t *testing.T) {
 		},
 		{
 			name: "empty binding list",
-			info: types.ContainerJSON{
-				ContainerJSONBase: &types.ContainerJSONBase{
+			info: container.InspectResponse{
+				ContainerJSONBase: &container.ContainerJSONBase{
 					HostConfig: &container.HostConfig{
 						PortBindings: nat.PortMap{
 							nat.Port(internalPort): []nat.PortBinding{},

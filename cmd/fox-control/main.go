@@ -154,9 +154,11 @@ func newServeCmd() *cobra.Command {
 			}
 
 			var vectorClient *qdrant.Client
+			var qdrantHealth api.QdrantHealthChecker
 			if cfg.Qdrant.Enabled {
 				qdrantURL := fmt.Sprintf("http://127.0.0.1:%d", cfg.Qdrant.HTTPPort)
 				vectorClient = qdrant.NewClient(qdrantURL)
+				qdrantHealth = vectorClient
 			}
 
 			var dpSrv *http.Server
@@ -240,7 +242,7 @@ func newServeCmd() *cobra.Command {
 				SigningKey:         signingKey,
 				SessionTokenTTL:    sessionTTL,
 				MetricsEnabled:     metricsEnabled,
-				QdrantHealth:       vectorClient,
+				QdrantHealth:       qdrantHealth,
 				RateLimit:          cfg.RateLimit.RequestsPerMinute,
 				ProvisionRateLimit: cfg.RateLimit.ProvisionPerMinute,
 				AutoRestart: api.AutoRestartConfig{

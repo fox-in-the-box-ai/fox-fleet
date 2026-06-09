@@ -9,7 +9,7 @@ build:
 	go build -ldflags "$(LDFLAGS)" -o fox-control ./cmd/fox-control
 
 test:
-	go test ./...
+	go test -race -shuffle=on -count=1 ./...
 
 lint:
 	golangci-lint run

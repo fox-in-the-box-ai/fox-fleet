@@ -53,7 +53,7 @@ FOX_INSTANCE_PASSWORD=<your-generated-password>
 Optional overrides:
 
 ```bash
-FOX_VERSION=latest          # pin to a release tag (e.g. 1.0.0)
+FOX_VERSION=latest          # pin to a release tag (e.g. 1.4.2)
 FOX_LISTEN_PORT=9090        # host port for the panel
 QDRANT_HTTP_PORT=6333       # host port for Qdrant HTTP
 QDRANT_GRPC_PORT=6334       # host port for Qdrant gRPC
@@ -61,12 +61,12 @@ QDRANT_GRPC_PORT=6334       # host port for Qdrant gRPC
 
 ### 3. Review the config
 
-`fox-control.toml` ships with working defaults. The auth section reads from environment variables:
+`fox-control.toml` ships with working defaults. The auth section can be left empty in the TOML; environment variables `FOX_ADMIN_SECRET` and `FOX_INSTANCE_PASSWORD` override TOML values at runtime:
 
 ```toml
 [auth]
-admin_secret = "${FOX_ADMIN_SECRET}"
-instance_password = "${FOX_INSTANCE_PASSWORD}"
+admin_secret = ""
+instance_password = ""
 ```
 
 Adjust `[docker].image` if your Fox image is in a different registry. Adjust `[embedding].base_url` if your embedding provider is not a local Ollama on the host (the default points to `host.docker.internal:11434`).
@@ -267,11 +267,10 @@ The systemd unit applies:
 - `NoNewPrivileges=true`
 - `ProtectSystem=strict` (read-only filesystem except allowed paths)
 - `PrivateTmp=true`, `PrivateDevices=true`
-- `MemoryDenyWriteExecute=true`
 - `RestrictNamespaces=true`, `RestrictSUIDSGID=true`
 - `ReadWritePaths=/var/lib/fox-control` (only writable path)
 - Capability bounding set is empty (no capabilities)
-- Restart on failure with 5-attempt rate limit
+- Restart on any exit (`Restart=always`) with 5-attempt rate limit (`StartLimitBurst=5` in 300 seconds)
 
 The fox-control user's only privilege escalation path is the Docker socket (via group membership). This is inherent to the architecture — see [LIMITATIONS.md](LIMITATIONS.md).
 
@@ -330,38 +329,63 @@ All deployment methods use the same TOML config format.
 
 ```toml
 [control]
-listen = "0.0.0.0:9090"       # Address:port for the panel API
-data_root = "/var/lib/fox-control"  # Instance data directories
-health_poll_seconds = 15       # Health check interval
+listen = "127.0.0.1:9090"          # Address:port for the panel API (default: 127.0.0.1:9090)
+data_root = "/var/lib/fox-control" # Instance data directories (required)
+health_poll_seconds = 15           # Health check interval (default: 15, range: 1–3600)
+session_token_ttl_seconds = 600    # SSE session token TTL (default: 600, range: 60–3600)
+log_format = "text"                # Log format: "text" or "json" (default: "text")
+log_level = "info"                 # Log level: debug, info, warn, error (default: "info")
+# metrics_enabled = true           # Prometheus /metrics endpoint (default: true)
 
 [docker]
-socket = "/var/run/docker.sock"  # Docker daemon socket
-image = "ghcr.io/fox-in-the-box-ai/fox:latest"  # Default Fox image
+socket = "/var/run/docker.sock"    # Docker daemon socket (default: /var/run/docker.sock)
+image = "ghcr.io/fox-in-the-box-ai/fox:latest"  # Default Fox image (required)
 
 [auth]
-admin_secret = ""              # Required — panel API bearer token
-instance_password = ""         # Required — injected into instances
+admin_secret = ""                  # Required — panel API bearer token (min 16 chars)
+instance_password = ""             # Required — injected into instances
 
 [instances]
-port_start = 8787              # First allocated instance port
-max_instances = 10             # Instance cap
-# default_skillset = ""        # Default skillset YAML path
-# default_role = ""            # Default instance role
+port_start = 8787                  # First allocated instance port (default: 8787)
+max_instances = 10                 # Instance cap (default: 2, range: 1–1000)
+# default_skillset = ""           # Default skillset YAML path
+# default_role = ""               # Default instance role
+
+[tls]
+# cert_file = "/path/to/cert.pem" # TLS certificate (both cert_file and key_file must be set)
+# key_file = "/path/to/key.pem"   # TLS private key
 
 [qdrant]
-enabled = false                # Enable Qdrant sidecar management
-http_port = 6333
-grpc_port = 6334
+enabled = false                    # Enable Qdrant sidecar management
+image = "qdrant/qdrant:v1.14.1"   # Qdrant container image (required when enabled)
+http_port = 6333                   # Qdrant HTTP API port (required when enabled)
+grpc_port = 6334                   # Qdrant gRPC API port (required when enabled)
+# data_dir = ""                   # Qdrant data directory (defaults to <data_root>/qdrant)
 
 [data_plane]
-enabled = false                # Enable knowledge ingestion + query API
-listen = "0.0.0.0:9091"
-collection = "fox-knowledge"
-vector_size = 1536
+enabled = false                    # Enable knowledge ingestion + query API
+listen = "127.0.0.1:9091"         # Data plane listen address (default: 127.0.0.1:9091)
+collection = "fox-knowledge"      # Qdrant collection name (default: fox-knowledge)
+vector_size = 1536                 # Embedding vector dimensions (default: 1536)
 
 [embedding]
-base_url = ""                  # OpenAI-compatible embedding API (e.g. http://localhost:11434)
-model = "nomic-embed-text"
+base_url = ""                      # OpenAI-compatible embedding API (required when data_plane enabled)
+# api_key = ""                    # API key for embedding service (optional, for remote providers)
+model = "nomic-embed-text"         # Embedding model name (required when data_plane enabled)
+
+[rate_limit]
+# requests_per_minute = 100       # General API rate limit (default: 100)
+# provision_per_minute = 10       # Provision endpoint rate limit
+
+[auto_restart]
+# enabled = false                 # Auto-restart unhealthy instances
+# threshold = 3                   # Consecutive failures before restart (default: 3)
+# cooldown_seconds = 300          # Seconds between auto-restarts (default: 300)
+
+# [[webhooks]]
+# url = "https://ops.example.com/hooks/fox-fleet"
+# secret = "whsec_your-hmac-secret"
+# events = ["instance.provisioned", "instance.destroyed", "instance.unhealthy"]
 ```
 
 Environment variables `FOX_ADMIN_SECRET` and `FOX_INSTANCE_PASSWORD` override the TOML `[auth]` values when set. This is the recommended approach for production — keep secrets out of config files.
@@ -406,10 +430,10 @@ The panel connects to `GET /api/events/stream` via Server-Sent Events. Lifecycle
 
 ```bash
 # Docker Compose
-FOX_VERSION=1.0.0 docker compose up -d
+FOX_VERSION=1.4.2 docker compose up -d
 
 # Helm
-helm upgrade fox-control deploy/helm/fox-control --set image.tag=1.0.0
+helm upgrade fox-control deploy/helm/fox-control --set image.tag=1.4.2
 ```
 
 ### Binary deployments (systemd / manual)
@@ -449,4 +473,4 @@ Rollout is health-gated — each instance must pass health checks before the nex
 
 For known limitations (single-host, no HA, single auth token, etc.), see [LIMITATIONS.md](LIMITATIONS.md).
 
-For the full architecture, plugin interface, and ecosystem context, see the [project README](../README.md).
+For the full architecture, plugin interface, and ecosystem context, see the [project README](https://github.com/fox-in-the-box-ai/fox-fleet#readme).

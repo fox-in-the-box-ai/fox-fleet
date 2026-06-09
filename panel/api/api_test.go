@@ -805,6 +805,17 @@ func TestDetailIncludesSkillsetAndRole(t *testing.T) {
 	}
 }
 
+func TestPollerQdrantDisabledNoPanic(t *testing.T) {
+	env := newTestEnv(t)
+	env.seedInstance(t, "fox-1", 9100)
+
+	env.server.poller.poll(context.Background())
+
+	if !env.server.poller.QdrantHealthy() {
+		t.Fatal("expected QdrantHealthy()=true when Qdrant is disabled (nil checker)")
+	}
+}
+
 func TestSPANotServedWithoutWebFS(t *testing.T) {
 	env := newTestEnv(t)
 	req := httptest.NewRequest("GET", "/", nil)

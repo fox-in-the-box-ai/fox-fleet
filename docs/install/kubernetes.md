@@ -51,7 +51,7 @@ Open `http://localhost:9090` in your browser.
 | Value | Default | Description |
 |-------|---------|-------------|
 | `image.repository` | `ghcr.io/fox-in-the-box-ai/fox-control` | Container image |
-| `image.tag` | `1.0.0` (chart appVersion) | Image tag |
+| `image.tag` | `1.4.2` (chart appVersion) | Image tag |
 | `service.port` | `9090` | Service port |
 | `persistence.enabled` | `true` | Persistent volume for data |
 | `persistence.size` | `1Gi` | Volume size |
@@ -133,7 +133,7 @@ ingress:
 If you prefer plain manifests over Helm:
 
 ```bash
-docker pull ghcr.io/fox-in-the-box-ai/fox-control:1.0.0
+docker pull ghcr.io/fox-in-the-box-ai/fox-control:1.4.2
 ```
 
 Verify the image signature:
@@ -142,7 +142,7 @@ Verify the image signature:
 cosign verify \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   --certificate-identity-regexp 'github.com/fox-in-the-box-ai/fox-fleet' \
-  ghcr.io/fox-in-the-box-ai/fox-control:1.0.0
+  ghcr.io/fox-in-the-box-ai/fox-control:1.4.2
 ```
 
 Write your own Deployment, Service, ConfigMap, and Secret manifests

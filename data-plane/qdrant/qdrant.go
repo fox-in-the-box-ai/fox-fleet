@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
@@ -16,7 +17,7 @@ import (
 
 const (
 	containerName  = "fox-qdrant"
-	defaultImage   = "qdrant/qdrant:v1.14.0"
+	defaultImage   = "qdrant/qdrant:v1.14.1"
 	httpPort       = "6333/tcp"
 	grpcPort       = "6334/tcp"
 	healthPath     = "/healthz"
@@ -78,7 +79,7 @@ func (m *Manager) Provision(ctx context.Context) error {
 		return m.pollHealth(ctx)
 	}
 
-	if !client.IsErrNotFound(err) {
+	if !cerrdefs.IsNotFound(err) {
 		return fmt.Errorf("qdrant: inspect container: %w", err)
 	}
 
@@ -128,7 +129,7 @@ func (m *Manager) Provision(ctx context.Context) error {
 func (m *Manager) HealthCheck(ctx context.Context) (bool, error) {
 	info, err := m.cli.ContainerInspect(ctx, containerName)
 	if err != nil {
-		if client.IsErrNotFound(err) {
+		if cerrdefs.IsNotFound(err) {
 			return false, nil
 		}
 		return false, fmt.Errorf("qdrant: inspect container: %w", err)
@@ -142,12 +143,12 @@ func (m *Manager) HealthCheck(ctx context.Context) (bool, error) {
 func (m *Manager) Destroy(ctx context.Context) error {
 	timeout := stopTimeout
 	err := m.cli.ContainerStop(ctx, containerName, container.StopOptions{Timeout: &timeout})
-	if err != nil && !client.IsErrNotFound(err) {
+	if err != nil && !cerrdefs.IsNotFound(err) {
 		return fmt.Errorf("qdrant: stop container: %w", err)
 	}
 
 	err = m.cli.ContainerRemove(ctx, containerName, container.RemoveOptions{})
-	if err != nil && !client.IsErrNotFound(err) {
+	if err != nil && !cerrdefs.IsNotFound(err) {
 		return fmt.Errorf("qdrant: remove container: %w", err)
 	}
 
@@ -163,7 +164,7 @@ func (m *Manager) GRPCURL() string {
 }
 
 func (m *Manager) ensureImage(ctx context.Context) {
-	_, _, err := m.cli.ImageInspectWithRaw(ctx, m.cfg.Image)
+	_, err := m.cli.ImageInspect(ctx, m.cfg.Image)
 	if err == nil {
 		return
 	}

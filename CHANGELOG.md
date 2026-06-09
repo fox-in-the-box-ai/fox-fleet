@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-06-09
+
+### Fixed
+
+- **LOOSE-01:** Upgrade Docker SDK v27.5.1 → v28.5.2; add govulncheck exclusion for daemon-side vulns GO-2026-4887 and GO-2026-4883 (no upstream fix available)
+- **LOOSE-02:** Repair broken `README.md` link in DEPLOYMENT.md
+- **LOOSE-03:** Ratify ADR-0015 — binary integration tests required; add PR template checklist item
+- Prevent nil pointer crash in health poller when Qdrant is disabled (Go nil-interface footgun: nil `*qdrant.Client` assigned to interface became non-nil)
+- Migrate deprecated Docker SDK v28 call sites: `client.IsErrNotFound` → `cerrdefs.IsNotFound`, `types.ContainerJSON` → `container.InspectResponse`, `ImageInspectWithRaw` → `ImageInspect`
+- Bump default Qdrant image from v1.14.0 to v1.14.1
+- Correct README runtime conformance count from 16 to 24
+- Exclude conformance test-infrastructure packages from CI coverage measurement (conformance tests the binary externally; including it dragged global coverage to 41% below the 45% gate)
+- Gate conformance CI job on `workflow_dispatch` — the job was misconfigured to test the management plane image against the Fox instance protocol; the management plane does not implement `/health`, `/readyz`, `/version`, or `/capabilities`
+
+### Changed
+
+- All version references updated from 1.4.1/1.0.0 to 1.4.2 across install docs, signing docs, Helm chart, and OpenAPI spec
+- Operator handbook: corrected 18+ inaccuracies (config field names, Qdrant version, CLI subcommands, auth model, data plane behavior)
+- Configuration reference: added missing `[tls]`, `[[webhooks]]`, `[rate_limit]`, `[auto_restart]` TOML sections
+- Security policy: expanded supported versions table, corrected session token model
+- README: added 4 missing `internal/` packages, dataplane conformance suite
+- Release runbook: corrected asset/signature counts, CGO_ENABLED value
+- LIMITATIONS.md: clarified Qdrant management in Docker deployments, corrected skillset validation description
+- Walkthrough: fixed UI labels to match actual panel (Connect button, sidebar sections, Provision Instance, theme dropdown)
+- Dataplane conformance `doc.go`: added check count (10) to match runtime/plugin pattern
+
+### Added
+
+- ADR-0017: conformance CI gating decision — documents the three-layer protocol mismatch root cause, restoration plan, and tracking issue (#109)
+- ADR-0018: per-package coverage gates — documents per-package coverage floors with structural justifications for packages below 70%
+- Release runbook: conformance and per-package coverage verification steps in pre-release checklist
+- Regression test `TestPollerQdrantDisabledNoPanic` for the nil pointer crash fix
+- CI status checklist item in PR template
+- Documentation completeness audit (`docs/audits/DOC_COMPLETENESS_v1.4.2.md`) — 54 markdown files, 14 doc.go files, OpenAPI spec, Makefile, and Helm chart verified against actual codebase
+- Screenshot matrix (`docs/screenshots/`) — 142 screenshots across 7 views × 2 themes × 3 locales × 3 viewports plus interactive states
+- Operator walkthrough (`docs/walkthroughs/first-deployment.md`) — step-by-step guide from clone to running instance with visual references
+
 ## [1.4.1] - 2026-06-09
 
 ### Fixed

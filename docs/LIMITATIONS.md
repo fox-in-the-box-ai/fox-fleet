@@ -1,6 +1,6 @@
 # Known Limitations
 
-Fox Fleet v1.4.0 — last updated 2026-06-08.
+Fox Fleet v1.4.2 — last updated 2026-06-09.
 
 This document tracks architectural boundaries, known gaps, and constraints
 that operators and contributors should be aware of. Items here are
@@ -42,10 +42,11 @@ or filesystem snapshot of `/var/lib/fox-control`.
 
 ## Qdrant is external
 
-The Helm chart and systemd deployment do not manage Qdrant. Operators
-must provision and maintain their own Qdrant instance. The Docker Compose
-stack includes Qdrant as a convenience, but it runs a single un-replicated
-node with no backup automation.
+The Helm chart and systemd deployments do not manage Qdrant — operators
+must provision and maintain their own Qdrant instance. Docker-based
+deployments (Docker Compose and the data-plane `qdrant.Manager`) can
+provision and lifecycle-manage a Qdrant container automatically, but it
+runs a single un-replicated node with no backup automation.
 
 ## Embedding provider
 
@@ -75,8 +76,9 @@ data plane access but are not user-facing credentials.
 
 ## Skillset validation
 
-Skillset YAML manifests are validated at upload time against the
-`contract_version: "1"` schema. `ValidateAgainstManifest` checks declared
+Skillset YAML manifests are validated at upload time — `contract_version`
+must be valid semver (no specific version restriction).
+`ValidateAgainstManifest` checks declared
 tools against available tools at provision time. There is no runtime
 validation inside the instance that tools are actually functional — a
 misconfigured skillset will be accepted but the instance may fail to

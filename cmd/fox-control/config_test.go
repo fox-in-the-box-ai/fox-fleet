@@ -359,7 +359,7 @@ func TestLoadConfig_QdrantSection(t *testing.T) {
 	content := validTOML() + `
 [qdrant]
 enabled = true
-image = "qdrant/qdrant:v1.14.0"
+image = "qdrant/qdrant:v1.14.1"
 http_port = 6333
 grpc_port = 6334
 data_dir = "/var/lib/fox-control/qdrant"
@@ -371,7 +371,7 @@ data_dir = "/var/lib/fox-control/qdrant"
 	if !cfg.Qdrant.Enabled {
 		t.Error("Qdrant.Enabled = false, want true")
 	}
-	if cfg.Qdrant.Image != "qdrant/qdrant:v1.14.0" {
+	if cfg.Qdrant.Image != "qdrant/qdrant:v1.14.1" {
 		t.Errorf("Qdrant.Image = %q", cfg.Qdrant.Image)
 	}
 	if cfg.Qdrant.HTTPPort != 6333 {
@@ -399,7 +399,7 @@ func TestLoadConfig_QdrantEnabledDefaultsDataDir(t *testing.T) {
 	content := validTOML() + `
 [qdrant]
 enabled = true
-image = "qdrant/qdrant:v1.14.0"
+image = "qdrant/qdrant:v1.14.1"
 http_port = 6333
 grpc_port = 6334
 `
