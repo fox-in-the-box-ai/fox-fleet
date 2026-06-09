@@ -216,7 +216,7 @@ In `fox-control.toml`:
 ```toml
 [qdrant]
 enabled = true
-image = "qdrant/qdrant:v1.13.3"
+image = "qdrant/qdrant:v1.14.1"
 http_port = 6333
 grpc_port = 6334
 
@@ -306,7 +306,8 @@ curl -s http://localhost:9091/v1/admin/sources \
 
 - 50 MB per file
 - Local filesystem files only (no S3, no URLs)
-- Full re-ingest on change (no incremental updates)
+- Incremental re-ingestion is supported (SHA-256 content hashing skips
+  unchanged files), but schema changes require a full re-ingest
 - Single Qdrant collection shared across all instances
 
 ---
@@ -384,7 +385,7 @@ appears as an event.
 | Skillsets | `<data_root>/skillsets/` | Uploaded skillset manifests |
 
 Default `data_root`:
-- Docker Compose: Docker volume `fox-data` (mounted at `/data` in the container)
+- Docker Compose: Docker volume `fox-data` (mounted at `/var/lib/fox-control` in the container)
 - systemd: `/var/lib/fox-control`
 - Binary: whatever you set in `fox-control.toml`
 
@@ -413,9 +414,10 @@ fox-control restore --input /backup/fox-control-20260607 \
 sudo systemctl start fox-control
 ```
 
-The restore command checks for a lock file to prevent concurrent
-restores. It copies the backed-up databases to the configured
-`data_root`.
+The restore command checks whether each database is locked (by
+attempting an exclusive SQLite transaction) to prevent restoring
+while the server is running. It copies the backed-up databases to
+the configured `data_root`.
 
 **Docker Compose:**
 
@@ -510,7 +512,7 @@ SSE delivery, but the full history survives restarts.
 
 ### Log output
 
-fox-control logs to stdout. The log format is configurable via
+fox-control logs to stderr. The log format is configurable via
 `control.log_format`:
 
 - `text` (default) — human-readable, one line per event.
@@ -530,13 +532,13 @@ Key log lines to watch for:
 - `instance destroyed` — instance removed
 - `health check failed` — an instance is unhealthy
 - `rollout` — rolling update progress
-- `listening on` — fox-control started and is accepting connections
+- `panel server listening` — fox-control started and is accepting connections
 
 ### Prometheus metrics
 
 fox-control exposes a Prometheus-compatible metrics endpoint at
-`GET /metrics` when enabled. To enable, set `metrics.enabled = true`
-in `fox-control.toml`.
+`GET /metrics`. Metrics are enabled by default. To disable, set
+`control.metrics_enabled = false` in `fox-control.toml`.
 
 Exposed metrics:
 
@@ -582,8 +584,8 @@ health checks. Enable and tune in `fox-control.toml`:
 ```toml
 [auto_restart]
 enabled = true
-threshold = 3        # consecutive failures before restart
-cooldown = "60s"     # minimum interval between auto-restarts
+threshold = 3            # consecutive failures before restart (default: 3)
+cooldown_seconds = 300   # minimum seconds between auto-restarts (default: 300)
 ```
 
 When enabled, the health poller tracks consecutive failures per
@@ -602,17 +604,17 @@ Configure one or more webhook targets in `fox-control.toml`:
 url = "https://ops.example.com/hooks/fox-fleet"
 secret = "whsec_your-hmac-secret"
 events = ["instance.provisioned", "instance.destroyed", "instance.unhealthy"]
-rate_limit = 10  # max deliveries per second per target
 ```
 
 Each webhook delivery includes an `X-Fox-Signature` header containing
-an HMAC-SHA256 signature of the request body, computed with the
-configured `secret`. Verify this signature on the receiving end to
-authenticate the payload.
+an HMAC-SHA256 signature of `timestamp + body`, computed with the
+configured `secret`. The timestamp is sent in the `X-Fox-Timestamp`
+header. Verify both on the receiving end to authenticate the payload.
 
 Event type filtering is per-target — omit the `events` key to
-receive all event types. Per-target rate limiting prevents
-overwhelming downstream services.
+receive all event types. Webhook delivery is rate limited internally
+(10 deliveries per second per target) to prevent overwhelming
+downstream services.
 
 ### Rate limiting
 
@@ -624,8 +626,8 @@ Rate limits are configurable in `fox-control.toml`:
 
 ```toml
 [rate_limit]
-requests_per_second = 20
-burst = 50
+requests_per_minute = 100     # general API rate limit (default: 100)
+provision_per_minute = 10     # provision endpoint rate limit
 ```
 
 The `/healthz` and `/metrics` endpoints are exempt from rate limiting.
@@ -635,7 +637,7 @@ The `/healthz` and `/metrics` endpoints are exempt from rate limiting.
 For production monitoring:
 
 - Point your uptime checker at `/healthz`
-- Scrape `/metrics` with Prometheus (when `metrics.enabled = true`)
+- Scrape `/metrics` with Prometheus (enabled by default; disable with `control.metrics_enabled = false`)
 - Enable structured JSON logging (`control.log_format = "json"`) for
   log aggregation
 - Configure webhooks for real-time alerting on health transitions
@@ -685,7 +687,7 @@ and does not conflict with other services.
 | Surface | Default bind | Auth | Notes |
 |---------|-------------|------|-------|
 | Management panel + API | `127.0.0.1:9090` | Bearer token (`admin_secret`) | Use built-in TLS or a reverse proxy for production |
-| Prometheus metrics | `127.0.0.1:9090/metrics` | None | Only active when `metrics.enabled = true`; restrict via firewall or proxy |
+| Prometheus metrics | `127.0.0.1:9090/metrics` | None | Enabled by default (`control.metrics_enabled`); restrict via firewall or proxy |
 | Fox instances | `0.0.0.0:<port>` | Instance-level auth | Ports 8787+ |
 | Data plane API | `127.0.0.1:9091` | See data plane docs | Only when `data_plane.enabled = true` |
 | Qdrant | `6333` (HTTP), `6334` (gRPC) | None by default | Restrict to localhost or private network |
@@ -733,12 +735,12 @@ If you suspect the admin secret has been compromised:
 | Panel shows stale data | SSE disconnected | The panel falls back to 5-second polling. Hard refresh the browser. Check DevTools for EventSource errors. |
 | Rollout stopped mid-way | Instance failed health check after update | The failed instance rolls back automatically. Check its logs. Fix the issue, then re-run the rollout. |
 | Port conflict on instance start | Another service on the port | Change `instances.port_start` in the config, or stop the conflicting service. |
-| Rate limited (429 response) | Client exceeding API rate limit | Check the `Retry-After` header for wait time. Increase `rate_limit.requests_per_second` and `rate_limit.burst` if the load is legitimate. |
-| Metrics endpoint returns 404 | Metrics not enabled | Set `metrics.enabled = true` in `fox-control.toml` and restart. |
+| Rate limited (429 response) | Client exceeding API rate limit | Check the `Retry-After` header for wait time. Increase `rate_limit.requests_per_minute` if the load is legitimate. |
+| Metrics endpoint returns 404 | Metrics disabled | Metrics are enabled by default. If disabled, set `control.metrics_enabled = true` in `fox-control.toml` and restart. |
 | Webhook not firing | Target unreachable or event filter mismatch | Verify the webhook URL is reachable from the fox-control host. Check that the `events` filter in the webhook config includes the event type you expect. |
-| Auto-restart not working | Feature disabled or misconfigured | Verify `auto_restart.enabled = true` in config. Check `threshold` and `cooldown` values. Review logs for auto-restart decisions. |
+| Auto-restart not working | Feature disabled or misconfigured | Verify `auto_restart.enabled = true` in config. Check `threshold` and `cooldown_seconds` values. Review logs for auto-restart decisions. |
 | TLS handshake failure | Certificate or key issue | Verify `tls.cert_file` and `tls.key_file` paths exist and are readable by the fox-control user. Check certificate chain completeness and expiry. |
-| Backup fails | Destination issue or concurrent backup | Verify the `--output` directory exists and is writable. Ensure no other backup or restore is in progress (check for lock file). |
+| Backup fails | Destination issue or database error | Verify the `--output` directory is writable. The backup uses SQLite VACUUM INTO which requires write access to the destination. |
 | Instance stats return 503 | Docker stats unavailable | The container may not be running, or the Docker daemon stats API is unresponsive. Verify the instance is in a healthy or running state. |
 | Health history empty | No transitions recorded | The instance has had no health state changes in the last 24 hours, or the event store is not configured. Check `events.db` exists in `data_root`. |
 
@@ -770,7 +772,7 @@ except `/healthz`.
 | `GET` | `/api/instances/{id}/health-history` | Health event history (24h) |
 | `GET` | `/api/events` | Get recent events |
 | `GET` | `/api/events/stream` | SSE event stream |
-| `GET` | `/metrics` | Prometheus metrics (no auth, when `metrics.enabled = true`) |
+| `GET` | `/metrics` | Prometheus metrics (no auth, enabled by default via `control.metrics_enabled`) |
 
 ### Data plane admin API (port 9091)
 
@@ -780,8 +782,9 @@ when `data_plane.enabled = true`.
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/v1/health` | Data plane health (no auth) |
-| `GET` | `/v1/sources` | List sources (no auth) |
-| `POST` | `/v1/query` | Query vectors (no auth) |
+| `GET` | `/v1/readyz` | Data plane readiness (no auth) |
+| `GET` | `/v1/sources` | List sources (query token or admin secret) |
+| `POST` | `/v1/query` | Query vectors (query token or admin secret) |
 | `GET` | `/v1/admin/sources` | List sources (admin) |
 | `POST` | `/v1/admin/sources` | Create a source (JSON) |
 | `GET` | `/v1/admin/sources/{id}` | Get source details |
@@ -800,11 +803,16 @@ when `data_plane.enabled = true`.
 | `fox-control version` | Print version |
 | `fox-control backup --output <dir>` | SQLite VACUUM INTO backup of all databases |
 | `fox-control restore --input <dir>` | Restore databases from backup |
-| `fox-control diagnostics` | Run 8 built-in health checks |
-| `fox-control generate-secret` | Generate a cryptographic secret |
+| `fox-control diagnostics` | Run built-in health checks (config, docker, registry, disk, port, plus optional qdrant/embedding/data-plane checks) |
+| `fox-control generate-secret [--bytes N]` | Generate a cryptographic secret (default 32 bytes, hex-encoded) |
 | `fox-control verify <file>` | Verify cosign signature |
+| `fox-control sec rotate-sse-key` | Rotate the SSE session token signing key |
+| `fox-control sec rotate-query-token --instance <id>` | Rotate the data plane query token for an instance |
 | `fox-control conformance run --image <img>` | Run runtime conformance |
 | `fox-control conformance plugin --image <img>` | Run plugin conformance |
+
+Global flags: `--config <path>` (default `/etc/fox-control/fox-control.toml`),
+`--output/-o <format>` (`table`, `json`, `quiet`; default `table`).
 
 ---
 
