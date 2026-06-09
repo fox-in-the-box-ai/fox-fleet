@@ -77,7 +77,22 @@ jobs:
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - name: Run govulncheck
-        run: govulncheck ./...
+        run: |
+          govulncheck -format json ./... > vuln.json 2>&1 || true
+          # Filter out Docker daemon-side vulns with no upstream fix (see ADR-0016)
+          EXCLUDED="GO-2026-4887 GO-2026-4883"
+          UNEXCLUDED=$(jq -r '
+            select(.finding != null)
+            | .finding.osv
+          ' vuln.json | sort -u | while read id; do
+            echo "$EXCLUDED" | grep -qw "$id" || echo "$id"
+          done)
+          if [ -n "$UNEXCLUDED" ]; then
+            echo "::error::Unaccepted vulnerabilities found: $UNEXCLUDED"
+            govulncheck ./...
+            exit 1
+          fi
+          echo "govulncheck clean (${#EXCLUDED} accepted-risk exclusions, see ADR-0016)"
 
   conformance:
     name: Conformance
