@@ -267,7 +267,6 @@ The systemd unit applies:
 - `NoNewPrivileges=true`
 - `ProtectSystem=strict` (read-only filesystem except allowed paths)
 - `PrivateTmp=true`, `PrivateDevices=true`
-- `MemoryDenyWriteExecute=true`
 - `RestrictNamespaces=true`, `RestrictSUIDSGID=true`
 - `ReadWritePaths=/var/lib/fox-control` (only writable path)
 - Capability bounding set is empty (no capabilities)
@@ -406,10 +405,10 @@ The panel connects to `GET /api/events/stream` via Server-Sent Events. Lifecycle
 
 ```bash
 # Docker Compose
-FOX_VERSION=1.0.0 docker compose up -d
+FOX_VERSION=1.4.2 docker compose up -d
 
 # Helm
-helm upgrade fox-control deploy/helm/fox-control --set image.tag=1.0.0
+helm upgrade fox-control deploy/helm/fox-control --set image.tag=1.4.2
 ```
 
 ### Binary deployments (systemd / manual)
@@ -449,4 +448,4 @@ Rollout is health-gated — each instance must pass health checks before the nex
 
 For known limitations (single-host, no HA, single auth token, etc.), see [LIMITATIONS.md](LIMITATIONS.md).
 
-For the full architecture, plugin interface, and ecosystem context, see the [project README](../README.md).
+For the full architecture, plugin interface, and ecosystem context, see the [project README](https://github.com/fox-in-the-box-ai/fox-fleet#readme).
