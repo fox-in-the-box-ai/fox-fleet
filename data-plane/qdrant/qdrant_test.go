@@ -46,7 +46,7 @@ func TestConfigPreservesExplicit(t *testing.T) {
 }
 
 func TestConfigValidateMissingDataDir(t *testing.T) {
-	cfg := Config{Image: "qdrant/qdrant:v1.14.0", HTTPPort: 6333, GRPCPort: 6334}
+	cfg := Config{Image: "qdrant/qdrant:v1.14.1", HTTPPort: 6333, GRPCPort: 6334}
 	if err := cfg.validate(); err != ErrMissingDataDir {
 		t.Errorf("validate() = %v, want ErrMissingDataDir", err)
 	}
