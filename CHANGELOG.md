@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-06-09
+
+### Fixed
+
+- **LOOSE-01:** Upgrade Docker SDK v27.5.1 → v28.5.2; add govulncheck exclusion for daemon-side vulns GO-2026-4887 and GO-2026-4883 (no upstream fix available)
+- **LOOSE-02:** Repair broken `README.md` link in DEPLOYMENT.md
+- **LOOSE-03:** Ratify ADR-0015 — binary integration tests required; add PR template checklist item
+- Prevent nil pointer crash in health poller when Qdrant is disabled (Go nil-interface footgun: nil `*qdrant.Client` assigned to interface became non-nil)
+
+### Changed
+
+- All version references updated from 1.4.1/1.0.0 to 1.4.2 across install docs, signing docs, Helm chart, and OpenAPI spec
+- Operator handbook: corrected 18+ inaccuracies (config field names, Qdrant version, CLI subcommands, auth model, data plane behavior)
+- Configuration reference: added missing `[tls]`, `[[webhooks]]`, `[rate_limit]`, `[auto_restart]` TOML sections
+- Security policy: expanded supported versions table, corrected session token model
+- README: added 4 missing `internal/` packages, dataplane conformance suite
+- Release runbook: corrected asset/signature counts, CGO_ENABLED value
+- LIMITATIONS.md: clarified Qdrant management in Docker deployments, corrected skillset validation description
+- Walkthrough: fixed UI labels to match actual panel (Connect button, sidebar sections, Provision Instance, theme dropdown)
+- Dataplane conformance `doc.go`: added check count (10) to match runtime/plugin pattern
+
+### Added
+
+- Documentation completeness audit (`docs/audits/DOC_COMPLETENESS_v1.4.2.md`) — 54 markdown files, 14 doc.go files, OpenAPI spec, Makefile, and Helm chart verified against actual codebase
+- Screenshot matrix (`docs/screenshots/`) — 142 screenshots across 7 views × 2 themes × 3 locales × 3 viewports plus interactive states
+- Operator walkthrough (`docs/walkthroughs/first-deployment.md`) — step-by-step guide from clone to running instance with visual references
+
 ## [1.4.1] - 2026-06-09
 
 ### Fixed
