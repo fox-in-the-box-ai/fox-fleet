@@ -19,6 +19,8 @@ Step-by-step procedure for cutting a Fox Fleet release.
 [ ] Version bump is correct (semver: breaking=major, feature=minor, fix=patch)
 [ ] No open security issues tagged for this release
 [ ] Local quality gate passes: make lint && make test && make build
+[ ] Conformance suite: trigger workflow_dispatch on main and verify pass (requires Fox instance image; skip with justification if image unavailable — see ADR-0017)
+[ ] Per-package coverage: verify no package dropped below its gate (see ADR-0018)
 ```
 
 ---

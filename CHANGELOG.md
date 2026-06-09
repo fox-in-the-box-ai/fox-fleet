@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- ADR-0017: conformance CI gating decision — documents the three-layer protocol mismatch root cause, restoration plan, and tracking issue (#109)
+- ADR-0018: per-package coverage gates — documents per-package coverage floors with structural justifications for packages below 70%
+- Release runbook: conformance and per-package coverage verification steps in pre-release checklist
 - Regression test `TestPollerQdrantDisabledNoPanic` for the nil pointer crash fix
 - CI status checklist item in PR template
 - Documentation completeness audit (`docs/audits/DOC_COMPLETENESS_v1.4.2.md`) — 54 markdown files, 14 doc.go files, OpenAPI spec, Makefile, and Helm chart verified against actual codebase
