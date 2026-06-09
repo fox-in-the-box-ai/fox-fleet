@@ -251,7 +251,7 @@ panel/
   api/                 Dashboard HTTP API + health poller + source listing
   spa/                 Embedded single-page dashboard (instances + sources tabs)
 conformance/
-  runtime/             Runtime conformance test suite (16 checks)
+  runtime/             Runtime conformance test suite (24 checks)
   plugin/              Plugin conformance test suite (8 checks)
   dataplane/           Data plane conformance test suite (10 checks)
 rollout/               Fleet rollout orchestration (rolling update + health-gated rollback)

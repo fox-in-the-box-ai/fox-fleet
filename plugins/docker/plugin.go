@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
@@ -232,12 +232,12 @@ func (p *Plugin) Destroy(ctx context.Context, instanceID string) error {
 
 	timeout := stopTimeout
 	err := p.cli.ContainerStop(ctx, cname, container.StopOptions{Timeout: &timeout})
-	if err != nil && !client.IsErrNotFound(err) {
+	if err != nil && !cerrdefs.IsNotFound(err) {
 		return fmt.Errorf("docker: stop %s: %w", cname, err)
 	}
 
 	err = p.cli.ContainerRemove(ctx, cname, container.RemoveOptions{})
-	if err != nil && !client.IsErrNotFound(err) {
+	if err != nil && !cerrdefs.IsNotFound(err) {
 		return fmt.Errorf("docker: remove %s: %w", cname, err)
 	}
 
@@ -345,7 +345,7 @@ func httpProbe(ctx context.Context, port int, path string) bool {
 	return resp.StatusCode == http.StatusOK
 }
 
-func extractHostPort(info types.ContainerJSON) int {
+func extractHostPort(info container.InspectResponse) int {
 	bindings, ok := info.HostConfig.PortBindings[nat.Port(internalPort)]
 	if !ok || len(bindings) == 0 {
 		return 0
