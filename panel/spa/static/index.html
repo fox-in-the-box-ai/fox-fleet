@@ -1278,7 +1278,7 @@ function renderInstances() {
         var h = inst.health;
         var dot = h ? (h.healthy ? "healthy" : "unhealthy") : "unknown";
         var statusBadge = inst.status || "unknown";
-        html += '<div class="card" data-action="detail" data-id="' + esc(inst.id) + '">'
+        html += '<div class="card" data-action="detail" data-id="' + esc(inst.id) + '" tabindex="0" role="button">'
           + '<div class="card-header">'
           + '<span class="card-id">' + esc(inst.id) + '</span>'
           + '<span class="dot ' + dot + '"></span></div>'
@@ -1562,6 +1562,7 @@ function renderSources() {
         + '<svg class="empty-icon" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4.03 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/></svg>'
         + '<div class="empty-title">' + esc(t("src.empty_title")) + '</div>'
         + '<div class="empty-desc">' + esc(t("src.empty_desc")) + '</div>'
+        + '<div style="margin-top:4px;font-size:13px;color:var(--color-text-muted)">' + esc(t("src.empty_cta")) + '</div>'
         + '</div>';
       return;
     }
@@ -1573,7 +1574,7 @@ function renderSources() {
     for (var i = 0; i < sources.length; i++) {
       var s = sources[i];
       var badge = s.status || "pending";
-      html += '<tr style="cursor:pointer" data-action="source-detail" data-id="' + esc(s.id) + '">'
+      html += '<tr style="cursor:pointer" data-action="source-detail" data-id="' + esc(s.id) + '" tabindex="0" role="button">'
         + '<td style="font-weight:500">' + esc(s.name || s.id) + '</td>'
         + '<td>' + esc(s.type) + '</td>'
         + '<td><span class="badge badge-' + esc(badge) + '">' + esc(badge) + '</span></td>'
@@ -1667,7 +1668,7 @@ function renderSkillsets() {
         + '</tr></thead><tbody>';
       for (var i = 0; i < skillsets.length; i++) {
         var sk = skillsets[i];
-        html += '<tr style="cursor:pointer" data-action="skillset-detail" data-name="' + esc(sk.name) + '">'
+        html += '<tr style="cursor:pointer" data-action="skillset-detail" data-name="' + esc(sk.name) + '" tabindex="0" role="button">'
           + '<td style="font-weight:500">' + esc(sk.name) + '</td>'
           + '<td><span class="badge badge-active">' + esc(sk.version) + '</span></td>'
           + '<td>' + esc(sk.contract_version) + '</td>'
@@ -2018,6 +2019,14 @@ document.getElementById("content").addEventListener("click", function(e) {
   if (skDownload) { downloadSkillset(skDownload.dataset.name); return; }
   var skDelete = e.target.closest("[data-action='delete-skillset']");
   if (skDelete) { showDeleteSkillsetModal(skDelete.dataset.name); return; }
+});
+
+document.getElementById("content").addEventListener("keydown", function(e) {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  var el = e.target.closest("[data-action][tabindex]");
+  if (!el) return;
+  e.preventDefault();
+  el.click();
 });
 
 document.getElementById("content").addEventListener("change", function(e) {

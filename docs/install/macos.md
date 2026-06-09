@@ -16,7 +16,7 @@ Verify:
 
 ```bash
 fox-control version
-# fox-control v1.0.0 (commit ..., built ...)
+# fox-control v1.4.1 (commit ..., built ...)
 ```
 
 Upgrade:
@@ -43,7 +43,7 @@ curl -fsSL https://raw.githubusercontent.com/fox-in-the-box-ai/fox-fleet/main/in
 Pin a version:
 
 ```bash
-FOX_VERSION=1.0.0 curl -fsSL https://raw.githubusercontent.com/fox-in-the-box-ai/fox-fleet/main/install.sh | bash
+FOX_VERSION=1.4.1 curl -fsSL https://raw.githubusercontent.com/fox-in-the-box-ai/fox-fleet/main/install.sh | bash
 ```
 
 The script detects your architecture (Apple Silicon or Intel),
@@ -71,13 +71,13 @@ Download the tarball for your architecture from
 
 | Architecture | File |
 |-------------|------|
-| Apple Silicon (M1/M2/M3/M4) | `fox-control-v1.0.0-darwin-arm64.tar.gz` |
-| Intel | `fox-control-v1.0.0-darwin-amd64.tar.gz` |
+| Apple Silicon (M1/M2/M3/M4) | `fox-control-v1.4.1-darwin-arm64.tar.gz` |
+| Intel | `fox-control-v1.4.1-darwin-amd64.tar.gz` |
 
 ```bash
 # Apple Silicon example
-tar xzf fox-control-v1.0.0-darwin-arm64.tar.gz
-sudo install -m 755 fox-control-v1.0.0-darwin-arm64/fox-control /usr/local/bin/
+tar xzf fox-control-v1.4.1-darwin-arm64.tar.gz
+sudo install -m 755 fox-control-v1.4.1-darwin-arm64/fox-control /usr/local/bin/
 ```
 
 ### macOS Gatekeeper
@@ -172,15 +172,15 @@ identity:
 
 ```bash
 # Download the tarball + signature + certificate
-gh release download v1.0.0 --repo fox-in-the-box-ai/fox-fleet \
-  --pattern 'fox-control-v1.0.0-darwin-arm64.tar.gz*'
+gh release download v1.4.1 --repo fox-in-the-box-ai/fox-fleet \
+  --pattern 'fox-control-v1.4.1-darwin-arm64.tar.gz*'
 
 cosign verify-blob \
-  --certificate fox-control-v1.0.0-darwin-arm64.tar.gz.pem \
-  --signature fox-control-v1.0.0-darwin-arm64.tar.gz.sig \
+  --certificate fox-control-v1.4.1-darwin-arm64.tar.gz.pem \
+  --signature fox-control-v1.4.1-darwin-arm64.tar.gz.sig \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   --certificate-identity-regexp 'github.com/fox-in-the-box-ai/fox-fleet' \
-  fox-control-v1.0.0-darwin-arm64.tar.gz
+  fox-control-v1.4.1-darwin-arm64.tar.gz
 # Verified OK
 ```
 

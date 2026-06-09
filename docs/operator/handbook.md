@@ -393,7 +393,7 @@ Default `data_root`:
 **CLI (recommended):**
 
 ```bash
-fox-control backup --dest /backup/fox-control-$(date +%Y%m%d) \
+fox-control backup --output /backup/fox-control-$(date +%Y%m%d) \
   --config /etc/fox-control/fox-control.toml
 ```
 
@@ -407,7 +407,7 @@ To restore from a CLI backup:
 # Stop fox-control first
 sudo systemctl stop fox-control
 
-fox-control restore --from /backup/fox-control-20260607 \
+fox-control restore --input /backup/fox-control-20260607 \
   --config /etc/fox-control/fox-control.toml
 
 sudo systemctl start fox-control
@@ -738,7 +738,7 @@ If you suspect the admin secret has been compromised:
 | Webhook not firing | Target unreachable or event filter mismatch | Verify the webhook URL is reachable from the fox-control host. Check that the `events` filter in the webhook config includes the event type you expect. |
 | Auto-restart not working | Feature disabled or misconfigured | Verify `auto_restart.enabled = true` in config. Check `threshold` and `cooldown` values. Review logs for auto-restart decisions. |
 | TLS handshake failure | Certificate or key issue | Verify `tls.cert_file` and `tls.key_file` paths exist and are readable by the fox-control user. Check certificate chain completeness and expiry. |
-| Backup fails | Destination issue or concurrent backup | Verify the `--dest` directory exists and is writable. Ensure no other backup or restore is in progress (check for lock file). |
+| Backup fails | Destination issue or concurrent backup | Verify the `--output` directory exists and is writable. Ensure no other backup or restore is in progress (check for lock file). |
 | Instance stats return 503 | Docker stats unavailable | The container may not be running, or the Docker daemon stats API is unresponsive. Verify the instance is in a healthy or running state. |
 | Health history empty | No transitions recorded | The instance has had no health state changes in the last 24 hours, or the event store is not configured. Check `events.db` exists in `data_root`. |
 
@@ -798,8 +798,8 @@ when `data_plane.enabled = true`.
 | `fox-control list` | List all instances |
 | `fox-control rollout --image <ref>` | Rolling update (digest reference) |
 | `fox-control version` | Print version |
-| `fox-control backup --dest <dir>` | SQLite VACUUM INTO backup of all databases |
-| `fox-control restore --from <dir>` | Restore databases from backup |
+| `fox-control backup --output <dir>` | SQLite VACUUM INTO backup of all databases |
+| `fox-control restore --input <dir>` | Restore databases from backup |
 | `fox-control diagnostics` | Run 8 built-in health checks |
 | `fox-control generate-secret` | Generate a cryptographic secret |
 | `fox-control verify <file>` | Verify cosign signature |

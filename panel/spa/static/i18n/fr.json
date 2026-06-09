@@ -61,6 +61,7 @@
   "dest.destroyed": "Instance {id} détruite",
   "src.empty_title": "Connectez vos connaissances",
   "src.empty_desc": "Ajoutez des sources de fichiers ou REST pour donner à vos assistants accès aux connaissances organisationnelles.",
+  "src.empty_cta": "Utilisez l'API du plan de données (POST /v1/admin/sources) pour créer votre première source.",
   "src.name": "Nom",
   "src.type": "Type",
   "src.status": "Statut",

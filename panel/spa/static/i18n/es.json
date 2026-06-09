@@ -61,6 +61,7 @@
   "dest.destroyed": "Instancia {id} destruida",
   "src.empty_title": "Conecte su conocimiento",
   "src.empty_desc": "Agregue fuentes de archivo o REST para dar a sus asistentes acceso al conocimiento organizacional.",
+  "src.empty_cta": "Use la API del plano de datos (POST /v1/admin/sources) para crear su primera fuente.",
   "src.name": "Nombre",
   "src.type": "Tipo",
   "src.status": "Estado",
