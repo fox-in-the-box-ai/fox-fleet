@@ -20,11 +20,11 @@ Engineer's entry point: "I'm implementing ticket X, where does the code go?"
 | CTRL-04 | `cmd/fox-control/`, `internal/config/` | CLI entry point + TOML parsing |
 | PANEL-01 | `panel/api/` | Dashboard REST API |
 | PANEL-02 | `panel/spa/` | Dashboard SPA (embedded HTML/JS) |
-| CONF-01 | `conformance/runtime/` | 16 runtime conformance checks |
+| CONF-01 | `conformance/runtime/` | 24 runtime conformance checks |
 | CONF-02 | `conformance/plugin/` | 8 plugin conformance checks |
 | REL-01 | `rollout/` | Fleet rollout orchestration (CLI) |
 
-## v0.2 Tickets (10)
+## v0.2 Tickets (11)
 
 | Ticket | Package(s) | Notes |
 |--------|-----------|-------|
@@ -38,6 +38,7 @@ Engineer's entry point: "I'm implementing ticket X, where does the code go?"
 | PLAT-02 | `skillsets/` | Hermes adapter (config translator) |
 | PLAT-03 | (fox-in-the-box repo: `packages/fox-overlay/`) | Data plane agent plugin |
 | PLAT-10 | `internal/provisioner/`, `skillsets/` | Skillset + role assignment in provisioning |
+| DP-09 | `conformance/dataplane/` | 10 data plane conformance checks |
 
 ## v1.0 Tickets (5)
 

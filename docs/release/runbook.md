@@ -100,15 +100,13 @@ Homebrew tap updates.
 gh release view vX.Y.Z
 ```
 
-Expected assets (21 for stable releases):
+Expected assets (23 for stable releases, 21 for pre-releases):
 
 - 5 platform tarballs (`fox-control-vX.Y.Z-{os}-{arch}.tar.gz`)
-- 5 cosign signatures (`.sig`)
-- 5 cosign certificates (`.pem`)
+- 7 cosign signatures (`.sig`) — 5 tarballs + 1 SBOM + 1 checksums
+- 7 cosign certificates (`.pem`) — 5 tarballs + 1 SBOM + 1 checksums
 - 1 checksums file (`checksums-sha256.txt`)
-- 1 checksums signature + certificate
 - 1 CycloneDX SBOM (`.sbom.cdx.json`)
-- 1 SBOM signature + certificate
 - 2 Debian packages (`fox-control_X.Y.Z_{amd64,arm64}.deb`, stable only)
 
 ### Signature verification
@@ -195,8 +193,8 @@ If missing, `gh release upload` fails with "not a git repository".
 ### Container image build fails
 
 Check that `.dockerignore` does not exclude packages imported by
-`cmd/fox-control/main.go`. The Docker build uses `CGO_ENABLED=1` for
-the modernc.org/sqlite dependency.
+`cmd/fox-control/main.go`. The Docker build uses `CGO_ENABLED=0` for
+a pure-Go build (modernc.org/sqlite is CGO-free).
 
 ### Homebrew tap not updated
 

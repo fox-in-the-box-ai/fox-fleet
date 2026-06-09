@@ -117,9 +117,10 @@ Subcommands: `serve`, `provision`, `destroy`, `list`, `rollout`, `version`, `con
 |---------|---------------|-----------|
 | `rollout/` | Fleet-wide rolling update orchestration. Sequential per-instance rollout with health-gated promotion and automatic rollback on failure. | `Orchestrator`, `Options`, `Report`, `InstanceResult`, `ResultStatus` |
 | `skillsets/` | Skillset manifest parsing, semver validation, tool manifest cross-validation, Hermes config translation. | `Manifest`, `Validate()`, `ValidateAgainstManifest()`, `ToolValidationResult` |
-| `conformance/` | Conformance test suites for runtime behavior and plugin contracts. | — |
+| `conformance/` | Conformance test suites for runtime behavior, plugin contracts, and data plane API. | — |
 | `conformance/runtime/` | Runtime conformance: 24 checks covering standalone/managed boot, auth, health, SSE, security headers, path traversal. | `Suite`, `Run()` |
 | `conformance/plugin/` | Plugin conformance: 8 checks covering provision/health/configure/rollout/rollback/destroy lifecycle, idempotency, error handling. | `Suite`, `Run()` |
+| `conformance/dataplane/` | Data plane conformance: 10 checks covering health, readiness, admin auth, source CRUD, query auth, and content type. | `Suite`, `Run()` |
 
 ---
 
@@ -276,7 +277,7 @@ reg, err := registry.Open(":memory:")
 
 ### Conformance suites
 
-Two conformance suites run against a real Docker environment:
+Three conformance suites run against a real Docker environment:
 
 ```bash
 # Runtime conformance (24 checks: auth, health, SSE, security)
@@ -284,9 +285,12 @@ go run ./cmd/fox-control conformance run --image <fox-image>
 
 # Plugin conformance (8 checks: full lifecycle)
 go run ./cmd/fox-control conformance plugin --image <fox-image>
+
+# Data plane conformance (10 checks: health, auth, source CRUD, query)
+go test ./conformance/dataplane/...
 ```
 
-These require Docker and a built Fox container image. They are not part of the unit test suite.
+The runtime and plugin suites have dedicated CLI subcommands. The data plane suite runs via `go test`. All three require Docker and a built Fox container image. They are not part of the unit test suite.
 
 ### Benchmarks
 
@@ -358,7 +362,7 @@ To enable the data plane, add:
 ```toml
 [qdrant]
 enabled = true
-image = "qdrant/qdrant:v1.13.2"
+image = "qdrant/qdrant:v1.14.1"
 http_port = 6333
 grpc_port = 6334
 

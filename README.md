@@ -6,7 +6,7 @@
 
 Open-source management plane for [Fox in the Box](https://github.com/fox-in-the-box-ai/fox-in-the-box) AI assistants. One binary, one config file, one Docker host — provision, monitor, update, and destroy a fleet of Fox instances through a CLI and browser-based panel.
 
-> **Status: v1.4.0 GA.** Production-ready. Signed releases (cosign + SBOM), conformance in CI, full deployment paths (Compose / Helm / systemd / Homebrew / apt / container image).
+> **Status: v1.4.2 GA.** Production-ready. Signed releases (cosign + SBOM), conformance in CI, full deployment paths (Compose / Helm / systemd / Homebrew / apt / container image).
 
 ---
 
@@ -40,7 +40,7 @@ Pick your platform. Each guide covers every available install channel and verifi
 
 ```bash
 fox-control version
-# fox-control v1.0.0 (commit abc1234, built 2026-06-01)
+# fox-control v1.4.2 (commit abc1234, built 2026-06-09)
 ```
 
 For container deployments:
@@ -238,8 +238,12 @@ All four commands must pass before opening a PR.
 cmd/fox-control/       CLI entry point, TOML config parsing, cobra subcommands
 internal/
   config/              Config injection (writes instance data dirs incl. tools.json)
+  events/              Persistent event log (SQLite) + webhook dispatcher
+  output/              CLI output formatting (table, JSON, quiet)
   provisioner/         Provisioning loop orchestrator (mutex, port alloc, skillset copy, rollback)
   registry/            Instance registry (SQLite, CRUD, status + skillset tracking)
+  safedialer/          SSRF-safe net.Dialer (blocks private/loopback/link-local IPs)
+  sessiontoken/        HMAC-SHA256 session token signing and validation
 plugins/
   plugin.go            DeploymentPlugin interface + shared types
   docker/              Docker plugin implementation (9 methods)
@@ -249,6 +253,7 @@ panel/
 conformance/
   runtime/             Runtime conformance test suite (16 checks)
   plugin/              Plugin conformance test suite (8 checks)
+  dataplane/           Data plane conformance test suite (10 checks)
 rollout/               Fleet rollout orchestration (rolling update + health-gated rollback)
 data-plane/            Data plane server, Qdrant client, ingestion connectors, query API, source registry
 skillsets/             Skillset manifest spec, YAML parser + validator
