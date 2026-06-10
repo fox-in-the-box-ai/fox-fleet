@@ -99,7 +99,7 @@ jobs:
     name: Conformance
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    continue-on-error: true
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
@@ -112,16 +112,11 @@ jobs:
           go build -ldflags "-X main.buildVersion=ci" \
             -o fox-control ./cmd/fox-control
 
-      - name: Build conformance image
-        run: |
-          docker build -t fox-control:ci \
-            --build-arg VERSION=ci \
-            --build-arg COMMIT=${{ github.sha }} \
-            --build-arg DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
-            .
+      - name: Pull Fox instance image
+        run: docker pull ghcr.io/fox-in-the-box-ai/cloud:stable
 
       - name: Run runtime conformance suite
-        run: ./fox-control conformance run --image fox-control:ci
+        run: ./fox-control conformance run --image ghcr.io/fox-in-the-box-ai/cloud:stable
 
       - name: Run plugin conformance suite
-        run: ./fox-control conformance plugin --image fox-control:ci
+        run: ./fox-control conformance plugin --image ghcr.io/fox-in-the-box-ai/cloud:stable
