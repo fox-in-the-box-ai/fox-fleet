@@ -99,7 +99,6 @@ jobs:
     name: Conformance
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    continue-on-error: true
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
@@ -117,6 +116,26 @@ jobs:
 
       - name: Run runtime conformance suite
         run: ./fox-control conformance run --image ghcr.io/fox-in-the-box-ai/cloud:stable
+
+  conformance-plugin:
+    name: Conformance (plugin)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
+        with:
+          go-version: stable
+
+      - name: Build fox-control binary
+        run: |
+          go build -ldflags "-X main.buildVersion=ci" \
+            -o fox-control ./cmd/fox-control
+
+      - name: Pull Fox instance image
+        run: docker pull ghcr.io/fox-in-the-box-ai/cloud:stable
 
       - name: Run plugin conformance suite
         run: ./fox-control conformance plugin --image ghcr.io/fox-in-the-box-ai/cloud:stable

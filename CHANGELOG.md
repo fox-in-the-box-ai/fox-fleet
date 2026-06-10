@@ -15,11 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **check 13 (SSE events):** SKIP message clarifies deferral to instance contract v0.2
   - **check 17 (version schema):** required fields match INSTANCE_CONTRACT v2.0 (`image_digest`, `runtime_version`, `overlay_version` replace `build_version`, `build_commit`, `build_date`)
   - **SUT runner:** port 8080 → 8787 (Fox's actual listen port), add NET_ADMIN capability for tailscale daemon, mark onboarding complete on bind-mount data volume so conformance checks can access auth-gated endpoints
+  - **SUT runner:** fix bind-mount permissions (`os.Chmod` 0777 after `os.MkdirTemp` to bypass umask) so container processes can access `/data` on CI runners; add per-process diagnostic log capture from `/data/logs/` on health-check failures
 - Conformance CI job pulls real Fox instance image (`ghcr.io/fox-in-the-box-ai/cloud:stable`) instead of building `fox-control:ci` (the management plane, not a Fox instance)
+- Wave 3 validated: conformance suite runs 23 PASS + 1 SKIP against Fox `cloud:v0.7.46`
 
 ### Changed
 
-- Conformance CI job runs on every push and PR (was `workflow_dispatch` only); runs as informational signal (`continue-on-error`) until suite reaches stable 23 PASS + 1 SKIP
+- Conformance CI job runs on every push and PR (was `workflow_dispatch` only); runtime conformance promoted to required status check after achieving stable 23 PASS + 1 SKIP
+- Plugin conformance split into separate CI job; runs as informational signal (`continue-on-error`) pending health-check timeout investigation on CI runners
 
 ## [1.4.2] - 2026-06-09
 
