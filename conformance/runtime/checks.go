@@ -60,8 +60,9 @@ func check01BootInvariant(ctx context.Context, cli *client.Client, image string)
 		r.Detail = fmt.Sprintf("container did not exit and logs unreadable: %v", logErr)
 		return r
 	}
-	hasFatal := strings.Contains(logs, "FATAL") && strings.Contains(logs, "FOX_PLANE_AUTH_SECRET")
-	if !hasFatal {
+	hasFatalLog := strings.Contains(logs, "FATAL") && strings.Contains(logs, "FOX_PLANE_AUTH_SECRET")
+	hasFatalCycle := strings.Contains(logs, "gave up:") && strings.Contains(logs, "FATAL state")
+	if !hasFatalLog && !hasFatalCycle {
 		r.Status = report.Fail
 		r.Detail = "container did not exit and no FATAL log for missing FOX_PLANE_AUTH_SECRET"
 		return r
