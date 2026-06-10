@@ -207,7 +207,7 @@ func markOnboardingComplete(dataDir string) error {
 		return err
 	}
 	path := filepath.Join(dir, "onboarding.json")
-	os.Remove(path)
+	_ = os.Remove(path)
 	return os.WriteFile(path, []byte(`{"completed":true}`), 0o666)
 }
 
