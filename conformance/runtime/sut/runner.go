@@ -32,6 +32,19 @@ func Start(ctx context.Context, cli *client.Client, cfg Config) (*Handle, error)
 	if err != nil {
 		return nil, fmt.Errorf("sut: create data dir: %w", err)
 	}
+	if err := os.Chmod(dataDir, 0o777); err != nil {
+		os.RemoveAll(dataDir)
+		return nil, fmt.Errorf("sut: chmod data dir: %w", err)
+	}
+	configDir := filepath.Join(dataDir, "config")
+	if err := os.MkdirAll(configDir, 0o777); err != nil {
+		os.RemoveAll(dataDir)
+		return nil, fmt.Errorf("sut: create config dir: %w", err)
+	}
+	if err := os.Chmod(configDir, 0o777); err != nil {
+		os.RemoveAll(dataDir)
+		return nil, fmt.Errorf("sut: chmod config dir: %w", err)
+	}
 
 	env := buildEnv(cfg)
 
@@ -84,7 +97,23 @@ func Start(ctx context.Context, cli *client.Client, cfg Config) (*Handle, error)
 
 	if cfg.Mode != BootInvariant {
 		if err := waitHealthy(ctx, port); err != nil {
+			logs, _ := h.Logs(ctx)
+			procLogs := collectProcessLogs(dataDir)
 			h.Cleanup(ctx)
+			var diag string
+			if logs != "" {
+				const maxLog = 2000
+				if len(logs) > maxLog {
+					logs = logs[len(logs)-maxLog:]
+				}
+				diag += fmt.Sprintf("\n--- container logs (last %d bytes) ---\n%s", len(logs), logs)
+			}
+			if procLogs != "" {
+				diag += "\n" + procLogs
+			}
+			if diag != "" {
+				return nil, fmt.Errorf("sut: %s not healthy: %w%s", name, err, diag)
+			}
 			return nil, fmt.Errorf("sut: %s not healthy: %w", name, err)
 		}
 		if err := markOnboardingComplete(dataDir); err != nil {
@@ -142,12 +171,44 @@ func waitHealthy(ctx context.Context, port int) error {
 	}
 }
 
+func collectProcessLogs(dataDir string) string {
+	logDir := filepath.Join(dataDir, "logs")
+	entries, err := os.ReadDir(logDir)
+	if err != nil {
+		return ""
+	}
+	const maxPerFile = 2000
+	var result string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		ext := filepath.Ext(name)
+		if ext != ".err" && ext != ".log" {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(logDir, name))
+		if err != nil || len(data) == 0 {
+			continue
+		}
+		content := string(data)
+		if len(content) > maxPerFile {
+			content = content[len(content)-maxPerFile:]
+		}
+		result += fmt.Sprintf("--- %s (last %d bytes) ---\n%s\n", name, len(content), content)
+	}
+	return result
+}
+
 func markOnboardingComplete(dataDir string) error {
 	dir := filepath.Join(dataDir, "config")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o777); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, "onboarding.json"), []byte(`{"completed":true}`), 0o644)
+	path := filepath.Join(dir, "onboarding.json")
+	_ = os.Remove(path)
+	return os.WriteFile(path, []byte(`{"completed":true}`), 0o666)
 }
 
 func probe(ctx context.Context, port int, path string) bool {
