@@ -89,7 +89,7 @@ func Start(ctx context.Context, cli *client.Client, cfg Config) (*Handle, error)
 		}
 		if err := markOnboardingComplete(dataDir); err != nil {
 			h.Cleanup(ctx)
-			return nil, fmt.Errorf("sut: %s onboarding marker: %w", name, err)
+			return nil, fmt.Errorf("sut: %s write onboarding marker: %w", name, err)
 		}
 	}
 
@@ -143,8 +143,11 @@ func waitHealthy(ctx context.Context, port int) error {
 }
 
 func markOnboardingComplete(dataDir string) error {
-	marker := filepath.Join(dataDir, "config", "onboarding.json")
-	return os.WriteFile(marker, []byte(`{"completed":true}`), 0644)
+	dir := filepath.Join(dataDir, "config")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, "onboarding.json"), []byte(`{"completed":true}`), 0o644)
 }
 
 func probe(ctx context.Context, port int, path string) bool {
