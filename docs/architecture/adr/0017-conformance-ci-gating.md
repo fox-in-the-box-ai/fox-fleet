@@ -1,7 +1,7 @@
 # ADR-0017: Conformance CI Gating
 
 **Date:** 2026-06-09
-**Status:** Superseded (2026-06-10) — restoration plan executed; see Resolution section
+**Status:** Resolved (2026-06-10) — restoration plan executed; see Resolution section
 **Deciders:** Dennis Vorobyov
 
 ## Context
