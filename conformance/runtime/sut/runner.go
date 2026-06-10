@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -15,7 +16,7 @@ import (
 )
 
 const (
-	internalPort   = "8080/tcp"
+	internalPort   = "8787/tcp"
 	healthTimeout  = 120 * time.Second
 	healthInterval = 2 * time.Second
 	probeTimeout   = 3 * time.Second
@@ -46,7 +47,8 @@ func Start(ctx context.Context, cli *client.Client, cfg Config) (*Handle, error)
 			PortBindings: nat.PortMap{
 				nat.Port(internalPort): {{HostIP: "127.0.0.1", HostPort: "0"}},
 			},
-			Binds: []string{dataDir + ":/data"},
+			Binds:  []string{dataDir + ":/data"},
+			CapAdd: []string{"NET_ADMIN"},
 			ExtraHosts: []string{
 				"host.docker.internal:host-gateway",
 			},
@@ -84,6 +86,10 @@ func Start(ctx context.Context, cli *client.Client, cfg Config) (*Handle, error)
 		if err := waitHealthy(ctx, port); err != nil {
 			h.Cleanup(ctx)
 			return nil, fmt.Errorf("sut: %s not healthy: %w", name, err)
+		}
+		if err := markOnboardingComplete(dataDir); err != nil {
+			h.Cleanup(ctx)
+			return nil, fmt.Errorf("sut: %s onboarding marker: %w", name, err)
 		}
 	}
 
@@ -134,6 +140,11 @@ func waitHealthy(ctx context.Context, port int) error {
 			}
 		}
 	}
+}
+
+func markOnboardingComplete(dataDir string) error {
+	marker := filepath.Join(dataDir, "config", "onboarding.json")
+	return os.WriteFile(marker, []byte(`{"completed":true}`), 0644)
 }
 
 func probe(ctx context.Context, port int, path string) bool {

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **check 04 (session auth):** use Fox's cookie-based `/api/auth/login` instead of Open WebUI's token-based `/api/v1/auths/signup+signin`
   - **check 13 (SSE events):** SKIP message clarifies deferral to instance contract v0.2
   - **check 17 (version schema):** required fields match INSTANCE_CONTRACT v2.0 (`image_digest`, `runtime_version`, `overlay_version` replace `build_version`, `build_commit`, `build_date`)
+  - **SUT runner:** port 8080 → 8787 (Fox's actual listen port), add NET_ADMIN capability for tailscale daemon, mark onboarding complete on bind-mount data volume so conformance checks can access auth-gated endpoints
 - Conformance CI job pulls real Fox instance image (`ghcr.io/fox-in-the-box-ai/cloud:stable`) instead of building `fox-control:ci` (the management plane, not a Fox instance)
 
 ### Changed
