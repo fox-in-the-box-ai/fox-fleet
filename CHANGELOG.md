@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Align conformance suite checks with Fox runtime reality:
+  - **check 01 (boot invariant):** dual-signal detection — exit OR supervisor FATAL state (Fox uses supervisord, container doesn't exit on boot invariant violation)
+  - **check 04 (session auth):** use Fox's cookie-based `/api/auth/login` instead of Open WebUI's token-based `/api/v1/auths/signup+signin`
+  - **check 13 (SSE events):** SKIP message clarifies deferral to instance contract v0.2
+  - **check 17 (version schema):** required fields match INSTANCE_CONTRACT v2.0 (`image_digest`, `runtime_version`, `overlay_version` replace `build_version`, `build_commit`, `build_date`)
+- Conformance CI job pulls real Fox instance image (`ghcr.io/fox-in-the-box-ai/cloud:stable`) instead of building `fox-control:ci` (the management plane, not a Fox instance)
+
+### Changed
+
+- Conformance CI job runs on every push and PR (was `workflow_dispatch` only); runs as informational signal (`continue-on-error`) until suite reaches stable 23 PASS + 1 SKIP
+
 ## [1.4.2] - 2026-06-09
 
 ### Fixed

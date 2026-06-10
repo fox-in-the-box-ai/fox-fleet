@@ -1,7 +1,7 @@
 # ADR-0017: Conformance CI Gating
 
 **Date:** 2026-06-09
-**Status:** Accepted
+**Status:** Superseded (2026-06-10) — restoration plan executed; conformance CI now pulls real Fox image
 **Deciders:** Dennis Vorobyov
 
 ## Context
