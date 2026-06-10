@@ -3,10 +3,14 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 
 	"github.com/fox-in-the-box-ai/fox-fleet/conformance/runtime/report"
@@ -31,6 +35,16 @@ func (s *Suite) Run(ctx context.Context) (*report.Suite, error) {
 		return nil, fmt.Errorf("conformance: docker client: %w", err)
 	}
 	defer cli.Close()
+
+	if isMovingTag(s.Image) {
+		slog.Info("pulling image (moving tag)", "image", s.Image)
+		rc, err := cli.ImagePull(ctx, s.Image, image.PullOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("conformance: pull %s: %w", s.Image, err)
+		}
+		_, _ = io.Copy(io.Discard, rc)
+		rc.Close()
+	}
 
 	plug := docker.NewWithClient(cli)
 	defer plug.Close()
@@ -81,6 +95,18 @@ func (s *Suite) runIdempotent(ctx context.Context, plug *docker.Plugin, result *
 
 func (s *Suite) runErrorHandling(ctx context.Context, plug *docker.Plugin, result *report.Suite) {
 	result.Add(check08NonexistentHealth(ctx, plug))
+}
+
+func isMovingTag(ref string) bool {
+	if strings.Contains(ref, "@sha256:") {
+		return false
+	}
+	i := strings.LastIndex(ref, ":")
+	if i < 0 {
+		return true
+	}
+	tag := ref[i+1:]
+	return tag == "stable" || tag == "latest"
 }
 
 func parseImageRef(s string) plugins.ImageRef {
