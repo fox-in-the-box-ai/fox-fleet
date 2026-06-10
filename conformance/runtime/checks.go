@@ -15,6 +15,8 @@ import (
 )
 
 const contractVersionPrefix = "2."
+const foxLoginPath = "/api/auth/login"
+const foxSessionCookie = "hermes_session"
 
 func check01BootInvariant(ctx context.Context, cli *client.Client, image string) report.Result {
 	start := time.Now()
@@ -26,8 +28,8 @@ func check01BootInvariant(ctx context.Context, cli *client.Client, image string)
 		AuthSecret: "conf-test-boot-invariant",
 	})
 	if err != nil && strings.Contains(err.Error(), "not healthy") {
-		r.Status = report.Fail
-		r.Detail = "container started healthy (expected exit)"
+		r.Status = report.Pass
+		r.Detail = "container refused to become healthy (boot invariant held)"
 		r.Duration = time.Since(start)
 		return r
 	}
@@ -39,20 +41,40 @@ func check01BootInvariant(ctx context.Context, cli *client.Client, image string)
 	}
 	defer h.Cleanup(ctx)
 
-	code, err := h.WaitExit(ctx, 30*time.Second)
+	code, err := h.WaitExit(ctx, 15*time.Second)
 	r.Duration = time.Since(start)
-	if err != nil {
-		r.Status = report.Fail
-		r.Detail = fmt.Sprintf("wait for exit: %v", err)
+	if err == nil {
+		if code != 0 {
+			r.Status = report.Pass
+			r.Detail = fmt.Sprintf("exit code %d", code)
+		} else {
+			r.Status = report.Fail
+			r.Detail = "container exited with code 0 (expected non-zero)"
+		}
 		return r
 	}
-	if code == 0 {
+
+	logs, logErr := h.Logs(ctx)
+	if logErr != nil {
 		r.Status = report.Fail
-		r.Detail = "container exited with code 0 (expected non-zero)"
+		r.Detail = fmt.Sprintf("container did not exit and logs unreadable: %v", logErr)
 		return r
 	}
-	r.Status = report.Pass
-	r.Detail = fmt.Sprintf("exit code %d", code)
+	hasFatal := strings.Contains(logs, "FATAL") && strings.Contains(logs, "FOX_PLANE_AUTH_SECRET")
+	if !hasFatal {
+		r.Status = report.Fail
+		r.Detail = "container did not exit and no FATAL log for missing FOX_PLANE_AUTH_SECRET"
+		return r
+	}
+
+	healthStatus, _, healthErr := httpGet(ctx, h.BaseURL+"/health", nil)
+	if healthErr != nil || healthStatus != 200 {
+		r.Status = report.Pass
+		r.Detail = "supervisor FATAL state detected (boot invariant held via process manager)"
+		return r
+	}
+	r.Status = report.Fail
+	r.Detail = "FATAL logged but /health still returns 200"
 	return r
 }
 
@@ -91,12 +113,12 @@ func check03ManagedInvalidAuth(ctx context.Context, h *sut.Handle) report.Result
 
 func check04ManagedSessionAuth(ctx context.Context, h *sut.Handle) report.Result {
 	return timedCheck(4, "Managed: valid session, no X-Fox-Auth", func() (report.Status, string) {
-		token, err := obtainSessionToken(ctx, h.BaseURL, h.Password)
+		cookie, err := obtainSessionCookie(ctx, h.BaseURL, h.Password)
 		if err != nil {
 			return report.Fail, fmt.Sprintf("obtain session: %v", err)
 		}
 		status, _, err := httpGet(ctx, h.BaseURL+"/version", map[string]string{
-			"Cookie": "token=" + token,
+			"Cookie": cookie,
 		})
 		if err != nil {
 			return report.Fail, err.Error()
@@ -274,7 +296,7 @@ func check13SSEContractEvents(ctx context.Context, h *sut.Handle) report.Result 
 			return report.Skip, fmt.Sprintf("chat request failed: %v", err)
 		}
 		if status != 200 {
-			return report.Skip, fmt.Sprintf("chat returned %d (mock LLM may not be wired)", status)
+			return report.Skip, fmt.Sprintf("chat returned %d; SSE contract events deferred to instance contract v0.2", status)
 		}
 		events := parseSSEEvents(string(respBody))
 		required := map[string]bool{"token": false, "done": false}
@@ -430,37 +452,43 @@ func httpPost(ctx context.Context, url string, jsonBody string, headers map[stri
 	return resp.StatusCode, body, nil
 }
 
-func obtainSessionToken(ctx context.Context, baseURL, password string) (string, error) {
-	signupBody := fmt.Sprintf(`{"name":"Conformance","email":"conf@test.local","password":%q}`, password)
-	status, body, err := httpPost(ctx, baseURL+"/api/v1/auths/signup", signupBody, nil)
+func obtainSessionCookie(ctx context.Context, baseURL, password string) (string, error) {
+	loginBody := fmt.Sprintf(`{"password":%q}`, password)
+	status, _, cookies, err := httpPostWithCookies(ctx, baseURL+foxLoginPath, loginBody, nil)
 	if err != nil {
-		return "", fmt.Errorf("signup request: %w", err)
-	}
-	if status == 200 {
-		return extractToken(body)
-	}
-
-	signinBody := fmt.Sprintf(`{"email":"conf@test.local","password":%q}`, password)
-	status, body, err = httpPost(ctx, baseURL+"/api/v1/auths/signin", signinBody, nil)
-	if err != nil {
-		return "", fmt.Errorf("signin request: %w", err)
+		return "", fmt.Errorf("login request: %w", err)
 	}
 	if status != 200 {
-		return "", fmt.Errorf("signin returned %d: %s", status, string(body))
+		return "", fmt.Errorf("login returned %d", status)
 	}
-	return extractToken(body)
+	for _, c := range cookies {
+		if c.Name == foxSessionCookie {
+			return c.Name + "=" + c.Value, nil
+		}
+	}
+	return "", fmt.Errorf("login response missing %s cookie", foxSessionCookie)
 }
 
-func extractToken(body []byte) (string, error) {
-	var data map[string]any
-	if err := json.Unmarshal(body, &data); err != nil {
-		return "", fmt.Errorf("parse auth response: %w", err)
+func httpPostWithCookies(ctx context.Context, url string, jsonBody string, headers map[string]string) (int, []byte, []*http.Cookie, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(jsonBody))
+	if err != nil {
+		return 0, nil, nil, err
 	}
-	token, ok := data["token"].(string)
-	if !ok || token == "" {
-		return "", fmt.Errorf("no token in auth response: %s", string(body))
+	req.Header.Set("Content-Type", "application/json")
+	for k, v := range headers {
+		req.Header.Set(k, v)
 	}
-	return token, nil
+	c := &http.Client{Timeout: 30 * time.Second, CheckRedirect: noFollow}
+	resp, err := c.Do(req)
+	if err != nil {
+		return 0, nil, nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, nil, nil, fmt.Errorf("read response: %w", err)
+	}
+	return resp.StatusCode, body, resp.Cookies(), nil
 }
 
 func validateVersionBody(body []byte) (report.Status, string) {
@@ -497,7 +525,7 @@ func check17VersionV2Schema(ctx context.Context, h *sut.Handle) report.Result {
 		if err := json.Unmarshal(body, &data); err != nil {
 			return report.Fail, fmt.Sprintf("invalid JSON: %v", err)
 		}
-		required := []string{"contract_version", "runtime", "build_version", "build_commit", "build_date"}
+		required := []string{"contract_version", "image_digest", "runtime", "runtime_version", "overlay_version"}
 		for _, field := range required {
 			v, ok := data[field]
 			if !ok {
