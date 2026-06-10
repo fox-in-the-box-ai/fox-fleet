@@ -1,7 +1,7 @@
 # ADR-0017: Conformance CI Gating
 
 **Date:** 2026-06-09
-**Status:** Superseded (2026-06-10) — restoration plan executed; conformance CI now pulls real Fox image
+**Status:** Superseded (2026-06-10) — restoration plan executed; see Resolution section
 **Deciders:** Dennis Vorobyov
 
 ## Context
@@ -99,3 +99,28 @@ To restore automated conformance in CI:
 
 The conformance suite code requires no changes — only the CI job's image
 source needs updating.
+
+## Resolution (2026-06-10)
+
+The restoration plan was executed across a 5-wave conformance fix rollout
+spanning both fox-fleet and fox-in-the-box repositories.
+
+**What changed:**
+
+1. **Fox-side (fox-in-the-box):** PR #515 exempted `/readyz`, `/version`,
+   and `/capabilities` from the onboarding redirect, allowing unauthenticated
+   contract endpoint access. Released as v0.7.46.
+2. **Fleet-side (fox-fleet):** PRs #111, #114, #115, #116 fixed the SUT
+   runner (port, capabilities, bind-mount permissions, diagnostic logs) and
+   aligned conformance checks with Fox runtime reality (cookie-based auth,
+   supervisord FATAL cycling detection, version schema, SSE skip reason).
+3. **CI image source (fox-fleet):** PR #112 changed the conformance CI job
+   from building `fox-control:ci` to pulling
+   `ghcr.io/fox-in-the-box-ai/cloud:stable` — the real Fox instance image.
+4. **Gating removed:** The `workflow_dispatch` guard was removed in PR #112;
+   conformance now runs on every push and PR.
+
+**Validated result:** 23 PASS + 1 SKIP (check 13, SSE contract events
+deferred to instance contract v0.2) against Fox `cloud:v0.7.46`.
+
+**Tracking issue:** #109 (closed with this resolution).
