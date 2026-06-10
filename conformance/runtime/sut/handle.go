@@ -1,6 +1,7 @@
 package sut
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 )
 
 type Mode int
@@ -49,6 +51,23 @@ func (h *Handle) Cleanup(ctx context.Context) {
 	if h.dataDir != "" {
 		_ = os.RemoveAll(h.dataDir)
 	}
+}
+
+// Logs returns combined stdout+stderr. Call only on short-lived containers.
+func (h *Handle) Logs(ctx context.Context) (string, error) {
+	reader, err := h.cli.ContainerLogs(ctx, h.ContainerID, container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("sut: logs %s: %w", h.Name, err)
+	}
+	defer reader.Close()
+	var stdout, stderr bytes.Buffer
+	if _, err := stdcopy.StdCopy(&stdout, &stderr, reader); err != nil {
+		return "", fmt.Errorf("sut: demux logs %s: %w", h.Name, err)
+	}
+	return stdout.String() + stderr.String(), nil
 }
 
 func (h *Handle) WaitExit(ctx context.Context, timeout time.Duration) (int, error) {
