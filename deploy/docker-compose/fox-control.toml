@@ -5,7 +5,7 @@ health_poll_seconds = 15
 
 [docker]
 socket = "/var/run/docker.sock"
-image = "ghcr.io/fox-in-the-box-ai/fox:latest"
+	image = "ghcr.io/fox-in-the-box-ai/cloud:stable"
 
 [auth]
 admin_secret = "${FOX_ADMIN_SECRET}"
@@ -17,6 +17,7 @@ max_instances = 10
 
 [qdrant]
 enabled = true
+image = "qdrant/qdrant:v1.14.1"
 http_port = 6333
 grpc_port = 6334
 
