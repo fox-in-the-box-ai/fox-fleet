@@ -37,8 +37,9 @@ type ProvisionRequest struct {
 
 // InstanceConfig holds per-instance configuration injected before boot.
 type InstanceConfig struct {
-	AuthSecret      string            `json:"auth_secret"`
-	ProxyEndpoint   string            `json:"proxy_endpoint,omitempty"`
+	AuthSecret       string            `json:"auth_secret"`
+	InstancePassword string            `json:"instance_password,omitempty"`
+	ProxyEndpoint    string            `json:"proxy_endpoint,omitempty"`
 	CapabilityFlags map[string]bool   `json:"capability_flags,omitempty"`
 	Env             map[string]string `json:"env,omitempty"`
 	SkillsetPath    string            `json:"skillset_path,omitempty"`

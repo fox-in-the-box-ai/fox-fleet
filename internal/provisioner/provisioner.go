@@ -188,8 +188,9 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 	// --- End critical section ---
 
 	instanceCfg := plugins.InstanceConfig{
-		AuthSecret:      req.AdminSecret,
-		ProxyEndpoint:   req.ProxyEndpoint,
+		AuthSecret:       req.AdminSecret,
+		InstancePassword: req.InstancePassword,
+		ProxyEndpoint:    req.ProxyEndpoint,
 		CapabilityFlags: req.CapabilityFlags,
 		Env:             req.Env,
 		SkillsetPath:    req.SkillsetPath,
@@ -238,6 +239,11 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 	}); err != nil {
 		s.rollback(ctx, req.InstanceID, dataDir, true)
 		return nil, fmt.Errorf("provisioner: deploy: %w", err)
+	}
+
+	if err := config.MarkOnboardingComplete(dataDir); err != nil {
+		s.rollback(ctx, req.InstanceID, dataDir, true)
+		return nil, fmt.Errorf("provisioner: mark onboarding complete: %w", err)
 	}
 
 	if err := s.retryUpdateStatus(req.InstanceID, "running"); err != nil {
