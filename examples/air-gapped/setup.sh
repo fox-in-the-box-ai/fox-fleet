@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-FOX_IMAGE="ghcr.io/fox-in-the-box-ai/fox:latest"
+FOX_IMAGE="ghcr.io/fox-in-the-box-ai/cloud:stable"
 QDRANT_IMAGE="qdrant/qdrant:v1.14.1"
 DATA_ROOT="/var/lib/fox-control"
 SECRETS_FILE="${DATA_ROOT}/.secrets"

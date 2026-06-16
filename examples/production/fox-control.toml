@@ -39,8 +39,8 @@ key_file  = "/etc/fox-control/tls/tls.key"
 
 [docker]
 # Pin to a digest for reproducible deployments:
-#   image = "ghcr.io/fox-in-the-box-ai/fox@sha256:abc123..."
-image = "ghcr.io/fox-in-the-box-ai/fox:latest"
+#   image = "ghcr.io/fox-in-the-box-ai/cloud@sha256:abc123..."
+image = "ghcr.io/fox-in-the-box-ai/cloud:stable"
 
 # ---------- Authentication ----------
 
