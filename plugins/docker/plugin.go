@@ -90,6 +90,13 @@ func (p *Plugin) Provision(ctx context.Context, req plugins.ProvisionRequest) er
 
 	imageRef := refString(req.Image)
 
+	pullReader, err := p.cli.ImagePull(ctx, imageRef, image.PullOptions{})
+	if err != nil {
+		return fmt.Errorf("docker: pull %s: %w", imageRef, err)
+	}
+	_, _ = io.Copy(io.Discard, pullReader)
+	pullReader.Close()
+
 	resp, err := p.cli.ContainerCreate(ctx,
 		&container.Config{
 			Image: imageRef,

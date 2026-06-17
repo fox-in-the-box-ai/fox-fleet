@@ -67,6 +67,7 @@ func newRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "fox-control",
 		Short:        "Fox Fleet management plane",
+		Version:      buildVersion,
 		SilenceUsage: true,
 	}
 	cmd.PersistentFlags().StringVar(&cfgPath, "config", "/etc/fox-control/fox-control.toml", "path to config file")
