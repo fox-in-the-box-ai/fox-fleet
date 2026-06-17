@@ -29,6 +29,7 @@ import (
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/qdrant"
 	dpserver "github.com/fox-in-the-box-ai/fox-fleet/data-plane/server"
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/source"
+	"github.com/fox-in-the-box-ai/fox-fleet/internal/cloud"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/config"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/events"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/output"
@@ -223,6 +224,28 @@ func newServeCmd() *cobra.Command {
 
 			metricsEnabled := cfg.Control.MetricsEnabled == nil || *cfg.Control.MetricsEnabled
 
+			var userStore *cloud.UserStore
+			var sessionStore *cloud.SessionStore
+			var cloudCfg api.CloudConfig
+			if cfg.Cloud.Enabled {
+				db := reg.DB()
+				userStore = cloud.NewUserStore(db)
+				sessionStore = cloud.NewSessionStore(db)
+
+				cloudTTL := time.Duration(cfg.Cloud.SessionTTL) * time.Second
+				cloudCfg = api.CloudConfig{
+					CookieName:     cfg.Cloud.CookieName,
+					Secure:         cfg.TLS.CertFile != "",
+					Domain:         cfg.Cloud.Domain,
+					SessionTTL:     cloudTTL,
+					LoginRateLimit: cfg.Cloud.LoginRateLimit,
+				}
+
+				purgeCtx, purgeCancel := context.WithCancel(cmd.Context())
+				defer purgeCancel()
+				sessionStore.StartPurge(purgeCtx, 10*time.Minute, slog.Default())
+			}
+
 			apiServer := api.NewServer(api.Deps{
 				Registry:           reg,
 				Provisioner:        prov,
@@ -250,6 +273,9 @@ func newServeCmd() *cobra.Command {
 					Threshold: cfg.AutoRestart.Threshold,
 					Cooldown:  time.Duration(cfg.AutoRestart.CooldownSeconds) * time.Second,
 				},
+				UserStore:    userStore,
+				SessionStore: sessionStore,
+				Cloud:        cloudCfg,
 			})
 
 			ctx := cmd.Context()
