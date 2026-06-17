@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - HTTP reverse proxy for cloud users — authenticated users are proxied to their assigned Fox instance via `httputil.ReverseProxy` with `/cloud/` path prefix stripping, `X-Fox-Auth` header injection for instance auth passthrough, and 503 page when instance is unavailable
 - Embedded login page at `GET /cloud/login` with Fox branding, error display, and auto-redirect for authenticated users
 - When cloud is enabled, admin SPA moves to `/admin/` and root `/` redirects to cloud login or cloud proxy based on authentication state
+- Cloud routing integration test suite — 9 scenarios covering full lifecycle, user deletion access revocation, multi-user instance isolation, admin API coexistence, instance assignment flow, password change flow, logout invalidation, multiple concurrent sessions, and cloud-disabled backwards compatibility
 
 ## [1.4.3] - 2026-06-17
 
