@@ -90,8 +90,8 @@ instance_password = "p"
 	if cfg.Instances.PortStart != 8787 {
 		t.Errorf("default PortStart = %d, want 8787", cfg.Instances.PortStart)
 	}
-	if cfg.Instances.MaxInstances != 2 {
-		t.Errorf("default MaxInstances = %d, want 2", cfg.Instances.MaxInstances)
+	if cfg.Instances.MaxInstances != 10 {
+		t.Errorf("default MaxInstances = %d, want 10", cfg.Instances.MaxInstances)
 	}
 }
 
