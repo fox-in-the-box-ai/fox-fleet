@@ -13,7 +13,9 @@ func (s *Server) handleCloudLoginPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	setCloudSecurityHeaders(w)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'")
 	w.Write([]byte(cloudLoginPage))
 }
 
@@ -76,10 +78,10 @@ password:document.getElementById("password").value
 fetch("/cloud/login",{method:"POST",headers:{"Content-Type":"application/json"},body:body,credentials:"same-origin"})
 .then(function(r){
 if(r.ok){window.location.href="/cloud/";return}
-return r.json().then(function(d){throw new Error(d.message||"Invalid credentials")});
+return r.json().catch(function(){return{}}).then(function(d){throw new Error(d.message||"Invalid credentials")});
 })
 .catch(function(ex){
-err.textContent=ex.message||"Login failed";
+err.textContent=ex.message||"Invalid credentials";
 err.style.display="block";
 btn.disabled=false;
 btn.textContent="Sign In";

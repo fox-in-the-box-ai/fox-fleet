@@ -230,6 +230,103 @@ func TestCloudLoginPage_RedirectsWhenAuthenticated(t *testing.T) {
 	}
 }
 
+func TestCloudProxy_PreservesQueryString(t *testing.T) {
+	env := newTestEnvWithCloud(t)
+
+	var gotQuery string
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQuery = r.URL.RawQuery
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backend.Close()
+
+	port := parseTestPort(t, backend.URL)
+	env.seedInstance(t, "qs-inst", port)
+
+	instID := "qs-inst"
+	if _, err := env.server.users.Update("alice", nil, &instID); err != nil {
+		t.Fatal(err)
+	}
+
+	w := doCloudRequest(t, env, "POST", "/cloud/login", `{"username":"alice","password":"password123"}`)
+	cookie := extractSessionCookie(w)
+
+	doCloudRequest(t, env, "GET", "/cloud/api/v1/models?key=value&foo=bar", "", cookie)
+	if gotQuery != "key=value&foo=bar" {
+		t.Errorf("query = %q, want %q", gotQuery, "key=value&foo=bar")
+	}
+}
+
+func TestCloudProxy_ForwardsPOSTBody(t *testing.T) {
+	env := newTestEnvWithCloud(t)
+
+	var gotMethod, gotBody string
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		buf := make([]byte, 1024)
+		n, _ := r.Body.Read(buf)
+		gotBody = string(buf[:n])
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backend.Close()
+
+	port := parseTestPort(t, backend.URL)
+	env.seedInstance(t, "post-inst", port)
+
+	instID := "post-inst"
+	if _, err := env.server.users.Update("alice", nil, &instID); err != nil {
+		t.Fatal(err)
+	}
+
+	w := doCloudRequest(t, env, "POST", "/cloud/login", `{"username":"alice","password":"password123"}`)
+	cookie := extractSessionCookie(w)
+
+	w = doCloudRequest(t, env, "POST", "/cloud/api/chat", `{"message":"hello"}`, cookie)
+	if gotMethod != "POST" {
+		t.Errorf("method = %q, want POST", gotMethod)
+	}
+	if gotBody != `{"message":"hello"}` {
+		t.Errorf("body = %q, want %q", gotBody, `{"message":"hello"}`)
+	}
+}
+
+func TestCloudProxy_503WhenBackendUnreachable(t *testing.T) {
+	env := newTestEnvWithCloud(t)
+
+	env.seedInstance(t, "dead-inst", 19876)
+
+	instID := "dead-inst"
+	if _, err := env.server.users.Update("alice", nil, &instID); err != nil {
+		t.Fatal(err)
+	}
+
+	w := doCloudRequest(t, env, "POST", "/cloud/login", `{"username":"alice","password":"password123"}`)
+	cookie := extractSessionCookie(w)
+
+	w = doCloudRequest(t, env, "GET", "/cloud/test", "", cookie)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusServiceUnavailable)
+	}
+	if !strings.Contains(w.Body.String(), "unreachable") {
+		t.Errorf("body should mention 'unreachable', got: %s", w.Body.String())
+	}
+}
+
+func TestCloudLoginPage_HasSecurityHeaders(t *testing.T) {
+	env := newTestEnvWithCloud(t)
+
+	w := doCloudRequest(t, env, "GET", "/cloud/login", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+	if v := w.Header().Get("X-Frame-Options"); v != "DENY" {
+		t.Errorf("X-Frame-Options = %q, want DENY", v)
+	}
+	if v := w.Header().Get("X-Content-Type-Options"); v != "nosniff" {
+		t.Errorf("X-Content-Type-Options = %q, want nosniff", v)
+	}
+}
+
 func parseTestPort(t *testing.T, rawURL string) int {
 	t.Helper()
 	u, err := url.Parse(rawURL)

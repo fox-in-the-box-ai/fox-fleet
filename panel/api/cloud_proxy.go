@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"html"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -45,7 +46,13 @@ func (s *Server) handleCloudProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	target, _ := url.Parse(fmt.Sprintf("http://localhost:%d", inst.Port))
+	target, err := url.Parse(fmt.Sprintf("http://localhost:%d", inst.Port))
+	if err != nil {
+		s.log.Error("cloud proxy: bad target URL", "instance_id", inst.ID, "port", inst.Port, "error", err)
+		s.serveCloud503(w, inst.ID, "internal error")
+		return
+	}
+
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(target)
@@ -58,6 +65,10 @@ func (s *Server) handleCloudProxy(w http.ResponseWriter, r *http.Request) {
 			if s.instPwd != "" {
 				pr.Out.Header.Set("X-Fox-Auth", s.instPwd)
 			}
+		},
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			s.log.Error("cloud proxy: backend unreachable", "instance_id", inst.ID, "error", err)
+			s.serveCloud503(w, inst.ID, "unreachable")
 		},
 	}
 
@@ -80,9 +91,16 @@ func (s *Server) handleCloudRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) serveCloud503(w http.ResponseWriter, instanceID, reason string) {
+	setCloudSecurityHeaders(w)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusServiceUnavailable)
-	fmt.Fprintf(w, cloud503Page, instanceID, reason)
+	fmt.Fprintf(w, cloud503Page, html.EscapeString(instanceID), html.EscapeString(reason))
+}
+
+func setCloudSecurityHeaders(w http.ResponseWriter) {
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 }
 
 const cloud503Page = `<!DOCTYPE html>
