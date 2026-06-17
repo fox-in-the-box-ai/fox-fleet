@@ -26,6 +26,7 @@ import (
 	plugconf "github.com/fox-in-the-box-ai/fox-fleet/conformance/plugin"
 	conformance "github.com/fox-in-the-box-ai/fox-fleet/conformance/runtime"
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/embedding"
+	"github.com/fox-in-the-box-ai/fox-fleet/internal/cloud"
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/qdrant"
 	dpserver "github.com/fox-in-the-box-ai/fox-fleet/data-plane/server"
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/source"
@@ -223,6 +224,35 @@ func newServeCmd() *cobra.Command {
 
 			metricsEnabled := cfg.Control.MetricsEnabled == nil || *cfg.Control.MetricsEnabled
 
+			var userStore *cloud.UserStore
+			var sessionStore *cloud.SessionStore
+			var cloudCfg api.CloudConfig
+			if cfg.Cloud.Enabled {
+				db := reg.DB()
+				userStore = cloud.NewUserStore(db)
+				sessionStore = cloud.NewSessionStore(db)
+
+				cloudTTL := 24 * time.Hour
+				if cfg.Cloud.SessionTTL > 0 {
+					cloudTTL = time.Duration(cfg.Cloud.SessionTTL) * time.Second
+				}
+				cookieName := cfg.Cloud.CookieName
+				if cookieName == "" {
+					cookieName = "fox_session"
+				}
+				cloudCfg = api.CloudConfig{
+					CookieName:     cookieName,
+					Secure:         cfg.TLS.CertFile != "",
+					Domain:         cfg.Cloud.Domain,
+					SessionTTL:     cloudTTL,
+					LoginRateLimit: cfg.Cloud.LoginRateLimit,
+				}
+
+				purgeCtx, purgeCancel := context.WithCancel(cmd.Context())
+				defer purgeCancel()
+				sessionStore.StartPurge(purgeCtx, 10*time.Minute, slog.Default())
+			}
+
 			apiServer := api.NewServer(api.Deps{
 				Registry:           reg,
 				Provisioner:        prov,
@@ -250,6 +280,9 @@ func newServeCmd() *cobra.Command {
 					Threshold: cfg.AutoRestart.Threshold,
 					Cooldown:  time.Duration(cfg.AutoRestart.CooldownSeconds) * time.Second,
 				},
+				UserStore:    userStore,
+				SessionStore: sessionStore,
+				Cloud:        cloudCfg,
 			})
 
 			ctx := cmd.Context()

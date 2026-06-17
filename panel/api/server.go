@@ -43,6 +43,8 @@ type Deps struct {
 	QdrantHealth       QdrantHealthChecker
 	AutoRestart        AutoRestartConfig
 	UserStore          *cloud.UserStore
+	SessionStore       *cloud.SessionStore
+	Cloud              CloudConfig
 }
 
 const defaultSessionTokenTTL = 10 * time.Minute
@@ -67,6 +69,8 @@ type Server struct {
 	signer          *sessiontoken.Signer
 	sessionTTL      time.Duration
 	users           *cloud.UserStore
+	sessions        *cloud.SessionStore
+	cloudCfg        CloudConfig
 	inFlightMu      sync.Mutex
 	inFlight        map[string]bool
 	wg              sync.WaitGroup
@@ -109,6 +113,8 @@ func NewServer(d Deps) *Server {
 		signer:          sessiontoken.NewSigner(d.SigningKey),
 		sessionTTL:      ttl,
 		users:           d.UserStore,
+		sessions:        d.SessionStore,
+		cloudCfg:        d.Cloud,
 		inFlight:        make(map[string]bool),
 		metrics:         m,
 	}
@@ -166,6 +172,15 @@ func NewServer(d Deps) *Server {
 	}
 	s.mux.Handle("/api/events/stream", s.requireSessionToken(http.HandlerFunc(s.handleEventsStream)))
 	s.mux.Handle("/api/", apiHandler)
+
+	if s.sessions != nil {
+		cloudMux := http.NewServeMux()
+		cloudMux.HandleFunc("POST /cloud/login", s.handleCloudLogin)
+		cloudMux.HandleFunc("POST /cloud/logout", s.handleCloudLogout)
+		var cloudHandler http.Handler = cloudMux
+		cloudHandler = rateLimitMiddleware(newRateLimiter(d.Cloud.loginRate()))(cloudHandler)
+		s.mux.Handle("/cloud/", cloudHandler)
+	}
 
 	if d.WebFS != nil {
 		s.mux.Handle("/", securityHeaders(http.FileServerFS(d.WebFS)))
