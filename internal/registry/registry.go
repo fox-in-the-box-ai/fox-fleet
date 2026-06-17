@@ -143,6 +143,20 @@ var migrations = []func(tx *sql.Tx) error{
 		}
 		return nil
 	},
+	func(tx *sql.Tx) error {
+		_, err := tx.Exec(`CREATE TABLE IF NOT EXISTS cloud_users (
+			username       TEXT PRIMARY KEY COLLATE NOCASE,
+			password_hash  TEXT NOT NULL,
+			instance_id    TEXT REFERENCES instances(id) ON DELETE SET NULL,
+			created_at     TEXT NOT NULL,
+			updated_at     TEXT NOT NULL
+		)`)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_cloud_users_instance ON cloud_users(instance_id) WHERE instance_id IS NOT NULL`)
+		return err
+	},
 }
 
 func migrate(db *sql.DB) error {
@@ -460,6 +474,12 @@ func (r *Registry) RotateSigningKey() ([]byte, error) {
 		return nil, fmt.Errorf("registry: commit rotated signing key: %w", err)
 	}
 	return newKey, nil
+}
+
+// DB returns the underlying database connection for use by other stores
+// that share the same SQLite file (e.g. cloud user/session stores).
+func (r *Registry) DB() *sql.DB {
+	return r.db
 }
 
 // Close closes the database connection.
