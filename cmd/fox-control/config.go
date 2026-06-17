@@ -69,8 +69,8 @@ type DockerSection struct {
 }
 
 type AuthSection struct {
-	AdminSecret      string `toml:"admin_secret"`
-	InstancePassword string `toml:"instance_password"`
+	AdminSecret      string `toml:"admin_secret" json:"-"`
+	InstancePassword string `toml:"instance_password" json:"-"`
 }
 
 type InstancesSection struct {
