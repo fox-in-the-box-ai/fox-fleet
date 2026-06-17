@@ -281,7 +281,7 @@ func TestCloudProxy_ForwardsPOSTBody(t *testing.T) {
 	w := doCloudRequest(t, env, "POST", "/cloud/login", `{"username":"alice","password":"password123"}`)
 	cookie := extractSessionCookie(w)
 
-	w = doCloudRequest(t, env, "POST", "/cloud/api/chat", `{"message":"hello"}`, cookie)
+	doCloudRequest(t, env, "POST", "/cloud/api/chat", `{"message":"hello"}`, cookie)
 	if gotMethod != "POST" {
 		t.Errorf("method = %q, want POST", gotMethod)
 	}
