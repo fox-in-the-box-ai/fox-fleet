@@ -20,6 +20,7 @@ type updateUserRequest struct {
 }
 
 func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxCreateBody)
 	var req createUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body")
@@ -60,11 +61,18 @@ func (s *Server) handleListUsers(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal_error", "cannot list users")
 		return
 	}
+	if users == nil {
+		users = []cloud.User{}
+	}
 	writeJSON(w, http.StatusOK, users)
 }
 
 func (s *Server) handleGetUser(w http.ResponseWriter, r *http.Request) {
 	username := r.PathValue("username")
+	if !validInstanceID.MatchString(username) {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid username")
+		return
+	}
 	u, err := s.users.Get(username)
 	if errors.Is(err, cloud.ErrUserNotFound) {
 		writeError(w, http.StatusNotFound, "not_found", "user not found")
@@ -80,7 +88,12 @@ func (s *Server) handleGetUser(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	username := r.PathValue("username")
+	if !validInstanceID.MatchString(username) {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid username")
+		return
+	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, maxCreateBody)
 	var req updateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body")
@@ -108,6 +121,10 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	username := r.PathValue("username")
+	if !validInstanceID.MatchString(username) {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid username")
+		return
+	}
 
 	if err := s.users.Delete(username); errors.Is(err, cloud.ErrUserNotFound) {
 		writeError(w, http.StatusNotFound, "not_found", "user not found")
