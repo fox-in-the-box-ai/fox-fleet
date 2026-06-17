@@ -21,7 +21,7 @@ var (
 )
 
 const (
-	defaultMaxInstances   = 2
+	defaultMaxInstances   = 10
 	defaultHealthTimeout  = 120 * time.Second
 	defaultPortRangeStart = 9100
 	maxPortScan           = 1000
