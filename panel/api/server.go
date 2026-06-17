@@ -174,15 +174,17 @@ func NewServer(d Deps) *Server {
 	s.mux.Handle("/api/", apiHandler)
 
 	if s.sessions != nil {
-		cloudMux := http.NewServeMux()
-		cloudMux.HandleFunc("POST /cloud/login", s.handleCloudLogin)
-		cloudMux.HandleFunc("POST /cloud/logout", s.handleCloudLogout)
-		var cloudHandler http.Handler = cloudMux
-		cloudHandler = rateLimitMiddleware(newRateLimiter(d.Cloud.loginRate()))(cloudHandler)
-		s.mux.Handle("/cloud/", cloudHandler)
-	}
+		loginRL := rateLimitMiddleware(newRateLimiter(d.Cloud.loginRate()))
+		s.mux.Handle("POST /cloud/login", loginRL(http.HandlerFunc(s.handleCloudLogin)))
+		s.mux.Handle("POST /cloud/logout", http.HandlerFunc(s.handleCloudLogout))
+		s.mux.HandleFunc("GET /cloud/login", s.handleCloudLoginPage)
+		s.mux.Handle("/cloud/", http.HandlerFunc(s.handleCloudProxy))
 
-	if d.WebFS != nil {
+		if d.WebFS != nil {
+			s.mux.Handle("/admin/", securityHeaders(http.StripPrefix("/admin", http.FileServerFS(d.WebFS))))
+		}
+		s.mux.HandleFunc("GET /{$}", s.handleCloudRoot)
+	} else if d.WebFS != nil {
 		s.mux.Handle("/", securityHeaders(http.FileServerFS(d.WebFS)))
 	}
 
