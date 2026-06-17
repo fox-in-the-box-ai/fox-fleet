@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-06-17
+
 ### Fixed
 
+- Align Fleet provisioning with Fox runtime requirements: internal port 8080 → 8787, health poll max 30 → 60, plumb `InstancePassword` through to `HERMES_WEBUI_PASSWORD` env var, add NET_ADMIN capability and `/dev/net/tun` device for Tailscale, add `host.docker.internal` extra host for container-to-host networking
+- Write `onboarding.json` marker after successful instance deploy to prevent setup/login redirect loop when `HERMES_WEBUI_PASSWORD` is pre-set
+- Update all Fox runtime image references from `ghcr.io/fox-in-the-box-ai/fox:latest` to `ghcr.io/fox-in-the-box-ai/cloud:stable` across deployment configs, Helm chart, examples, and documentation
+- Correct docker-compose sample defaults: image reference and Qdrant image pin (`qdrant/qdrant:v1.14.1`)
 - Align conformance suite checks with Fox runtime reality:
   - **check 01 (boot invariant):** dual-signal detection — exit OR supervisor FATAL state (Fox uses supervisord, container doesn't exit on boot invariant violation)
   - **check 04 (session auth):** use Fox's cookie-based `/api/auth/login` instead of Open WebUI's token-based `/api/v1/auths/signup+signin`
@@ -21,8 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Default `max_instances` raised from 2 to 10 to support Cloud routing where multiple users each get their own Fox instance
 - Conformance CI job runs on every push and PR (was `workflow_dispatch` only); runtime conformance promoted to required status check after achieving stable 23 PASS + 1 SKIP
 - Plugin conformance split into separate CI job; runs as informational signal (`continue-on-error`) pending health-check timeout investigation on CI runners
+
+### Security
+
+- Add `json:"-"` tags to `AuthSection.AdminSecret` and `AuthSection.InstancePassword` in config struct — prevents accidental secret leakage if the struct is JSON-serialized
+- Add `json:"-"` tag to `InstanceConfig.InstancePassword` in plugin contract struct — same defense-in-depth hardening
 
 ## [1.4.2] - 2026-06-09
 
