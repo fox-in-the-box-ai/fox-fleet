@@ -151,7 +151,7 @@ helm install fox-control deploy/helm/fox-control \
 | `persistence.enabled` | `true` | Persistent volume for SQLite + instance data |
 | `persistence.size` | `1Gi` | Volume size |
 | `config.maxInstances` | `10` | Instance cap |
-| `config.dockerImage` | `ghcr.io/fox-in-the-box-ai/fox:latest` | Fox instance image |
+| `config.dockerImage` | `ghcr.io/fox-in-the-box-ai/cloud:stable` | Fox instance image |
 | `config.portStart` | `8787` | First instance port |
 | `auth.existingSecret` | `""` | Use an existing Secret instead of creating one |
 | `ingress.enabled` | `false` | Enable Ingress resource |
@@ -297,7 +297,7 @@ listen = "127.0.0.1:9090"
 data_root = "./data"
 
 [docker]
-image = "ghcr.io/fox-in-the-box-ai/fox:latest"
+image = "ghcr.io/fox-in-the-box-ai/cloud:stable"
 
 [auth]
 admin_secret = "dev-secret-change-in-prod"
@@ -339,7 +339,7 @@ log_level = "info"                 # Log level: debug, info, warn, error (defaul
 
 [docker]
 socket = "/var/run/docker.sock"    # Docker daemon socket (default: /var/run/docker.sock)
-image = "ghcr.io/fox-in-the-box-ai/fox:latest"  # Default Fox image (required)
+image = "ghcr.io/fox-in-the-box-ai/cloud:stable"  # Default Fox image (required)
 
 [auth]
 admin_secret = ""                  # Required — panel API bearer token (min 16 chars)

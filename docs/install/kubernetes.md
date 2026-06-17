@@ -56,7 +56,7 @@ Open `http://localhost:9090` in your browser.
 | `persistence.enabled` | `true` | Persistent volume for data |
 | `persistence.size` | `1Gi` | Volume size |
 | `config.maxInstances` | `10` | Instance cap |
-| `config.dockerImage` | `ghcr.io/fox-in-the-box-ai/fox:latest` | Fox instance image |
+| `config.dockerImage` | `ghcr.io/fox-in-the-box-ai/cloud:stable` | Fox instance image |
 | `config.portStart` | `8787` | First instance port |
 | `auth.existingSecret` | `""` | Use an existing K8s Secret |
 | `ingress.enabled` | `false` | Enable Ingress resource |

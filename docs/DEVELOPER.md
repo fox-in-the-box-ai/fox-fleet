@@ -337,7 +337,7 @@ listen = "127.0.0.1:9090"
 data_root = "/tmp/fox-data"
 
 [docker]
-image = "ghcr.io/fox-in-the-box-ai/fox:latest"
+image = "ghcr.io/fox-in-the-box-ai/cloud:stable"
 
 [auth]
 admin_secret = "dev-secret-at-least-16chars"

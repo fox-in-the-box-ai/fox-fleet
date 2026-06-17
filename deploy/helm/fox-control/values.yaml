@@ -42,7 +42,7 @@ config:
   dataRoot: "/var/lib/fox-control"
   healthPollSeconds: 15
   dockerSocket: "/var/run/docker.sock"
-  dockerImage: "ghcr.io/fox-in-the-box-ai/fox:latest"
+  dockerImage: "ghcr.io/fox-in-the-box-ai/cloud:stable"
   portStart: 8787
   maxInstances: 10
 

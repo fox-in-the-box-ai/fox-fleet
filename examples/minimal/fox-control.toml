@@ -17,7 +17,7 @@ data_root = "/var/lib/fox-control"
 
 [docker]
 # Fox container image to provision instances from.
-image = "ghcr.io/fox-in-the-box-ai/fox:latest"
+image = "ghcr.io/fox-in-the-box-ai/cloud:stable"
 
 # ---------- Authentication ----------
 
