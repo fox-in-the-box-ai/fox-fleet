@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/source"
+	"github.com/fox-in-the-box-ai/fox-fleet/internal/cloud"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/events"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/provisioner"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
@@ -41,6 +42,7 @@ type Deps struct {
 	MetricsEnabled     bool
 	QdrantHealth       QdrantHealthChecker
 	AutoRestart        AutoRestartConfig
+	UserStore          *cloud.UserStore
 }
 
 const defaultSessionTokenTTL = 10 * time.Minute
@@ -64,6 +66,7 @@ type Server struct {
 	events          *events.Log
 	signer          *sessiontoken.Signer
 	sessionTTL      time.Duration
+	users           *cloud.UserStore
 	inFlightMu      sync.Mutex
 	inFlight        map[string]bool
 	wg              sync.WaitGroup
@@ -105,6 +108,7 @@ func NewServer(d Deps) *Server {
 		events:          d.EventLog,
 		signer:          sessiontoken.NewSigner(d.SigningKey),
 		sessionTTL:      ttl,
+		users:           d.UserStore,
 		inFlight:        make(map[string]bool),
 		metrics:         m,
 	}
@@ -137,6 +141,14 @@ func NewServer(d Deps) *Server {
 	apiMux.HandleFunc("POST /api/query", s.handleQuery)
 	apiMux.HandleFunc("GET /api/events", s.handleEvents)
 	apiMux.HandleFunc("POST /api/auth/session", s.handleSession)
+
+	if s.users != nil {
+		apiMux.HandleFunc("POST /api/users", s.handleCreateUser)
+		apiMux.HandleFunc("GET /api/users", s.handleListUsers)
+		apiMux.HandleFunc("GET /api/users/{username}", s.handleGetUser)
+		apiMux.HandleFunc("PUT /api/users/{username}", s.handleUpdateUser)
+		apiMux.HandleFunc("DELETE /api/users/{username}", s.handleDeleteUser)
+	}
 
 	apiHandler := s.requireAuth(apiMux)
 
