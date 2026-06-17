@@ -5,6 +5,18 @@ All notable changes to Fox Fleet are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-06-17
+
+### Fixed
+
+- Instance provisioning now pulls the Fox image before creating the container — previously failed on fresh hosts where the image wasn't locally cached
+- Docker-compose templates add `group_add` for Docker socket access — the container's nonroot user (uid 65532) can now communicate with the Docker daemon
+- `.env.example` files document the `DOCKER_GID` variable for hosts where the docker group GID differs from the default 999
+
+### Added
+
+- `fox-control --version` flag (in addition to the existing `fox-control version` subcommand)
+
 ## [1.5.0] - 2026-06-17
 
 ### Added

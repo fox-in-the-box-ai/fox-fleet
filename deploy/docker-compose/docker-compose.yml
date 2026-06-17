@@ -6,6 +6,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "${FOX_LISTEN_PORT:-9090}:9090"
+    group_add:
+      - "${DOCKER_GID:-999}"
     volumes:
       - fox-data:/var/lib/fox-control
       - ./fox-control.toml:/etc/fox-control/fox-control.toml:ro
