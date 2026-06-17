@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Embedded login page at `GET /cloud/login` with Fox branding, error display, and auto-redirect for authenticated users
 - When cloud is enabled, admin SPA moves to `/admin/` and root `/` redirects to cloud login or cloud proxy based on authentication state
 - Cloud routing integration test suite — 9 scenarios covering full lifecycle, user deletion access revocation, multi-user instance isolation, admin API coexistence, instance assignment flow, password change flow, logout invalidation, multiple concurrent sessions, and cloud-disabled backwards compatibility
+- Cloud demo E2E script (`scripts/cloud-demo-e2e.sh`) — operator verification tool that exercises the full cloud flow: user creation, instance assignment, login, proxied access, unauthenticated rejection, logout, and session invalidation
 
 ## [1.4.3] - 2026-06-17
 
