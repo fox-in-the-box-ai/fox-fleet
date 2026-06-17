@@ -6,7 +6,7 @@
 
 Open-source management plane for [Fox in the Box](https://github.com/fox-in-the-box-ai/fox-in-the-box) AI assistants. One binary, one config file, one Docker host — provision, monitor, update, and destroy a fleet of Fox instances through a CLI and browser-based panel.
 
-> **Status: v1.4.2 GA.** Production-ready. Signed releases (cosign + SBOM), conformance suite, full deployment paths (Compose / Helm / systemd / Homebrew / apt / container image).
+> **Status: v1.5.0 GA.** Production-ready. Signed releases (cosign + SBOM), conformance suite, full deployment paths (Compose / Helm / systemd / Homebrew / apt / container image).
 
 ---
 
@@ -40,7 +40,7 @@ Pick your platform. Each guide covers every available install channel and verifi
 
 ```bash
 fox-control version
-# fox-control v1.4.2 (commit abc1234, built 2026-06-09)
+# fox-control v1.5.0 (commit abc1234, built 2026-06-17)
 ```
 
 For container deployments:

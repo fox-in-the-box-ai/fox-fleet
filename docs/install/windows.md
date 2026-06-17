@@ -78,15 +78,15 @@ docker compose down -v         # stop services AND delete volumes
 
 ## Binary download
 
-A Windows binary (`fox-control-v1.4.2-windows-amd64.tar.gz`) is
+A Windows binary (`fox-control-v1.5.0-windows-amd64.tar.gz`) is
 available from [GitHub Releases](https://github.com/fox-in-the-box-ai/fox-fleet/releases).
 
 ```powershell
 # Extract
-tar xzf fox-control-v1.4.2-windows-amd64.tar.gz
+tar xzf fox-control-v1.5.0-windows-amd64.tar.gz
 
 # Run
-.\fox-control-v1.4.2-windows-amd64\fox-control.exe version
+.\fox-control-v1.5.0-windows-amd64\fox-control.exe version
 ```
 
 ### Windows SmartScreen

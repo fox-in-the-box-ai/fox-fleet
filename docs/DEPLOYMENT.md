@@ -53,7 +53,7 @@ FOX_INSTANCE_PASSWORD=<your-generated-password>
 Optional overrides:
 
 ```bash
-FOX_VERSION=latest          # pin to a release tag (e.g. 1.4.2)
+FOX_VERSION=latest          # pin to a release tag (e.g. 1.5.0)
 FOX_LISTEN_PORT=9090        # host port for the panel
 QDRANT_HTTP_PORT=6333       # host port for Qdrant HTTP
 QDRANT_GRPC_PORT=6334       # host port for Qdrant gRPC
@@ -430,10 +430,10 @@ The panel connects to `GET /api/events/stream` via Server-Sent Events. Lifecycle
 
 ```bash
 # Docker Compose
-FOX_VERSION=1.4.2 docker compose up -d
+FOX_VERSION=1.5.0 docker compose up -d
 
 # Helm
-helm upgrade fox-control deploy/helm/fox-control --set image.tag=1.4.2
+helm upgrade fox-control deploy/helm/fox-control --set image.tag=1.5.0
 ```
 
 ### Binary deployments (systemd / manual)

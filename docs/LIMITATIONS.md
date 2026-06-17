@@ -1,6 +1,6 @@
 # Known Limitations
 
-Fox Fleet v1.4.2 — last updated 2026-06-09.
+Fox Fleet v1.5.0 — last updated 2026-06-17.
 
 This document tracks architectural boundaries, known gaps, and constraints
 that operators and contributors should be aware of. Items here are
