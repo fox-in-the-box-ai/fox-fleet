@@ -157,6 +157,23 @@ var migrations = []func(tx *sql.Tx) error{
 		_, err = tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_cloud_users_instance ON cloud_users(instance_id) WHERE instance_id IS NOT NULL`)
 		return err
 	},
+	func(tx *sql.Tx) error {
+		_, err := tx.Exec(`CREATE TABLE IF NOT EXISTS cloud_sessions (
+			token_hash  TEXT PRIMARY KEY,
+			user_id     TEXT NOT NULL REFERENCES cloud_users(username) ON DELETE CASCADE,
+			created_at  TEXT NOT NULL,
+			expires_at  TEXT NOT NULL
+		)`)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(`CREATE INDEX IF NOT EXISTS idx_cloud_sessions_user ON cloud_sessions(user_id)`)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(`CREATE INDEX IF NOT EXISTS idx_cloud_sessions_expires ON cloud_sessions(expires_at)`)
+		return err
+	},
 }
 
 func migrate(db *sql.DB) error {
