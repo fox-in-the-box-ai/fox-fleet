@@ -4,7 +4,7 @@ info:
   description: >-
     Fox Fleet exposes two HTTP servers: a Panel API (management plane) and a
     Data Plane API (knowledge ingestion and vector search).
-  version: 1.4.2
+  version: 1.5.0
   license:
     name: Apache-2.0
     url: https://github.com/fox-in-the-box-ai/fox-fleet/blob/main/LICENSE

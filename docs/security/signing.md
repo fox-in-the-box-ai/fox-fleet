@@ -28,7 +28,7 @@ Install cosign: https://docs.sigstore.dev/cosign/system_config/installation/
 ```bash
 # Download the release tarball, signature, and certificate
 # (all three are in the GitHub Release assets)
-fox-control verify fox-control-v1.4.2-linux-amd64.tar.gz
+fox-control verify fox-control-v1.5.0-linux-amd64.tar.gz
 ```
 
 The command expects `<file>.sig` and `<file>.pem` next to the artifact. Override with flags:
@@ -43,14 +43,14 @@ fox-control verify artifact.tar.gz \
 
 ```bash
 cosign verify-blob \
-  --signature fox-control-v1.4.2-linux-amd64.tar.gz.sig \
-  --certificate fox-control-v1.4.2-linux-amd64.tar.gz.pem \
-  --certificate-identity "https://github.com/fox-in-the-box-ai/fox-fleet/.github/workflows/release.yml@refs/tags/v1.4.2" \
+  --signature fox-control-v1.5.0-linux-amd64.tar.gz.sig \
+  --certificate fox-control-v1.5.0-linux-amd64.tar.gz.pem \
+  --certificate-identity "https://github.com/fox-in-the-box-ai/fox-fleet/.github/workflows/release.yml@refs/tags/v1.5.0" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  fox-control-v1.4.2-linux-amd64.tar.gz
+  fox-control-v1.5.0-linux-amd64.tar.gz
 ```
 
-Replace `v1.4.2` with the version you downloaded.
+Replace `v1.5.0` with the version you downloaded.
 
 ### Verifying checksums
 
@@ -60,7 +60,7 @@ The `checksums-sha256.txt` file is also signed:
 cosign verify-blob \
   --signature checksums-sha256.txt.sig \
   --certificate checksums-sha256.txt.pem \
-  --certificate-identity "https://github.com/fox-in-the-box-ai/fox-fleet/.github/workflows/release.yml@refs/tags/v1.4.2" \
+  --certificate-identity "https://github.com/fox-in-the-box-ai/fox-fleet/.github/workflows/release.yml@refs/tags/v1.5.0" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
   checksums-sha256.txt
 ```
@@ -79,12 +79,12 @@ Container images pushed to `ghcr.io/fox-in-the-box-ai/fox-control` are signed wi
 
 ```bash
 cosign verify \
-  --certificate-identity "https://github.com/fox-in-the-box-ai/fox-fleet/.github/workflows/release.yml@refs/tags/v1.4.2" \
+  --certificate-identity "https://github.com/fox-in-the-box-ai/fox-fleet/.github/workflows/release.yml@refs/tags/v1.5.0" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  ghcr.io/fox-in-the-box-ai/fox-control:1.4.2
+  ghcr.io/fox-in-the-box-ai/fox-control:1.5.0
 ```
 
-Replace `v1.4.2` with the version you are verifying.
+Replace `v1.5.0` with the version you are verifying.
 
 ---
 
@@ -98,23 +98,23 @@ The container image has an additional SBOM attested in the registry as a signed 
 
 ```bash
 cosign verify-blob \
-  --signature fox-control-v1.4.2.sbom.cdx.json.sig \
-  --certificate fox-control-v1.4.2.sbom.cdx.json.pem \
-  --certificate-identity "https://github.com/fox-in-the-box-ai/fox-fleet/.github/workflows/release.yml@refs/tags/v1.4.2" \
+  --signature fox-control-v1.5.0.sbom.cdx.json.sig \
+  --certificate fox-control-v1.5.0.sbom.cdx.json.pem \
+  --certificate-identity "https://github.com/fox-in-the-box-ai/fox-fleet/.github/workflows/release.yml@refs/tags/v1.5.0" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  fox-control-v1.4.2.sbom.cdx.json
+  fox-control-v1.5.0.sbom.cdx.json
 ```
 
 ### Verifying the container SBOM attestation
 
 ```bash
 cosign verify-attestation --type cyclonedx \
-  --certificate-identity "https://github.com/fox-in-the-box-ai/fox-fleet/.github/workflows/release.yml@refs/tags/v1.4.2" \
+  --certificate-identity "https://github.com/fox-in-the-box-ai/fox-fleet/.github/workflows/release.yml@refs/tags/v1.5.0" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
   ghcr.io/fox-in-the-box-ai/fox-control@sha256:<digest>
 ```
 
-Replace `v1.4.2` and `<digest>` with the version and image digest you are verifying.
+Replace `v1.5.0` and `<digest>` with the version and image digest you are verifying.
 
 ---
 
