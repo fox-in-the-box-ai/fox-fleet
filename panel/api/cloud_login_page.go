@@ -16,7 +16,7 @@ func (s *Server) handleCloudLoginPage(w http.ResponseWriter, r *http.Request) {
 	setCloudSecurityHeaders(w)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'")
-	w.Write([]byte(cloudLoginPage))
+	_, _ = w.Write([]byte(cloudLoginPage))
 }
 
 const cloudLoginPage = `<!DOCTYPE html>
