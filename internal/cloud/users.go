@@ -127,6 +127,9 @@ func (s *UserStore) Update(username string, password *string, instanceID *string
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	if password != nil {
+		if *password == "" {
+			return User{}, fmt.Errorf("cloud: password must not be empty")
+		}
 		hash, err := bcrypt.GenerateFromPassword([]byte(*password), bcryptCost)
 		if err != nil {
 			return User{}, fmt.Errorf("cloud: hash password: %w", err)

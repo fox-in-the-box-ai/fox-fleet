@@ -342,3 +342,67 @@ func TestUserStore_UpdateInstanceID(t *testing.T) {
 		t.Errorf("instance_id = %v, want fox-2", u.InstanceID)
 	}
 }
+
+func TestUserStore_UniqueInstanceConstraint(t *testing.T) {
+	db := openTestDB(t)
+	store := NewUserStore(db)
+	insertInstance(t, db, "fox-1")
+
+	if _, err := store.Create("alice", "pass1"); err != nil {
+		t.Fatalf("create alice: %v", err)
+	}
+	if _, err := store.Create("bob", "pass2"); err != nil {
+		t.Fatalf("create bob: %v", err)
+	}
+
+	if err := store.SetInstanceID("alice", "fox-1"); err != nil {
+		t.Fatalf("set alice instance: %v", err)
+	}
+
+	err := store.SetInstanceID("bob", "fox-1")
+	if err == nil {
+		t.Fatal("expected error assigning same instance to two users")
+	}
+}
+
+func TestUserStore_AuthenticateCaseInsensitive(t *testing.T) {
+	db := openTestDB(t)
+	store := NewUserStore(db)
+
+	if _, err := store.Create("alice", "secret"); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	u, err := store.Authenticate("ALICE", "secret")
+	if err != nil {
+		t.Fatalf("authenticate with different case: %v", err)
+	}
+	if u.Username != "alice" {
+		t.Errorf("username = %q, want %q", u.Username, "alice")
+	}
+}
+
+func TestUserStore_SetInstanceIDNotFound(t *testing.T) {
+	db := openTestDB(t)
+	store := NewUserStore(db)
+
+	err := store.SetInstanceID("nobody", "fox-1")
+	if err != ErrUserNotFound {
+		t.Errorf("expected ErrUserNotFound, got: %v", err)
+	}
+}
+
+func TestUserStore_UpdateEmptyPasswordRejected(t *testing.T) {
+	db := openTestDB(t)
+	store := NewUserStore(db)
+
+	if _, err := store.Create("alice", "pass"); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	empty := ""
+	_, err := store.Update("alice", &empty, nil)
+	if err == nil {
+		t.Fatal("expected error for empty password in update")
+	}
+}
