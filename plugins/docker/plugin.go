@@ -34,9 +34,9 @@ var blockedEnvKeys = map[string]bool{
 const (
 	containerPrefix = "fox-"
 	healthPollDelay = 2 * time.Second
-	healthPollMax   = 30
+	healthPollMax   = 60
 	stopTimeout     = 30
-	internalPort    = "8080/tcp"
+	internalPort    = "8787/tcp"
 )
 
 type Plugin struct {
@@ -60,6 +60,9 @@ func (p *Plugin) Provision(ctx context.Context, req plugins.ProvisionRequest) er
 
 	env := []string{
 		fmt.Sprintf("FOX_PLANE_AUTH_SECRET=%s", req.Config.AuthSecret),
+	}
+	if req.Config.InstancePassword != "" {
+		env = append(env, fmt.Sprintf("HERMES_WEBUI_PASSWORD=%s", req.Config.InstancePassword))
 	}
 	if req.Config.ProxyEndpoint != "" {
 		env = append(env, fmt.Sprintf("FOX_PROXY_ENDPOINT=%s", req.Config.ProxyEndpoint))
@@ -103,6 +106,22 @@ func (p *Plugin) Provision(ctx context.Context, req plugins.ProvisionRequest) er
 		&container.HostConfig{
 			PortBindings: portBinding,
 			Binds:        []string{req.DataDir + ":/data"},
+			CapAdd:       []string{"NET_ADMIN"},
+			ExtraHosts: []string{
+				"host.docker.internal:host-gateway",
+			},
+			Resources: container.Resources{
+				Devices: []container.DeviceMapping{
+					{
+						PathOnHost:        "/dev/net/tun",
+						PathInContainer:   "/dev/net/tun",
+						CgroupPermissions: "rwm",
+					},
+				},
+			},
+			Sysctls: map[string]string{
+				"net.ipv4.ip_forward": "1",
+			},
 			RestartPolicy: container.RestartPolicy{
 				Name: container.RestartPolicyUnlessStopped,
 			},

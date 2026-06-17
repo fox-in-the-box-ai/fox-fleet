@@ -37,13 +37,14 @@ type ProvisionRequest struct {
 
 // InstanceConfig holds per-instance configuration injected before boot.
 type InstanceConfig struct {
-	AuthSecret      string            `json:"auth_secret"`
-	ProxyEndpoint   string            `json:"proxy_endpoint,omitempty"`
-	CapabilityFlags map[string]bool   `json:"capability_flags,omitempty"`
-	Env             map[string]string `json:"env,omitempty"`
-	SkillsetPath    string            `json:"skillset_path,omitempty"`
-	DataPlaneURL    string            `json:"data_plane_url,omitempty"`
-	PrincipalRole   string            `json:"principal_role,omitempty"`
+	AuthSecret       string            `json:"auth_secret"`
+	InstancePassword string            `json:"-"`
+	ProxyEndpoint    string            `json:"proxy_endpoint,omitempty"`
+	CapabilityFlags  map[string]bool   `json:"capability_flags,omitempty"`
+	Env              map[string]string `json:"env,omitempty"`
+	SkillsetPath     string            `json:"skillset_path,omitempty"`
+	DataPlaneURL     string            `json:"data_plane_url,omitempty"`
+	PrincipalRole    string            `json:"principal_role,omitempty"`
 }
 
 // HealthStatus reports the health and readiness of an instance.

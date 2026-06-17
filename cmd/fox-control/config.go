@@ -137,7 +137,7 @@ func applyDefaults(cfg *Config) {
 		cfg.Instances.PortStart = 8787
 	}
 	if cfg.Instances.MaxInstances == 0 {
-		cfg.Instances.MaxInstances = 2
+		cfg.Instances.MaxInstances = 10
 	}
 	if cfg.Control.HealthPollSeconds == 0 {
 		cfg.Control.HealthPollSeconds = 15
