@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Cloud login/logout endpoints (`POST /cloud/login`, `POST /cloud/logout`) with session-cookie authentication, bcrypt credential verification, timing-attack-safe user lookup, configurable session TTL, and separate rate limiter
+- Cloud session middleware (`requireCloudSession`) for protecting cloud-routed endpoints — validates session cookie, injects authenticated user into request context
+- Audit logging for cloud authentication events (success and failure)
+
 ## [1.4.3] - 2026-06-17
 
 ### Added

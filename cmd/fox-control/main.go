@@ -232,16 +232,9 @@ func newServeCmd() *cobra.Command {
 				userStore = cloud.NewUserStore(db)
 				sessionStore = cloud.NewSessionStore(db)
 
-				cloudTTL := 24 * time.Hour
-				if cfg.Cloud.SessionTTL > 0 {
-					cloudTTL = time.Duration(cfg.Cloud.SessionTTL) * time.Second
-				}
-				cookieName := cfg.Cloud.CookieName
-				if cookieName == "" {
-					cookieName = "fox_session"
-				}
+				cloudTTL := time.Duration(cfg.Cloud.SessionTTL) * time.Second
 				cloudCfg = api.CloudConfig{
-					CookieName:     cookieName,
+					CookieName:     cfg.Cloud.CookieName,
 					Secure:         cfg.TLS.CertFile != "",
 					Domain:         cfg.Cloud.Domain,
 					SessionTTL:     cloudTTL,

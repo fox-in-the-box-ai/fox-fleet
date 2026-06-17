@@ -28,7 +28,7 @@ func (c CloudConfig) loginRate() int {
 	if c.LoginRateLimit > 0 {
 		return c.LoginRateLimit
 	}
-	return 10
+	return 5
 }
 
 type loginRequest struct {
@@ -48,13 +48,18 @@ func (s *Server) handleCloudLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", "username and password are required")
 		return
 	}
+	if len(req.Username) > 64 {
+		writeError(w, http.StatusBadRequest, "bad_request", "username too long")
+		return
+	}
+	if len(req.Password) > 72 {
+		writeError(w, http.StatusBadRequest, "bad_request", "password too long")
+		return
+	}
 
 	_, err := s.users.Authenticate(req.Username, req.Password)
 	if errors.Is(err, cloud.ErrInvalidCredentials) {
-		writeError(w, http.StatusUnauthorized, "unauthorized", "invalid credentials")
-		return
-	}
-	if errors.Is(err, cloud.ErrUserNotFound) {
+		s.log.Warn("cloud login failed: invalid credentials", "username", req.Username)
 		writeError(w, http.StatusUnauthorized, "unauthorized", "invalid credentials")
 		return
 	}
@@ -71,6 +76,7 @@ func (s *Server) handleCloudLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.log.Info("cloud login succeeded", "username", req.Username)
 	http.SetCookie(w, s.sessionCookie(token, s.cloudCfg.SessionTTL))
 	writeJSON(w, http.StatusOK, map[string]string{"username": req.Username})
 }
@@ -120,6 +126,6 @@ func (s *Server) sessionCookie(token string, maxAge time.Duration) *http.Cookie 
 		MaxAge:   int(maxAge.Seconds()),
 		HttpOnly: true,
 		Secure:   s.cloudCfg.Secure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 	}
 }

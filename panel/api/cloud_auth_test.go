@@ -50,8 +50,9 @@ func newTestEnvWithCloud(t *testing.T) *testEnv {
 		UserStore:    users,
 		SessionStore: sessions,
 		Cloud: CloudConfig{
-			CookieName: "fox_session",
-			SessionTTL: time.Hour,
+			CookieName:     "fox_cloud_session",
+			SessionTTL:     time.Hour,
+			LoginRateLimit: 5,
 		},
 	})
 
@@ -82,7 +83,7 @@ func doCloudRequest(t *testing.T, env *testEnv, method, path, body string, cooki
 
 func extractSessionCookie(w *httptest.ResponseRecorder) *http.Cookie {
 	for _, c := range w.Result().Cookies() {
-		if c.Name == "fox_session" {
+		if c.Name == "fox_cloud_session" {
 			return c
 		}
 	}
@@ -112,8 +113,11 @@ func TestCloudAuth_LoginSuccess(t *testing.T) {
 	if !cookie.HttpOnly {
 		t.Error("cookie should be HttpOnly")
 	}
-	if cookie.SameSite != http.SameSiteLaxMode {
-		t.Error("cookie should be SameSite=Lax")
+	if cookie.SameSite != http.SameSiteStrictMode {
+		t.Error("cookie should be SameSite=Strict")
+	}
+	if cookie.Path != "/" {
+		t.Errorf("cookie Path = %q, want %q", cookie.Path, "/")
 	}
 	if cookie.Value == "" {
 		t.Error("cookie value is empty")
@@ -127,6 +131,9 @@ func TestCloudAuth_LoginInvalidPassword(t *testing.T) {
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusUnauthorized)
 	}
+	if !strings.Contains(w.Body.String(), "invalid credentials") {
+		t.Errorf("body = %s, want 'invalid credentials'", w.Body.String())
+	}
 }
 
 func TestCloudAuth_LoginUnknownUser(t *testing.T) {
@@ -136,12 +143,35 @@ func TestCloudAuth_LoginUnknownUser(t *testing.T) {
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusUnauthorized)
 	}
+	if !strings.Contains(w.Body.String(), "invalid credentials") {
+		t.Errorf("body = %s, want 'invalid credentials'", w.Body.String())
+	}
 }
 
 func TestCloudAuth_LoginMissingFields(t *testing.T) {
 	env := newTestEnvWithCloud(t)
 
 	w := doCloudRequest(t, env, "POST", "/cloud/login", `{"username":"alice"}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+func TestCloudAuth_LoginUsernameTooLong(t *testing.T) {
+	env := newTestEnvWithCloud(t)
+
+	longUser := strings.Repeat("a", 65)
+	w := doCloudRequest(t, env, "POST", "/cloud/login", `{"username":"`+longUser+`","password":"password123"}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	}
+}
+
+func TestCloudAuth_LoginPasswordTooLong(t *testing.T) {
+	env := newTestEnvWithCloud(t)
+
+	longPwd := strings.Repeat("x", 73)
+	w := doCloudRequest(t, env, "POST", "/cloud/login", `{"username":"alice","password":"`+longPwd+`"}`)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
 	}
@@ -248,7 +278,7 @@ func TestCloudAuth_SessionMiddlewareInvalidToken(t *testing.T) {
 	}))
 
 	r := httptest.NewRequest("GET", "/test", nil)
-	r.AddCookie(&http.Cookie{Name: "fox_session", Value: "invalid-token"})
+	r.AddCookie(&http.Cookie{Name: "fox_cloud_session", Value: "invalid-token"})
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, r)
 
