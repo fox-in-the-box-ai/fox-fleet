@@ -4,10 +4,11 @@
 
 ## Checklist
 
-- [ ] `make build` succeeds
-- [ ] `make test` passes
-- [ ] `make lint` passes
+- [ ] Local quality gate green (`make lint`, `make test`, `make build`)
 - [ ] Ticket ID cited above
 - [ ] No new warnings introduced
-- [ ] CI status: all jobs green (or pre-existing failures documented)
-- [ ] If this PR adds wiring between packages, the test suite includes a binary-level integration test ([ADR-0015](docs/architecture/adr/0015-binary-integration-tests.md))
+- [ ] CI status: all required checks green (lint, test, build, Conformance)
+- [ ] CHANGELOG entry added for any user-visible change
+- [ ] No internal/private content added to this public repo (audits, panels, working notes → fox-private-docs)
+
+## Deferred / out of scope
