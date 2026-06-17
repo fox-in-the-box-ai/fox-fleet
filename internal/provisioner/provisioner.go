@@ -191,11 +191,11 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 		AuthSecret:       req.AdminSecret,
 		InstancePassword: req.InstancePassword,
 		ProxyEndpoint:    req.ProxyEndpoint,
-		CapabilityFlags: req.CapabilityFlags,
-		Env:             req.Env,
-		SkillsetPath:    req.SkillsetPath,
-		DataPlaneURL:    req.DataPlaneURL,
-		PrincipalRole:   req.PrincipalRole,
+		CapabilityFlags:  req.CapabilityFlags,
+		Env:              req.Env,
+		SkillsetPath:     req.SkillsetPath,
+		DataPlaneURL:     req.DataPlaneURL,
+		PrincipalRole:    req.PrincipalRole,
 	}
 
 	if err := os.MkdirAll(dataDir, 0o700); err != nil {
