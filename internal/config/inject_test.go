@@ -321,3 +321,62 @@ func TestInjectMinimalConfig(t *testing.T) {
 		t.Error("minimal config missing auth secret in hermes.env")
 	}
 }
+
+func TestHermesEnvBlocksCloudWebUIVars(t *testing.T) {
+	reserved := []string{
+		"HERMES_WEBUI_ALLOWED_ORIGINS",
+		"HERMES_WEBUI_TRUST_FORWARDED_HOST",
+		"HERMES_WEBUI_CSP_CONNECT_EXTRA",
+	}
+	for _, key := range reserved {
+		t.Run(key, func(t *testing.T) {
+			p := validParams(t)
+			p.Config.Env[key] = "attacker-value"
+			err := Inject(p)
+			if err == nil {
+				t.Fatalf("Inject should reject reserved env key %s", key)
+			}
+			if !strings.Contains(err.Error(), key) {
+				t.Errorf("error = %q, want to mention %s", err, key)
+			}
+		})
+	}
+}
+
+func TestHermesEnvCloudInjection(t *testing.T) {
+	p := validParams(t)
+	p.Cloud = CloudConfig{Enabled: true, Domain: "cloud.example.com"}
+	if err := Inject(p); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(p.DataDir, "hermes.env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := string(data)
+	for _, want := range []string{
+		"HERMES_WEBUI_ALLOWED_ORIGINS=https://cloud.example.com",
+		"HERMES_WEBUI_TRUST_FORWARDED_HOST=true",
+		"HERMES_WEBUI_CSP_CONNECT_EXTRA=https://cloud.example.com wss://cloud.example.com",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("hermes.env missing %q\ngot:\n%s", want, content)
+		}
+	}
+}
+
+func TestHermesEnvCloudDisabledNoInjection(t *testing.T) {
+	p := validParams(t)
+	p.Cloud = CloudConfig{Enabled: false, Domain: "cloud.example.com"}
+	if err := Inject(p); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(p.DataDir, "hermes.env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := string(data)
+	if strings.Contains(content, "HERMES_WEBUI_ALLOWED_ORIGINS") {
+		t.Error("hermes.env should not contain Cloud env vars when cloud is disabled")
+	}
+}

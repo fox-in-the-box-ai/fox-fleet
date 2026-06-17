@@ -50,6 +50,10 @@ func Open(path string) (*Registry, error) {
 		db.Close()
 		return nil, fmt.Errorf("registry: set busy timeout: %w", err)
 	}
+	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("registry: enable foreign keys: %w", err)
+	}
 	if err := migrate(db); err != nil {
 		db.Close()
 		return nil, err

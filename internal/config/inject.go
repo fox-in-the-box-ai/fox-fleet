@@ -19,11 +19,18 @@ var (
 	ErrMissingInstancePassword = errors.New("config: instance_password must not be empty")
 )
 
+// CloudConfig holds Cloud-layer settings injected into managed Fox containers.
+type CloudConfig struct {
+	Enabled bool
+	Domain  string
+}
+
 type InjectParams struct {
 	DataDir          string
 	InstancePassword string
 	Config           plugins.InstanceConfig
 	QueryToken       string
+	Cloud            CloudConfig
 }
 
 func Inject(p InjectParams) error {
@@ -76,10 +83,17 @@ func renderHermesEnv(p InjectParams) ([]byte, error) {
 		if upper == "FOX_PLANE_AUTH_SECRET" || upper == "HERMES_WEBUI_PASSWORD" ||
 			upper == "FOX_DATA_PLANE_URL" || upper == "FOX_DATA_PLANE_TOKEN" ||
 			upper == "FOX_SKILLSET_PATH" || upper == "PATH" ||
-			upper == "HOME" || upper == "LD_PRELOAD" || upper == "LD_LIBRARY_PATH" {
+			upper == "HOME" || upper == "LD_PRELOAD" || upper == "LD_LIBRARY_PATH" ||
+			upper == "HERMES_WEBUI_ALLOWED_ORIGINS" || upper == "HERMES_WEBUI_TRUST_FORWARDED_HOST" ||
+			upper == "HERMES_WEBUI_CSP_CONNECT_EXTRA" {
 			return nil, fmt.Errorf("env key %q is reserved and cannot be overridden", k)
 		}
 		env[k] = v
+	}
+	if p.Cloud.Enabled && p.Cloud.Domain != "" {
+		env["HERMES_WEBUI_ALLOWED_ORIGINS"] = "https://" + p.Cloud.Domain
+		env["HERMES_WEBUI_TRUST_FORWARDED_HOST"] = "true"
+		env["HERMES_WEBUI_CSP_CONNECT_EXTRA"] = "https://" + p.Cloud.Domain + " wss://" + p.Cloud.Domain
 	}
 
 	keys := make([]string, 0, len(env))

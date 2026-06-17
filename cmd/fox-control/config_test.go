@@ -579,3 +579,65 @@ max_instances = 2
 		})
 	}
 }
+
+func TestLoadConfig_CloudDefaults(t *testing.T) {
+	cfg, err := LoadConfig(writeConfig(t, validTOML()))
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if cfg.Cloud.Enabled {
+		t.Error("Cloud.Enabled should default to false")
+	}
+	if cfg.Cloud.SessionTTL != 86400 {
+		t.Errorf("Cloud.SessionTTL = %d, want 86400", cfg.Cloud.SessionTTL)
+	}
+	if cfg.Cloud.LoginRateLimit != 5 {
+		t.Errorf("Cloud.LoginRateLimit = %d, want 5", cfg.Cloud.LoginRateLimit)
+	}
+	if cfg.Cloud.CookieName != "fox_cloud_session" {
+		t.Errorf("Cloud.CookieName = %q, want %q", cfg.Cloud.CookieName, "fox_cloud_session")
+	}
+}
+
+func TestLoadConfig_CloudEnabled(t *testing.T) {
+	content := validTOML() + `
+[cloud]
+enabled = true
+domain = "cloud.example.com"
+`
+	cfg, err := LoadConfig(writeConfig(t, content))
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if !cfg.Cloud.Enabled {
+		t.Error("Cloud.Enabled = false, want true")
+	}
+	if cfg.Cloud.Domain != "cloud.example.com" {
+		t.Errorf("Cloud.Domain = %q, want %q", cfg.Cloud.Domain, "cloud.example.com")
+	}
+}
+
+func TestLoadConfig_CloudEnabledMissingDomain(t *testing.T) {
+	content := validTOML() + `
+[cloud]
+enabled = true
+`
+	_, err := LoadConfig(writeConfig(t, content))
+	if err == nil {
+		t.Fatal("expected error for cloud.enabled without domain")
+	}
+	if !strings.Contains(err.Error(), "cloud.domain") {
+		t.Errorf("error = %q, want to mention cloud.domain", err)
+	}
+}
+
+func TestLoadConfig_CloudDisabledNoDomainRequired(t *testing.T) {
+	content := validTOML() + `
+[cloud]
+enabled = false
+`
+	_, err := LoadConfig(writeConfig(t, content))
+	if err != nil {
+		t.Fatalf("LoadConfig with cloud.enabled=false should not require domain: %v", err)
+	}
+}

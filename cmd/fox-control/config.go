@@ -24,6 +24,15 @@ type Config struct {
 	Webhooks    []WebhookConfig    `toml:"webhooks"`
 	RateLimit   RateLimitSection   `toml:"rate_limit"`
 	AutoRestart AutoRestartSection `toml:"auto_restart"`
+	Cloud       CloudSection       `toml:"cloud"`
+}
+
+type CloudSection struct {
+	Enabled        bool   `toml:"enabled"`
+	Domain         string `toml:"domain"`
+	SessionTTL     int    `toml:"session_ttl"`
+	LoginRateLimit int    `toml:"login_rate_limit"`
+	CookieName     string `toml:"cookie_name"`
 }
 
 type AutoRestartSection struct {
@@ -148,6 +157,15 @@ func applyDefaults(cfg *Config) {
 	if cfg.AutoRestart.CooldownSeconds == 0 {
 		cfg.AutoRestart.CooldownSeconds = 300
 	}
+	if cfg.Cloud.SessionTTL == 0 {
+		cfg.Cloud.SessionTTL = 86400
+	}
+	if cfg.Cloud.LoginRateLimit == 0 {
+		cfg.Cloud.LoginRateLimit = 5
+	}
+	if cfg.Cloud.CookieName == "" {
+		cfg.Cloud.CookieName = "fox_cloud_session"
+	}
 	if cfg.DataPlane.Listen == "" {
 		cfg.DataPlane.Listen = "127.0.0.1:9091"
 	}
@@ -235,6 +253,11 @@ func validateConfig(cfg *Config) error {
 		}
 		if cfg.Qdrant.HTTPPort > 0 && cfg.Qdrant.GRPCPort > 0 && cfg.Qdrant.HTTPPort == cfg.Qdrant.GRPCPort {
 			errs = append(errs, fmt.Sprintf("qdrant.http_port and qdrant.grpc_port must differ, both are %d", cfg.Qdrant.HTTPPort))
+		}
+	}
+	if cfg.Cloud.Enabled {
+		if cfg.Cloud.Domain == "" {
+			errs = append(errs, "cloud.domain is required when cloud is enabled")
 		}
 	}
 	if cfg.DataPlane.Enabled {

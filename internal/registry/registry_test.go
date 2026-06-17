@@ -300,3 +300,25 @@ func TestWALEnabled(t *testing.T) {
 		t.Fatalf("stat WAL file: %v", err)
 	}
 }
+
+func TestForeignKeyEnforcement(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "fk-test.db")
+	reg, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer reg.Close()
+
+	_, err = reg.db.Exec(`CREATE TABLE fk_test (
+		id INTEGER PRIMARY KEY,
+		instance_id TEXT NOT NULL REFERENCES instances(id)
+	)`)
+	if err != nil {
+		t.Fatalf("create fk_test table: %v", err)
+	}
+
+	_, err = reg.db.Exec(`INSERT INTO fk_test (instance_id) VALUES ('nonexistent')`)
+	if err == nil {
+		t.Fatal("INSERT with invalid FK reference should fail, but succeeded")
+	}
+}
