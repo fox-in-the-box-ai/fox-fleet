@@ -9,12 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.4.3] - 2026-06-17
 
+### Added
+
+- Cloud config section (`[cloud]` in TOML) with `enabled`, `domain`, `session_ttl`, `login_rate_limit`, `cookie_name` fields; domain validation when enabled; Cloud-specific env injection (`HERMES_WEBUI_ALLOWED_ORIGINS`, `TRUST_FORWARDED_HOST`, `CSP_CONNECT_EXTRA`)
+
 ### Fixed
 
+- Enable `PRAGMA foreign_keys=ON` in SQLite registry — without this, all foreign key constraints were silently ignored
 - Align Fleet provisioning with Fox runtime requirements: internal port 8080 → 8787, health poll max 30 → 60, plumb `InstancePassword` through to `HERMES_WEBUI_PASSWORD` env var, add NET_ADMIN capability and `/dev/net/tun` device for Tailscale, add `host.docker.internal` extra host for container-to-host networking
 - Write `onboarding.json` marker after successful instance deploy to prevent setup/login redirect loop when `HERMES_WEBUI_PASSWORD` is pre-set
 - Update all Fox runtime image references from `ghcr.io/fox-in-the-box-ai/fox:latest` to `ghcr.io/fox-in-the-box-ai/cloud:stable` across deployment configs, Helm chart, examples, and documentation
 - Correct docker-compose sample defaults: image reference and Qdrant image pin (`qdrant/qdrant:v1.14.1`)
+- Block Cloud-specific `HERMES_WEBUI_*` env vars from user override in provisioning requests
 - Align conformance suite checks with Fox runtime reality:
   - **check 01 (boot invariant):** dual-signal detection — exit OR supervisor FATAL state (Fox uses supervisord, container doesn't exit on boot invariant violation)
   - **check 04 (session auth):** use Fox's cookie-based `/api/auth/login` instead of Open WebUI's token-based `/api/v1/auths/signup+signin`
