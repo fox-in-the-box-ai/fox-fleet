@@ -15,7 +15,7 @@ import (
 var ErrSessionNotFound = errors.New("session not found")
 
 type Session struct {
-	TokenHash string `json:"token_hash"`
+	TokenHash string `json:"-"`
 	UserID    string `json:"user_id"`
 	CreatedAt string `json:"created_at"`
 	ExpiresAt string `json:"expires_at"`
@@ -30,6 +30,10 @@ func NewSessionStore(db *sql.DB) *SessionStore {
 }
 
 func (s *SessionStore) Create(userID string, ttl time.Duration) (token string, session Session, err error) {
+	if userID == "" {
+		return "", Session{}, fmt.Errorf("cloud: user_id must not be empty")
+	}
+
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
 		return "", Session{}, fmt.Errorf("cloud: generate session token: %w", err)
@@ -76,7 +80,9 @@ func (s *SessionStore) Validate(token string) (Session, error) {
 		return Session{}, fmt.Errorf("cloud: parse expires_at: %w", err)
 	}
 	if time.Now().UTC().After(expiresAt) {
-		_ = s.Delete(token)
+		if err := s.deleteByHash(hash); err != nil && !errors.Is(err, ErrSessionNotFound) {
+			slog.Warn("expired session cleanup failed", "error", err)
+		}
 		return Session{}, ErrSessionNotFound
 	}
 
@@ -84,7 +90,10 @@ func (s *SessionStore) Validate(token string) (Session, error) {
 }
 
 func (s *SessionStore) Delete(token string) error {
-	hash := sessionHash(token)
+	return s.deleteByHash(sessionHash(token))
+}
+
+func (s *SessionStore) deleteByHash(hash string) error {
 	res, err := s.db.Exec(`DELETE FROM cloud_sessions WHERE token_hash = ?`, hash)
 	if err != nil {
 		return fmt.Errorf("cloud: delete session: %w", err)

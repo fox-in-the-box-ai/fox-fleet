@@ -223,12 +223,30 @@ func TestSessionStore_StartPurge(t *testing.T) {
 
 	ss.StartPurge(ctx, 50*time.Millisecond, slog.Default())
 
-	time.Sleep(200 * time.Millisecond)
-	cancel()
+	deadline := time.After(2 * time.Second)
+	for {
+		select {
+		case <-deadline:
+			t.Fatal("purge goroutine did not clean expired session within timeout")
+		default:
+			n, err := ss.PurgeExpired()
+			if err != nil {
+				t.Fatalf("purge check: %v", err)
+			}
+			if n == 0 {
+				return
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+}
 
-	_, err := ss.PurgeExpired()
-	if err != nil {
-		t.Fatalf("purge after goroutine: %v", err)
+func TestSessionStore_CreateEmptyUserIDRejected(t *testing.T) {
+	ss := openTestDBWithSessions(t)
+
+	_, _, err := ss.Create("", time.Hour)
+	if err == nil {
+		t.Fatal("expected error for empty user_id")
 	}
 }
 
