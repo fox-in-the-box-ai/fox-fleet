@@ -187,11 +187,13 @@ jobs:
           cd artifacts
           for f in *.tar.gz *.sbom.cdx.json; do
             cosign sign-blob --yes \
+              --new-bundle-format=false \
               --output-signature "${f}.sig" \
               --output-certificate "${f}.pem" \
               "$f"
           done
           cosign sign-blob --yes \
+            --new-bundle-format=false \
             --output-signature checksums-sha256.txt.sig \
             --output-certificate checksums-sha256.txt.pem \
             checksums-sha256.txt
