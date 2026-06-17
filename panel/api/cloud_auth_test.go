@@ -45,7 +45,7 @@ func newTestEnvWithCloud(t *testing.T) *testEnv {
 		InstancePwd:  "test-instance-pwd",
 		MaxInstances: 2,
 		PollInterval: time.Hour,
-		SigningKey:    testSigningKey,
+		SigningKey:   testSigningKey,
 		Logger:       logger,
 		UserStore:    users,
 		SessionStore: sessions,
