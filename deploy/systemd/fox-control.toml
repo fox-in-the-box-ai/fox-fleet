@@ -5,7 +5,7 @@ health_poll_seconds = 15
 
 [docker]
 socket = "/var/run/docker.sock"
-image = "ghcr.io/fox-in-the-box-ai/fox:latest"
+image = "ghcr.io/fox-in-the-box-ai/cloud:stable"
 
 [auth]
 # Must be set via FOX_ADMIN_SECRET and FOX_INSTANCE_PASSWORD env vars

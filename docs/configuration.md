@@ -17,7 +17,7 @@ log_level = "info"
 metrics_enabled = true
 
 [docker]
-image = "ghcr.io/fox-in-the-box-ai/fox:latest"
+image = "ghcr.io/fox-in-the-box-ai/cloud:stable"
 socket = "/var/run/docker.sock"
 
 [auth]
