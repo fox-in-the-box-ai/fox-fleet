@@ -1,6 +1,7 @@
 package api
 
 import (
+	"net"
 	"net/http"
 	"strings"
 )
@@ -10,6 +11,16 @@ import (
 // assigned instance; 403 otherwise. Caddy interprets non-2xx as "do
 // not issue a certificate for this domain."
 func (s *Server) handleTLSCheck(w http.ResponseWriter, r *http.Request) {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	ip := net.ParseIP(host)
+	if ip == nil || !ip.IsLoopback() {
+		writeError(w, http.StatusForbidden, "forbidden", "forbidden")
+		return
+	}
+
 	domain := r.URL.Query().Get("domain")
 	if domain == "" {
 		writeError(w, http.StatusForbidden, "forbidden", "missing domain parameter")

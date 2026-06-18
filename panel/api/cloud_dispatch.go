@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -53,6 +54,13 @@ func (s *Server) handleSubdomainRequest(w http.ResponseWriter, r *http.Request, 
 		case http.MethodGet:
 			s.handleSubdomainLoginPage(w, r, slug)
 		case http.MethodPost:
+			if s.loginRL != nil {
+				if ok, wait := s.loginRL.allow(); !ok {
+					w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
+					writeError(w, http.StatusTooManyRequests, "rate_limited", "too many requests")
+					return
+				}
+			}
 			s.handleSubdomainLogin(w, r, slug)
 		default:
 			setSecurityHeaders(w)

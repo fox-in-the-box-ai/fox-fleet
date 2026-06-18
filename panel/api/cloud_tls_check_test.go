@@ -49,10 +49,24 @@ func newTLSCheckTestEnv(t *testing.T) (*Server, *registry.Registry, *cloud.UserS
 	return srv, reg, users
 }
 
+func TestTLSCheck_RejectsNonLoopback(t *testing.T) {
+	srv, _, _ := newTLSCheckTestEnv(t)
+	req := httptest.NewRequest("GET", "/cloud/tls-check?domain=alice.fleet.example.com", nil)
+	req.Host = "fleet.example.com"
+	req.RemoteAddr = "203.0.113.1:12345"
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("non-loopback: got %d, want 403", w.Code)
+	}
+}
+
 func TestTLSCheck_MissingDomain(t *testing.T) {
 	srv, _, _ := newTLSCheckTestEnv(t)
 	req := httptest.NewRequest("GET", "/cloud/tls-check", nil)
 	req.Host = "fleet.example.com"
+	req.RemoteAddr = "127.0.0.1:12345"
 	w := httptest.NewRecorder()
 	srv.Handler().ServeHTTP(w, req)
 
@@ -65,6 +79,7 @@ func TestTLSCheck_WrongBaseDomain(t *testing.T) {
 	srv, _, _ := newTLSCheckTestEnv(t)
 	req := httptest.NewRequest("GET", "/cloud/tls-check?domain=alice.other.com", nil)
 	req.Host = "fleet.example.com"
+	req.RemoteAddr = "127.0.0.1:12345"
 	w := httptest.NewRecorder()
 	srv.Handler().ServeHTTP(w, req)
 
@@ -77,6 +92,7 @@ func TestTLSCheck_NestedSubdomain(t *testing.T) {
 	srv, _, _ := newTLSCheckTestEnv(t)
 	req := httptest.NewRequest("GET", "/cloud/tls-check?domain=a.b.fleet.example.com", nil)
 	req.Host = "fleet.example.com"
+	req.RemoteAddr = "127.0.0.1:12345"
 	w := httptest.NewRecorder()
 	srv.Handler().ServeHTTP(w, req)
 
@@ -89,6 +105,7 @@ func TestTLSCheck_UnknownUser(t *testing.T) {
 	srv, _, _ := newTLSCheckTestEnv(t)
 	req := httptest.NewRequest("GET", "/cloud/tls-check?domain=nobody.fleet.example.com", nil)
 	req.Host = "fleet.example.com"
+	req.RemoteAddr = "127.0.0.1:12345"
 	w := httptest.NewRecorder()
 	srv.Handler().ServeHTTP(w, req)
 
@@ -105,6 +122,7 @@ func TestTLSCheck_UserWithoutInstance(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/cloud/tls-check?domain=bob.fleet.example.com", nil)
 	req.Host = "fleet.example.com"
+	req.RemoteAddr = "127.0.0.1:12345"
 	w := httptest.NewRecorder()
 	srv.Handler().ServeHTTP(w, req)
 
@@ -132,10 +150,24 @@ func TestTLSCheck_ValidSubdomain(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/cloud/tls-check?domain=alice.fleet.example.com", nil)
 	req.Host = "fleet.example.com"
+	req.RemoteAddr = "127.0.0.1:12345"
 	w := httptest.NewRecorder()
 	srv.Handler().ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("valid subdomain: got %d, want 200", w.Code)
+	}
+}
+
+func TestTLSCheck_AcceptsIPv6Loopback(t *testing.T) {
+	srv, _, _ := newTLSCheckTestEnv(t)
+	req := httptest.NewRequest("GET", "/cloud/tls-check?domain=nobody.fleet.example.com", nil)
+	req.Host = "fleet.example.com"
+	req.RemoteAddr = "[::1]:12345"
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("IPv6 loopback: got %d, want 403 (unknown user, not 403 from loopback check)", w.Code)
 	}
 }

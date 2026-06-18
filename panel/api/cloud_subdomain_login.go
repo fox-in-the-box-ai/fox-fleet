@@ -66,6 +66,7 @@ func (s *Server) handleSubdomainLoginPage(w http.ResponseWriter, r *http.Request
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
+		_ = s.sessions.Delete(c.Value)
 		http.SetCookie(w, s.sessionCookie("", -time.Hour))
 	}
 
