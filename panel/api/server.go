@@ -202,6 +202,9 @@ func securityHeaders(next http.Handler) http.Handler {
 }
 
 func (s *Server) Handler() http.Handler {
+	if s.cloudCfg.Domain != "" {
+		return s.hostDispatcher()
+	}
 	return s.mux
 }
 
