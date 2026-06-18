@@ -53,6 +53,11 @@ func (s *Server) handleCloudProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	proxyPwd := inst.InstancePassword
+	if proxyPwd == "" {
+		proxyPwd = s.instPwd
+	}
+
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(target)
@@ -62,8 +67,8 @@ func (s *Server) handleCloudProxy(w http.ResponseWriter, r *http.Request) {
 			}
 			pr.Out.URL.RawQuery = r.URL.RawQuery
 			pr.Out.Host = target.Host
-			if s.instPwd != "" {
-				pr.Out.Header.Set("X-Fox-Auth", s.instPwd)
+			if proxyPwd != "" {
+				pr.Out.Header.Set("X-Fox-Auth", proxyPwd)
 			}
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {

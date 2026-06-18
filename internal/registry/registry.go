@@ -19,15 +19,17 @@ var ErrNotFound = errors.New("instance not found")
 
 // Instance represents a provisioned Fox instance in the registry.
 type Instance struct {
-	ID            string `json:"id"`
-	ImageDigest   string `json:"image_digest"`
-	Port          int    `json:"port"`
-	DataDir       string `json:"data_dir"`
-	Status        string `json:"status"`
-	CreatedAt     string `json:"created_at"`
-	SkillsetName  string `json:"skillset_name,omitempty"`
-	PrincipalRole string `json:"principal_role,omitempty"`
-	QueryToken    string `json:"-"`
+	ID               string `json:"id"`
+	ImageDigest      string `json:"image_digest"`
+	Port             int    `json:"port"`
+	DataDir          string `json:"data_dir"`
+	Status           string `json:"status"`
+	CreatedAt        string `json:"created_at"`
+	SkillsetName     string `json:"skillset_name,omitempty"`
+	PrincipalRole    string `json:"principal_role,omitempty"`
+	QueryToken       string `json:"-"`
+	PlaneAuthToken   string `json:"-"`
+	InstancePassword string `json:"-"`
 }
 
 // Registry is the SQLite-backed instance store.
@@ -174,6 +176,11 @@ var migrations = []func(tx *sql.Tx) error{
 		_, err = tx.Exec(`CREATE INDEX IF NOT EXISTS idx_cloud_sessions_expires ON cloud_sessions(expires_at)`)
 		return err
 	},
+	func(tx *sql.Tx) error {
+		_, _ = tx.Exec(`ALTER TABLE instances ADD COLUMN plane_auth_token TEXT NOT NULL DEFAULT ''`)
+		_, _ = tx.Exec(`ALTER TABLE instances ADD COLUMN instance_password TEXT NOT NULL DEFAULT ''`)
+		return nil
+	},
 }
 
 func migrate(db *sql.DB) error {
@@ -218,8 +225,8 @@ func (r *Registry) Create(inst Instance) error {
 	if inst.QueryToken != "" {
 		hash = tokenHash(inst.QueryToken)
 	}
-	_, err := r.db.Exec(`INSERT INTO instances (id, image_digest, port, data_dir, status, created_at, skillset_name, principal_role, query_token, query_token_hash)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	_, err := r.db.Exec(`INSERT INTO instances (id, image_digest, port, data_dir, status, created_at, skillset_name, principal_role, query_token, query_token_hash, plane_auth_token, instance_password)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			image_digest = excluded.image_digest,
 			port = excluded.port,
@@ -228,8 +235,10 @@ func (r *Registry) Create(inst Instance) error {
 			skillset_name = excluded.skillset_name,
 			principal_role = excluded.principal_role,
 			query_token = excluded.query_token,
-			query_token_hash = excluded.query_token_hash`,
-		inst.ID, inst.ImageDigest, inst.Port, inst.DataDir, inst.Status, inst.CreatedAt, inst.SkillsetName, inst.PrincipalRole, inst.QueryToken, hash)
+			query_token_hash = excluded.query_token_hash,
+			plane_auth_token = excluded.plane_auth_token,
+			instance_password = excluded.instance_password`,
+		inst.ID, inst.ImageDigest, inst.Port, inst.DataDir, inst.Status, inst.CreatedAt, inst.SkillsetName, inst.PrincipalRole, inst.QueryToken, hash, inst.PlaneAuthToken, inst.InstancePassword)
 	if err != nil {
 		return fmt.Errorf("registry: create %s: %w", inst.ID, err)
 	}
@@ -240,8 +249,8 @@ func (r *Registry) Create(inst Instance) error {
 func (r *Registry) Get(id string) (Instance, error) {
 	var inst Instance
 	err := r.db.QueryRow(
-		`SELECT id, image_digest, port, data_dir, status, created_at, skillset_name, principal_role, query_token FROM instances WHERE id = ?`, id,
-	).Scan(&inst.ID, &inst.ImageDigest, &inst.Port, &inst.DataDir, &inst.Status, &inst.CreatedAt, &inst.SkillsetName, &inst.PrincipalRole, &inst.QueryToken)
+		`SELECT id, image_digest, port, data_dir, status, created_at, skillset_name, principal_role, query_token, plane_auth_token, instance_password FROM instances WHERE id = ?`, id,
+	).Scan(&inst.ID, &inst.ImageDigest, &inst.Port, &inst.DataDir, &inst.Status, &inst.CreatedAt, &inst.SkillsetName, &inst.PrincipalRole, &inst.QueryToken, &inst.PlaneAuthToken, &inst.InstancePassword)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Instance{}, ErrNotFound
 	}
@@ -254,7 +263,7 @@ func (r *Registry) Get(id string) (Instance, error) {
 // List returns all instances ordered by creation time.
 func (r *Registry) List() ([]Instance, error) {
 	rows, err := r.db.Query(
-		`SELECT id, image_digest, port, data_dir, status, created_at, skillset_name, principal_role, query_token FROM instances ORDER BY created_at`)
+		`SELECT id, image_digest, port, data_dir, status, created_at, skillset_name, principal_role, query_token, plane_auth_token, instance_password FROM instances ORDER BY created_at`)
 	if err != nil {
 		return nil, fmt.Errorf("registry: list: %w", err)
 	}
@@ -262,7 +271,7 @@ func (r *Registry) List() ([]Instance, error) {
 	var out []Instance
 	for rows.Next() {
 		var inst Instance
-		if err := rows.Scan(&inst.ID, &inst.ImageDigest, &inst.Port, &inst.DataDir, &inst.Status, &inst.CreatedAt, &inst.SkillsetName, &inst.PrincipalRole, &inst.QueryToken); err != nil {
+		if err := rows.Scan(&inst.ID, &inst.ImageDigest, &inst.Port, &inst.DataDir, &inst.Status, &inst.CreatedAt, &inst.SkillsetName, &inst.PrincipalRole, &inst.QueryToken, &inst.PlaneAuthToken, &inst.InstancePassword); err != nil {
 			return nil, fmt.Errorf("registry: list scan: %w", err)
 		}
 		out = append(out, inst)

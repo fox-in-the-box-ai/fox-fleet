@@ -168,16 +168,30 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 		return nil, fmt.Errorf("provisioner: %w", err)
 	}
 
+	planeAuthToken, err := registry.GenerateQueryToken()
+	if err != nil {
+		s.mu.Unlock()
+		return nil, fmt.Errorf("provisioner: generate plane auth token: %w", err)
+	}
+
+	instancePwd, err := registry.GenerateQueryToken()
+	if err != nil {
+		s.mu.Unlock()
+		return nil, fmt.Errorf("provisioner: generate instance password: %w", err)
+	}
+
 	regInst := registry.Instance{
-		ID:            req.InstanceID,
-		ImageDigest:   req.Image.Digest,
-		Port:          port,
-		DataDir:       dataDir,
-		Status:        "provisioning",
-		CreatedAt:     now.Format(time.RFC3339),
-		SkillsetName:  skillsetName,
-		PrincipalRole: req.PrincipalRole,
-		QueryToken:    queryToken,
+		ID:               req.InstanceID,
+		ImageDigest:      req.Image.Digest,
+		Port:             port,
+		DataDir:          dataDir,
+		Status:           "provisioning",
+		CreatedAt:        now.Format(time.RFC3339),
+		SkillsetName:     skillsetName,
+		PrincipalRole:    req.PrincipalRole,
+		QueryToken:       queryToken,
+		PlaneAuthToken:   planeAuthToken,
+		InstancePassword: instancePwd,
 	}
 	if err := s.registry.Create(regInst); err != nil {
 		s.mu.Unlock()
@@ -188,8 +202,8 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 	// --- End critical section ---
 
 	instanceCfg := plugins.InstanceConfig{
-		AuthSecret:       req.AdminSecret,
-		InstancePassword: req.InstancePassword,
+		AuthSecret:       planeAuthToken,
+		InstancePassword: instancePwd,
 		ProxyEndpoint:    req.ProxyEndpoint,
 		CapabilityFlags:  req.CapabilityFlags,
 		Env:              req.Env,
@@ -219,7 +233,7 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 
 	if err := s.configWriter(config.InjectParams{
 		DataDir:          dataDir,
-		InstancePassword: req.InstancePassword,
+		InstancePassword: instancePwd,
 		Config:           instanceCfg,
 		QueryToken:       queryToken,
 	}); err != nil {
