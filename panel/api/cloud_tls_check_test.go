@@ -35,7 +35,7 @@ func newTLSCheckTestEnv(t *testing.T) (*Server, *registry.Registry, *cloud.UserS
 		AdminSecret:  testSecret,
 		InstancePwd:  "test-pwd",
 		MaxInstances: 2,
-		SigningKey:    testSigningKey,
+		SigningKey:   testSigningKey,
 		Logger:       slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)),
 		UserStore:    users,
 		SessionStore: sessions,

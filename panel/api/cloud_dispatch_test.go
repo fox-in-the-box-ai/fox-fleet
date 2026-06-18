@@ -40,7 +40,7 @@ func newDispatchTestServer(t *testing.T, domain string) (*Server, *registry.Regi
 		InstancePwd:  "test-pwd",
 		MaxInstances: 2,
 		EventLog:     events.NewLog(10),
-		SigningKey:    testSigningKey,
+		SigningKey:   testSigningKey,
 		Logger:       slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)),
 		UserStore:    users,
 		SessionStore: sessions,

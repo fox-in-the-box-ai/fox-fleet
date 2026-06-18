@@ -19,15 +19,15 @@ var ErrNotFound = errors.New("instance not found")
 
 // Instance represents a provisioned Fox instance in the registry.
 type Instance struct {
-	ID               string `json:"id"`
-	ImageDigest      string `json:"image_digest"`
-	Port             int    `json:"port"`
-	DataDir          string `json:"data_dir"`
-	Status           string `json:"status"`
-	CreatedAt        string `json:"created_at"`
-	SkillsetName     string `json:"skillset_name,omitempty"`
-	PrincipalRole    string `json:"principal_role,omitempty"`
-	QueryToken string `json:"-"`
+	ID            string `json:"id"`
+	ImageDigest   string `json:"image_digest"`
+	Port          int    `json:"port"`
+	DataDir       string `json:"data_dir"`
+	Status        string `json:"status"`
+	CreatedAt     string `json:"created_at"`
+	SkillsetName  string `json:"skillset_name,omitempty"`
+	PrincipalRole string `json:"principal_role,omitempty"`
+	QueryToken    string `json:"-"`
 	// PlaneAuthToken and InstancePassword are stored in cleartext because the
 	// proxy injects them as bearer credentials into outbound requests to Fox
 	// instances. Unlike QueryToken (verified via hash), these must be
