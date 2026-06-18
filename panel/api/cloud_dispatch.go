@@ -42,6 +42,23 @@ func stripPort(host string) string {
 }
 
 func (s *Server) handleSubdomainRequest(w http.ResponseWriter, r *http.Request, slug string) {
+	if r.URL.Path == "/login" {
+		switch r.Method {
+		case http.MethodGet:
+			s.handleSubdomainLoginPage(w, r, slug)
+		case http.MethodPost:
+			s.handleSubdomainLogin(w, r, slug)
+		default:
+			setSecurityHeaders(w)
+			writeError(w, http.StatusMethodNotAllowed, "method_not_allowed", "use GET or POST")
+		}
+		return
+	}
+	if r.URL.Path == "/logout" && r.Method == http.MethodPost {
+		s.handleCloudLogout(w, r)
+		return
+	}
+
 	c, err := r.Cookie(s.cloudCfg.CookieName)
 	if err != nil || c.Value == "" {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
