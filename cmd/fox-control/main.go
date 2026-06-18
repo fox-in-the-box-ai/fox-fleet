@@ -734,7 +734,7 @@ func ensureDataRoot(path string) error {
 			"is owned by uid 65532:\n  sudo chown -R 65532:65532 %s", path, err, path)
 	}
 	f.Close()
-	os.Remove(f.Name())
+	_ = os.Remove(f.Name())
 	return nil
 }
 

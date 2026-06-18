@@ -261,6 +261,7 @@ jobs:
 
           cp deploy/systemd/fox-control.toml "${PKG}/etc/fox-control/fox-control.toml"
           cp deploy/systemd/env.example "${PKG}/etc/fox-control/env"
+          chmod 0600 "${PKG}/etc/fox-control/env"
           cp deploy/systemd/fox-control.service "${PKG}/lib/systemd/system/fox-control.service"
 
           cat > "${PKG}/DEBIAN/control" <<-CTRL

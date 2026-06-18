@@ -16,11 +16,13 @@ case "$1" in
         # Create data directory
         install -d -m 0750 -o fox-control -g fox-control /var/lib/fox-control
 
-        # Set ownership on config directory (created by deb install)
+        # Set ownership and restrict config directory (contains secrets)
         chown -R fox-control:fox-control /etc/fox-control
+        chmod 0750 /etc/fox-control
+        chmod 0600 /etc/fox-control/env
 
-        # Prompt for secrets if env file has defaults
-        if grep -q "change-me" /etc/fox-control/env 2>/dev/null; then
+        # Prompt for secrets if env file has empty values
+        if grep -qE '^FOX_(ADMIN_SECRET|INSTANCE_PASSWORD)=$' /etc/fox-control/env 2>/dev/null; then
             echo ""
             echo ">>> Edit /etc/fox-control/env and set real secrets before starting <<<"
             echo ""
