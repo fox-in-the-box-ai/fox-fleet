@@ -40,7 +40,7 @@ Pick your platform. Each guide covers every available install channel and verifi
 
 ```bash
 fox-control version
-# fox-control v1.6.0 (commit 1925d5b, built 2026-06-18)
+# fox-control v1.6.0 (commit abc1234, built 2026-06-18)
 ```
 
 For container deployments:
@@ -146,7 +146,7 @@ graph TB
 - **SQLite registry** — instance metadata in a single embedded database. CGO-free via `modernc.org/sqlite`. No external database dependency.
 - **Config injection** — each instance gets its own data directory with `config.yaml`, `settings.json`, `hermes.env`, and `tools.json` written before container start. When a data plane is configured, `tools.json` includes a `knowledge_query` tool manifest pointing instances at the query API. Credentials are injected as environment variables, never baked into images.
 - **Data plane** — optional organizational knowledge layer. File and REST ingestion connectors chunk documents, embed them via an OpenAI-compatible API, and store vectors in a shared Qdrant sidecar. Instances query the data plane through the `knowledge_query` tool injected by config injection.
-- **Shared-secret auth** — `admin_secret` authenticates the operator to the panel and is injected into each instance as `FOX_PLANE_AUTH_SECRET`. The instance's `check_auth` gate validates it. Per-instance CSPRNG passwords replace a shared `instance_password` in cloud mode.
+- **Shared-secret auth** — `admin_secret` authenticates the operator to the panel and is injected into each instance as `FOX_PLANE_AUTH_SECRET`. The instance's `check_auth` gate validates it. In cloud mode, each instance additionally receives unique CSPRNG-generated credentials at provision time, so compromising one instance does not expose others.
 - **Subdomain routing (cloud mode)** — when `cloud.domain` is configured, each user's Fox instance is served at `<username>.<domain>`. A host dispatcher routes by `Host` header: base domain to the admin panel, subdomains to the instance reverse proxy with session auth. Caddy `on_demand_tls` issues per-subdomain certificates validated by a loopback-restricted TLS check endpoint.
 
 ### Architecture invariants

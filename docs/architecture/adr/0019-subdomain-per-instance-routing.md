@@ -8,7 +8,7 @@
 
 Fox Fleet's cloud mode (v1.5.0) introduced multi-user provisioning with login sessions. Users accessed their Fox instances through a reverse-proxy path under the base domain (`/cloud/<instance-id>/`). This required URL rewriting to strip the path prefix before forwarding to Fox, which broke Fox's assumption that it serves at root — `Location` headers, relative asset paths, and WebSocket upgrades all assumed `/` as the base path.
 
-Three approaches were evaluated by a 6-agent architecture panel:
+Three approaches were evaluated during architecture review:
 
 1. **Subdomain-per-instance** — each user gets `<username>.<domain>`, Fox serves at root, no URL rewriting.
 2. **Path-prefix with `X-Ingress-Path`** — inject a base-path header; Fox rewrites internally. Requires upstream changes.
