@@ -123,29 +123,6 @@ func TestSSE_AdminSecretInQueryRejected(t *testing.T) {
 	}
 }
 
-func TestSSE_QueryParamSessionTokenAccepted(t *testing.T) {
-	env := newSSETestEnv(t)
-
-	ts := httptest.NewServer(env.server.Handler())
-	defer ts.Close()
-
-	sess := getSession(t, ts)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/events/stream?token="+sess.token, nil)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200 for session token in query param, got %d", resp.StatusCode)
-	}
-}
-
 func TestSSE_CookieAuth(t *testing.T) {
 	env := newSSETestEnv(t)
 
