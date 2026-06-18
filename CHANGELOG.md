@@ -11,7 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Startup validates `data_root` is writable before opening databases — previously crashed with a cryptic SQLite error when the directory had wrong permissions (#147)
 - Container entrypoint auto-fixes data directory ownership when running as root, with clear error message for bind-mount permission failures (#147)
+- Container entrypoint uses non-recursive chown — previously a recursive chown on restart could clobber instance data directories already owned by Fox (#147)
 - Docker-compose volume section documents bind-mount ownership requirements (uid 65532) (#147)
+- Instance data directories created with mode 0711 (traverse-only for other users) instead of 0700 — Fox containers (uid 999) can now access bind-mounted data on directories owned by Fleet (uid 65532) (#147)
+- Onboarding marker written before container creation — previously written after Fox started, when Fox's entrypoint had already changed ownership of the config directory (#147)
+- `.deb` `postinst` restricts `/etc/fox-control/env` to mode 0600 (owner-only) — previously installed world-readable (#148)
+- `.deb` `postinst` detects empty secret values instead of matching "change-me" placeholder that was never used (#148)
 
 ### Changed
 
