@@ -365,6 +365,31 @@ func TestHermesEnvCloudInjection(t *testing.T) {
 	}
 }
 
+func TestHermesEnvCloudSlugInjection(t *testing.T) {
+	p := validParams(t)
+	p.Cloud = CloudConfig{Enabled: true, Domain: "fleet.example.com", Slug: "alice"}
+	if err := Inject(p); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(p.DataDir, "hermes.env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := string(data)
+	for _, want := range []string{
+		"HERMES_WEBUI_ALLOWED_ORIGINS=https://alice.fleet.example.com",
+		"HERMES_WEBUI_TRUST_FORWARDED_HOST=true",
+		"HERMES_WEBUI_CSP_CONNECT_EXTRA=https://alice.fleet.example.com wss://alice.fleet.example.com",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("hermes.env missing %q\ngot:\n%s", want, content)
+		}
+	}
+	if strings.Contains(content, "HERMES_WEBUI_ALLOWED_ORIGINS=https://fleet.example.com\n") {
+		t.Error("slug mode should not use base domain for ALLOWED_ORIGINS")
+	}
+}
+
 func TestHermesEnvCloudDisabledNoInjection(t *testing.T) {
 	p := validParams(t)
 	p.Cloud = CloudConfig{Enabled: false, Domain: "cloud.example.com"}

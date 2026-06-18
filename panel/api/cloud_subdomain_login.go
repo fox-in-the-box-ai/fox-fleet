@@ -1,25 +1,82 @@
 package api
 
 import (
+	"encoding/json"
+	"errors"
 	"net/http"
+	"time"
+
+	"github.com/fox-in-the-box-ai/fox-fleet/internal/cloud"
 )
 
-func (s *Server) handleCloudLoginPage(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleSubdomainLogin(w http.ResponseWriter, r *http.Request, slug string) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxCreateBody)
+	var req loginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body")
+		return
+	}
+
+	if req.Username == "" || req.Password == "" {
+		writeError(w, http.StatusBadRequest, "bad_request", "username and password are required")
+		return
+	}
+	if len(req.Username) > 63 {
+		writeError(w, http.StatusBadRequest, "bad_request", "username too long")
+		return
+	}
+	if len(req.Password) > 72 {
+		writeError(w, http.StatusBadRequest, "bad_request", "password too long")
+		return
+	}
+
+	if req.Username != slug {
+		writeError(w, http.StatusForbidden, "forbidden", "username does not match subdomain")
+		return
+	}
+
+	_, err := s.users.Authenticate(req.Username, req.Password)
+	if errors.Is(err, cloud.ErrInvalidCredentials) {
+		s.log.Warn("subdomain login failed: invalid credentials", "slug", slug)
+		writeError(w, http.StatusUnauthorized, "unauthorized", "invalid credentials")
+		return
+	}
+	if err != nil {
+		s.log.Error("subdomain login failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal_error", "login failed")
+		return
+	}
+
+	token, _, err := s.sessions.Create(req.Username, s.cloudCfg.SessionTTL)
+	if err != nil {
+		s.log.Error("subdomain session create failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal_error", "login failed")
+		return
+	}
+
+	s.log.Info("subdomain login succeeded", "slug", slug)
+	http.SetCookie(w, s.sessionCookie(token, s.cloudCfg.SessionTTL))
+	writeJSON(w, http.StatusOK, map[string]string{"username": req.Username})
+}
+
+func (s *Server) handleSubdomainLoginPage(w http.ResponseWriter, r *http.Request, slug string) {
 	c, err := r.Cookie(s.cloudCfg.CookieName)
 	if err == nil && c.Value != "" {
-		if _, err := s.sessions.Validate(c.Value); err == nil {
-			http.Redirect(w, r, "/admin/", http.StatusSeeOther)
+		if sess, err := s.sessions.Validate(c.Value); err == nil && sess.UserID == slug {
+			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
+		_ = s.sessions.Delete(c.Value)
+		http.SetCookie(w, s.sessionCookie("", -time.Hour))
 	}
 
 	setSecurityHeaders(w)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; form-action 'self'")
-	_, _ = w.Write([]byte(cloudLoginPage))
+	_, _ = w.Write([]byte(subdomainLoginPage))
 }
 
-const cloudLoginPage = `<!DOCTYPE html>
+const subdomainLoginPage = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -75,9 +132,9 @@ var body=JSON.stringify({
 username:document.getElementById("username").value,
 password:document.getElementById("password").value
 });
-fetch("/cloud/login",{method:"POST",headers:{"Content-Type":"application/json"},body:body,credentials:"same-origin"})
+fetch("/login",{method:"POST",headers:{"Content-Type":"application/json"},body:body,credentials:"same-origin"})
 .then(function(r){
-if(r.ok){window.location.href="/admin/";return}
+if(r.ok){window.location.href="/";return}
 return r.json().catch(function(){return{}}).then(function(d){throw new Error(d.message||"Invalid credentials")});
 })
 .catch(function(ex){

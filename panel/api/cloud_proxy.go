@@ -4,75 +4,10 @@ import (
 	"fmt"
 	"html"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
-	"strings"
 )
 
-func (s *Server) handleCloudProxy(w http.ResponseWriter, r *http.Request) {
-	c, err := r.Cookie(s.cloudCfg.CookieName)
-	if err != nil || c.Value == "" {
-		http.Redirect(w, r, "/cloud/login", http.StatusSeeOther)
-		return
-	}
-
-	sess, err := s.sessions.Validate(c.Value)
-	if err != nil {
-		http.Redirect(w, r, "/cloud/login", http.StatusSeeOther)
-		return
-	}
-
-	u, err := s.users.Get(sess.UserID)
-	if err != nil {
-		s.log.Error("cloud proxy: user lookup failed", "username", sess.UserID, "error", err)
-		http.Redirect(w, r, "/cloud/login", http.StatusSeeOther)
-		return
-	}
-
-	if u.InstanceID == nil || *u.InstanceID == "" {
-		s.serveCloud503(w, sess.UserID, "no instance assigned")
-		return
-	}
-
-	inst, err := s.registry.Get(*u.InstanceID)
-	if err != nil {
-		s.log.Error("cloud proxy: instance not found", "instance_id", *u.InstanceID, "error", err)
-		s.serveCloud503(w, *u.InstanceID, "instance not found")
-		return
-	}
-
-	if inst.Status != "running" {
-		s.serveCloud503(w, *u.InstanceID, inst.Status)
-		return
-	}
-
-	target, err := url.Parse(fmt.Sprintf("http://localhost:%d", inst.Port))
-	if err != nil {
-		s.log.Error("cloud proxy: bad target URL", "instance_id", inst.ID, "port", inst.Port, "error", err)
-		s.serveCloud503(w, inst.ID, "internal error")
-		return
-	}
-
-	proxy := &httputil.ReverseProxy{
-		Rewrite: func(pr *httputil.ProxyRequest) {
-			pr.SetURL(target)
-			pr.Out.URL.Path = strings.TrimPrefix(r.URL.Path, "/cloud")
-			if pr.Out.URL.Path == "" {
-				pr.Out.URL.Path = "/"
-			}
-			pr.Out.URL.RawQuery = r.URL.RawQuery
-			pr.Out.Host = target.Host
-			if s.instPwd != "" {
-				pr.Out.Header.Set("X-Fox-Auth", s.instPwd)
-			}
-		},
-		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			s.log.Error("cloud proxy: backend unreachable", "instance_id", inst.ID, "error", err)
-			s.serveCloud503(w, inst.ID, "unreachable")
-		},
-	}
-
-	proxy.ServeHTTP(w, r)
+func (s *Server) handleLegacyCloudRedirect(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/admin/", http.StatusMovedPermanently)
 }
 
 func (s *Server) handleCloudRoot(w http.ResponseWriter, r *http.Request) {
@@ -87,7 +22,7 @@ func (s *Server) handleCloudRoot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/cloud/", http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/", http.StatusSeeOther)
 }
 
 func (s *Server) serveCloud503(w http.ResponseWriter, instanceID, reason string) {

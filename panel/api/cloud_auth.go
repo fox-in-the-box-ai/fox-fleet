@@ -48,7 +48,7 @@ func (s *Server) handleCloudLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", "username and password are required")
 		return
 	}
-	if len(req.Username) > 64 {
+	if len(req.Username) > 63 {
 		writeError(w, http.StatusBadRequest, "bad_request", "username too long")
 		return
 	}
@@ -122,7 +122,6 @@ func (s *Server) sessionCookie(token string, maxAge time.Duration) *http.Cookie 
 		Name:     s.cloudCfg.CookieName,
 		Value:    token,
 		Path:     "/",
-		Domain:   s.cloudCfg.Domain,
 		MaxAge:   int(maxAge.Seconds()),
 		HttpOnly: true,
 		Secure:   s.cloudCfg.Secure,

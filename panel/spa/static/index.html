@@ -948,7 +948,7 @@ var langs = {};
 
 function loadLocale(loc) {
   if (langs[loc]) return Promise.resolve();
-  return fetch("/i18n/" + loc + ".json").then(function(res) {
+  return fetch("i18n/" + loc + ".json").then(function(res) {
     if (!res.ok) throw new Error("i18n: " + loc);
     return res.json();
   }).then(function(data) { langs[loc] = data; });

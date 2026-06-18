@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"unicode/utf8"
+	"regexp"
 
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/cloud"
 )
+
+var validCloudUsername = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 
 type createUserRequest struct {
 	Username string `json:"username"`
@@ -31,8 +33,8 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", "username is required")
 		return
 	}
-	if utf8.RuneCountInString(req.Username) > 64 {
-		writeError(w, http.StatusBadRequest, "bad_request", "username must be 1-64 characters")
+	if !validCloudUsername.MatchString(req.Username) {
+		writeError(w, http.StatusBadRequest, "bad_request", "username must be 1-63 lowercase alphanumeric or hyphen characters, must start and end with alphanumeric")
 		return
 	}
 	if len(req.Password) < 8 {

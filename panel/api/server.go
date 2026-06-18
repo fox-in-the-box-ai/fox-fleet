@@ -71,6 +71,7 @@ type Server struct {
 	users           *cloud.UserStore
 	sessions        *cloud.SessionStore
 	cloudCfg        CloudConfig
+	loginRL         *rateLimiter
 	inFlightMu      sync.Mutex
 	inFlight        map[string]bool
 	wg              sync.WaitGroup
@@ -174,11 +175,13 @@ func NewServer(d Deps) *Server {
 	s.mux.Handle("/api/", apiHandler)
 
 	if s.sessions != nil {
-		loginRL := rateLimitMiddleware(newRateLimiter(d.Cloud.loginRate()))
+		s.loginRL = newRateLimiter(d.Cloud.loginRate())
+		loginRL := rateLimitMiddleware(s.loginRL)
 		s.mux.Handle("POST /cloud/login", loginRL(http.HandlerFunc(s.handleCloudLogin)))
 		s.mux.Handle("POST /cloud/logout", http.HandlerFunc(s.handleCloudLogout))
 		s.mux.HandleFunc("GET /cloud/login", s.handleCloudLoginPage)
-		s.mux.Handle("/cloud/", http.HandlerFunc(s.handleCloudProxy))
+		s.mux.HandleFunc("GET /cloud/tls-check", s.handleTLSCheck)
+		s.mux.Handle("/cloud/", http.HandlerFunc(s.handleLegacyCloudRedirect))
 
 		if d.WebFS != nil {
 			s.mux.Handle("/admin/", securityHeaders(http.StripPrefix("/admin", http.FileServerFS(d.WebFS))))
@@ -202,6 +205,9 @@ func securityHeaders(next http.Handler) http.Handler {
 }
 
 func (s *Server) Handler() http.Handler {
+	if s.cloudCfg.Domain != "" {
+		return s.hostDispatcher()
+	}
 	return s.mux
 }
 

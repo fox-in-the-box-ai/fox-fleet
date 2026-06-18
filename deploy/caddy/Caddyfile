@@ -1,22 +1,32 @@
 # Fox Fleet — Caddy reverse proxy with automatic TLS.
 #
-# Replace {$DOMAIN} with your domain (e.g. fox.example.com) or set it
+# Replace {$DOMAIN} with your domain (e.g. fleet.example.com) or set it
 # as an environment variable. Caddy obtains and renews TLS certificates
 # automatically via Let's Encrypt.
 #
-# Panel:     https://{$DOMAIN}       → fox-control :9090
-# Data API:  https://{$DOMAIN}/v1/*  → data plane  :9091
+# Panel:     https://{$DOMAIN}        → fox-control :9090
+# Data API:  https://{$DOMAIN}/v1/*   → data plane  :9091
+# Instances: https://*.{$DOMAIN}      → fox-control :9090 (subdomain proxy)
 #
-# Instance routing is dynamic — fox-control allocates ports starting at
-# 8787. A wildcard block below proxies *.{$DOMAIN} to the matching
-# instance port. See the on_demand_tls section for details.
+# Instance routing is subdomain-based: each user's Fox instance is
+# accessible at <username>.{$DOMAIN}. The fox-control panel handles
+# subdomain dispatch, session auth, and reverse-proxying to the
+# instance's allocated port.
 
 {
 	# Uncomment for staging certificates during testing:
 	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+
+	on_demand_tls {
+		ask http://localhost:9090/cloud/tls-check
+		# Caddy sends ?domain=<requested-domain> to this endpoint.
+		# 200 = issue certificate; non-2xx = reject.
+		# The endpoint validates: domain suffix, no nested subdomain,
+		# user exists, instance assigned.
+	}
 }
 
-# Panel + data plane
+# Panel + data plane (base domain)
 {$DOMAIN} {
 	# Data plane API (must be before the catch-all reverse_proxy)
 	handle /v1/* {
@@ -28,30 +38,19 @@
 		reverse_proxy localhost:9090
 	}
 
-	# Panel (UI + management API)
+	# Panel (UI + management API + cloud login)
 	handle {
 		reverse_proxy localhost:9090
 	}
 }
 
-# Instance subdomains — *.{$DOMAIN} proxies to the instance's
-# allocated port. Fox instances are named by their ID (e.g. "fox-1"),
-# and each listens on a unique port.
-#
-# Dynamic port resolution requires a mapping from subdomain to port.
-# Two approaches, pick one:
-#
-# 1. Static mapping (simple, requires Caddy reload on instance change):
-#    Uncomment and duplicate for each instance:
-#
-#    fox-1.{$DOMAIN} {
-#        reverse_proxy localhost:8787
-#    }
-#    fox-2.{$DOMAIN} {
-#        reverse_proxy localhost:8788
-#    }
-#
-# 2. On-demand TLS with API lookup (advanced, fully dynamic):
-#    Requires a small sidecar or script that queries the fox-control API
-#    and returns the port for a given subdomain. See the Fox Fleet docs
-#    for a reference implementation.
+# Instance subdomains — *.{$DOMAIN} routes through fox-control's
+# subdomain proxy. Fox-control resolves the subdomain slug to a user,
+# verifies the session cookie, and reverse-proxies to the instance.
+*.{$DOMAIN} {
+	tls {
+		on_demand
+	}
+
+	reverse_proxy localhost:9090
+}

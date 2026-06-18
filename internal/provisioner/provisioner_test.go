@@ -656,6 +656,46 @@ func TestProvisionWithMissingSkillset(t *testing.T) {
 	}
 }
 
+func TestProvisionPassesCloudConfig(t *testing.T) {
+	reg := testRegistry(t)
+	plug := &fakePlugin{}
+	dataRoot := t.TempDir()
+
+	var captured config.InjectParams
+	prov := New(Options{
+		Registry: reg,
+		Plugin:   plug,
+		ConfigWriter: func(p config.InjectParams) error {
+			captured = p
+			return nil
+		},
+		DataRoot:       dataRoot,
+		PortRangeStart: 9100,
+	})
+
+	req := baseRequest("cloud-inst")
+	req.Cloud = config.CloudConfig{
+		Enabled: true,
+		Domain:  "fleet.example.com",
+		Slug:    "alice",
+	}
+
+	_, err := prov.Provision(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !captured.Cloud.Enabled {
+		t.Error("Cloud.Enabled not passed through")
+	}
+	if captured.Cloud.Domain != "fleet.example.com" {
+		t.Errorf("Cloud.Domain = %q, want fleet.example.com", captured.Cloud.Domain)
+	}
+	if captured.Cloud.Slug != "alice" {
+		t.Errorf("Cloud.Slug = %q, want alice", captured.Cloud.Slug)
+	}
+}
+
 func TestInterfaceCompliance(t *testing.T) {
 	var _ Provisioner = (*service)(nil)
 }
