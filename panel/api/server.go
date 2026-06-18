@@ -178,6 +178,7 @@ func NewServer(d Deps) *Server {
 		s.mux.Handle("POST /cloud/login", loginRL(http.HandlerFunc(s.handleCloudLogin)))
 		s.mux.Handle("POST /cloud/logout", http.HandlerFunc(s.handleCloudLogout))
 		s.mux.HandleFunc("GET /cloud/login", s.handleCloudLoginPage)
+		s.mux.HandleFunc("GET /cloud/tls-check", s.handleTLSCheck)
 		s.mux.Handle("/cloud/", http.HandlerFunc(s.handleCloudProxy))
 
 		if d.WebFS != nil {
