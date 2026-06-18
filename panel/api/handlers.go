@@ -140,6 +140,11 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("id must match [a-zA-Z0-9._-] and be 1-64 characters, got %q", body.ID))
 		return
 	}
+	if body.Owner != "" && !validCloudUsername.MatchString(body.Owner) {
+		writeError(w, http.StatusBadRequest, "bad_request",
+			"owner must be a valid cloud username (1-63 lowercase alphanumeric or hyphen)")
+		return
+	}
 
 	s.inFlightMu.Lock()
 	if s.inFlight[body.ID] {

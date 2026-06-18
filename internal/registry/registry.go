@@ -27,7 +27,11 @@ type Instance struct {
 	CreatedAt        string `json:"created_at"`
 	SkillsetName     string `json:"skillset_name,omitempty"`
 	PrincipalRole    string `json:"principal_role,omitempty"`
-	QueryToken       string `json:"-"`
+	QueryToken string `json:"-"`
+	// PlaneAuthToken and InstancePassword are stored in cleartext because the
+	// proxy injects them as bearer credentials into outbound requests to Fox
+	// instances. Unlike QueryToken (verified via hash), these must be
+	// recoverable at runtime. The json:"-" tags prevent API serialization.
 	PlaneAuthToken   string `json:"-"`
 	InstancePassword string `json:"-"`
 }
@@ -177,9 +181,11 @@ var migrations = []func(tx *sql.Tx) error{
 		return err
 	},
 	func(tx *sql.Tx) error {
-		_, _ = tx.Exec(`ALTER TABLE instances ADD COLUMN plane_auth_token TEXT NOT NULL DEFAULT ''`)
-		_, _ = tx.Exec(`ALTER TABLE instances ADD COLUMN instance_password TEXT NOT NULL DEFAULT ''`)
-		return nil
+		if _, err := tx.Exec(`ALTER TABLE instances ADD COLUMN plane_auth_token TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+		_, err := tx.Exec(`ALTER TABLE instances ADD COLUMN instance_password TEXT NOT NULL DEFAULT ''`)
+		return err
 	},
 }
 

@@ -21,7 +21,7 @@ func (s *Server) handleSubdomainLogin(w http.ResponseWriter, r *http.Request, sl
 		writeError(w, http.StatusBadRequest, "bad_request", "username and password are required")
 		return
 	}
-	if len(req.Username) > 64 {
+	if len(req.Username) > 63 {
 		writeError(w, http.StatusBadRequest, "bad_request", "username too long")
 		return
 	}

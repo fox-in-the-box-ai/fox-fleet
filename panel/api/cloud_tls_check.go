@@ -31,12 +31,12 @@ func (s *Server) handleTLSCheck(w http.ResponseWriter, r *http.Request) {
 
 	u, err := s.users.Get(slug)
 	if err != nil {
-		writeError(w, http.StatusForbidden, "forbidden", "unknown subdomain")
+		writeError(w, http.StatusForbidden, "forbidden", "forbidden")
 		return
 	}
 
 	if u.InstanceID == nil || *u.InstanceID == "" {
-		writeError(w, http.StatusForbidden, "forbidden", "no instance assigned")
+		writeError(w, http.StatusForbidden, "forbidden", "forbidden")
 		return
 	}
 

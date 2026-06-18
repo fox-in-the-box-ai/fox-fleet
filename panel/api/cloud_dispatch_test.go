@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -324,6 +325,312 @@ func TestHostDispatcher_NoDomainReturnsRawMux(t *testing.T) {
 	}
 }
 
+func TestSubdomain_DeleteUserInvalidatesAccess(t *testing.T) {
+	srv, reg, users, sessions := newDispatchTestServer(t, "fleet.example.com")
+
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backend.Close()
+
+	port := parseTestPort(t, backend.URL)
+	if err := reg.Create(registry.Instance{
+		ID: "fox-alice", ImageDigest: "sha256:abc", Port: port,
+		DataDir: "/data/fox-alice", Status: "running",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := users.Create("alice", "password123"); err != nil {
+		t.Fatal(err)
+	}
+	instID := "fox-alice"
+	if _, err := users.Update("alice", nil, &instID); err != nil {
+		t.Fatal(err)
+	}
+
+	token, _, err := sessions.Create("alice", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Host = "alice.fleet.example.com"
+	req.AddCookie(&http.Cookie{Name: "fox_cloud_session", Value: token})
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("before delete: got %d, want 200", w.Code)
+	}
+
+	if err := users.Delete("alice"); err != nil {
+		t.Fatal(err)
+	}
+
+	req = httptest.NewRequest("GET", "/", nil)
+	req.Host = "alice.fleet.example.com"
+	req.AddCookie(&http.Cookie{Name: "fox_cloud_session", Value: token})
+	w = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+	if w.Code == http.StatusOK {
+		t.Fatal("after user delete: should not proxy (got 200)")
+	}
+}
+
+func TestSubdomain_MultiUserIsolation(t *testing.T) {
+	srv, reg, users, sessions := newDispatchTestServer(t, "fleet.example.com")
+
+	backendAlice := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "ok")
+	}))
+	defer backendAlice.Close()
+	backendBob := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "ok")
+	}))
+	defer backendBob.Close()
+
+	portAlice := parseTestPort(t, backendAlice.URL)
+	portBob := parseTestPort(t, backendBob.URL)
+	if err := reg.Create(registry.Instance{
+		ID: "fox-alice", ImageDigest: "sha256:abc", Port: portAlice,
+		DataDir: "/data/fox-alice", Status: "running",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := reg.Create(registry.Instance{
+		ID: "fox-bob", ImageDigest: "sha256:abc", Port: portBob,
+		DataDir: "/data/fox-bob", Status: "running",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := users.Create("alice", "password123"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := users.Create("bob", "password456"); err != nil {
+		t.Fatal(err)
+	}
+	aliceInst := "fox-alice"
+	if _, err := users.Update("alice", nil, &aliceInst); err != nil {
+		t.Fatal(err)
+	}
+	bobInst := "fox-bob"
+	if _, err := users.Update("bob", nil, &bobInst); err != nil {
+		t.Fatal(err)
+	}
+
+	aliceToken, _, err := sessions.Create("alice", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bobToken, _, err := sessions.Create("bob", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Host = "alice.fleet.example.com"
+	req.AddCookie(&http.Cookie{Name: "fox_cloud_session", Value: aliceToken})
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("alice on alice.subdomain: got %d, want 200", w.Code)
+	}
+
+	req = httptest.NewRequest("GET", "/", nil)
+	req.Host = "bob.fleet.example.com"
+	req.AddCookie(&http.Cookie{Name: "fox_cloud_session", Value: aliceToken})
+	w = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("alice on bob.subdomain: got %d, want 403", w.Code)
+	}
+
+	req = httptest.NewRequest("GET", "/", nil)
+	req.Host = "alice.fleet.example.com"
+	req.AddCookie(&http.Cookie{Name: "fox_cloud_session", Value: bobToken})
+	w = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("bob on alice.subdomain: got %d, want 403", w.Code)
+	}
+
+	req = httptest.NewRequest("GET", "/", nil)
+	req.Host = "bob.fleet.example.com"
+	req.AddCookie(&http.Cookie{Name: "fox_cloud_session", Value: bobToken})
+	w = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("bob on bob.subdomain: got %d, want 200", w.Code)
+	}
+}
+
+func TestSubdomain_503WhenBackendUnreachable(t *testing.T) {
+	srv, reg, users, sessions := newDispatchTestServer(t, "fleet.example.com")
+
+	if err := reg.Create(registry.Instance{
+		ID: "fox-alice", ImageDigest: "sha256:abc", Port: 59999,
+		DataDir: "/data/fox-alice", Status: "running",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := users.Create("alice", "password123"); err != nil {
+		t.Fatal(err)
+	}
+	instID := "fox-alice"
+	if _, err := users.Update("alice", nil, &instID); err != nil {
+		t.Fatal(err)
+	}
+
+	token, _, err := sessions.Create("alice", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Host = "alice.fleet.example.com"
+	req.AddCookie(&http.Cookie{Name: "fox_cloud_session", Value: token})
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("unreachable backend: got %d, want 503", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "unreachable") {
+		t.Errorf("body should mention unreachable, got: %s", w.Body.String())
+	}
+}
+
+func TestSubdomain_PreservesQueryString(t *testing.T) {
+	srv, reg, users, sessions := newDispatchTestServer(t, "fleet.example.com")
+
+	var gotQuery string
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQuery = r.URL.RawQuery
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backend.Close()
+
+	port := parseTestPort(t, backend.URL)
+	if err := reg.Create(registry.Instance{
+		ID: "fox-alice", ImageDigest: "sha256:abc", Port: port,
+		DataDir: "/data/fox-alice", Status: "running",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := users.Create("alice", "password123"); err != nil {
+		t.Fatal(err)
+	}
+	instID := "fox-alice"
+	if _, err := users.Update("alice", nil, &instID); err != nil {
+		t.Fatal(err)
+	}
+
+	token, _, err := sessions.Create("alice", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/models?format=json&page=2", nil)
+	req.Host = "alice.fleet.example.com"
+	req.AddCookie(&http.Cookie{Name: "fox_cloud_session", Value: token})
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("proxy with query: got %d, want 200", w.Code)
+	}
+	if gotQuery != "format=json&page=2" {
+		t.Errorf("query = %q, want %q", gotQuery, "format=json&page=2")
+	}
+}
+
+func TestSubdomain_ForwardsPOSTBody(t *testing.T) {
+	srv, reg, users, sessions := newDispatchTestServer(t, "fleet.example.com")
+
+	var gotMethod, gotBody string
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		data, _ := io.ReadAll(r.Body)
+		gotBody = string(data)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backend.Close()
+
+	port := parseTestPort(t, backend.URL)
+	if err := reg.Create(registry.Instance{
+		ID: "fox-alice", ImageDigest: "sha256:abc", Port: port,
+		DataDir: "/data/fox-alice", Status: "running",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := users.Create("alice", "password123"); err != nil {
+		t.Fatal(err)
+	}
+	instID := "fox-alice"
+	if _, err := users.Update("alice", nil, &instID); err != nil {
+		t.Fatal(err)
+	}
+
+	token, _, err := sessions.Create("alice", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	postBody := `{"model":"hermes","prompt":"hello"}`
+	req := httptest.NewRequest("POST", "/api/chat", strings.NewReader(postBody))
+	req.Host = "alice.fleet.example.com"
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: "fox_cloud_session", Value: token})
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("POST proxy: got %d, want 200", w.Code)
+	}
+	if gotMethod != "POST" {
+		t.Errorf("method = %q, want POST", gotMethod)
+	}
+	if gotBody != postBody {
+		t.Errorf("body = %q, want %q", gotBody, postBody)
+	}
+}
+
+func TestSubdomain_503HasSecurityHeaders(t *testing.T) {
+	srv, _, users, sessions := newDispatchTestServer(t, "fleet.example.com")
+
+	if _, err := users.Create("alice", "password123"); err != nil {
+		t.Fatal(err)
+	}
+
+	token, _, err := sessions.Create("alice", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Host = "alice.fleet.example.com"
+	req.AddCookie(&http.Cookie{Name: "fox_cloud_session", Value: token})
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("503 page: got %d, want 503", w.Code)
+	}
+
+	if v := w.Header().Get("X-Frame-Options"); v != "DENY" {
+		t.Errorf("X-Frame-Options = %q, want DENY", v)
+	}
+	if v := w.Header().Get("X-Content-Type-Options"); v != "nosniff" {
+		t.Errorf("X-Content-Type-Options = %q, want nosniff", v)
+	}
+	if v := w.Header().Get("Referrer-Policy"); v != "strict-origin-when-cross-origin" {
+		t.Errorf("Referrer-Policy = %q, want strict-origin-when-cross-origin", v)
+	}
+	csp := w.Header().Get("Content-Security-Policy")
+	if !strings.Contains(csp, "default-src 'none'") {
+		t.Errorf("CSP missing default-src 'none': %s", csp)
+	}
+}
+
 func TestStripPort(t *testing.T) {
 	tests := []struct {
 		input, want string
@@ -333,6 +640,9 @@ func TestStripPort(t *testing.T) {
 		{"alice.fleet.example.com:443", "alice.fleet.example.com"},
 		{"localhost:8080", "localhost"},
 		{"localhost", "localhost"},
+		{"[::1]:9090", "[::1]"},
+		{"[::1]", "[::1]"},
+		{"[2001:db8::1]:443", "[2001:db8::1]"},
 	}
 	for _, tt := range tests {
 		got := stripPort(tt.input)

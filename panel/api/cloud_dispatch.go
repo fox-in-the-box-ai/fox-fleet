@@ -35,6 +35,12 @@ func (s *Server) hostDispatcher() http.Handler {
 }
 
 func stripPort(host string) string {
+	if strings.HasPrefix(host, "[") {
+		if i := strings.LastIndex(host, "]:"); i != -1 {
+			return host[:i+1]
+		}
+		return host
+	}
 	if i := strings.LastIndex(host, ":"); i != -1 {
 		return host[:i]
 	}
