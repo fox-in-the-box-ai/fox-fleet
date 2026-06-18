@@ -60,12 +60,9 @@ func (s *Server) handleSubdomainLogin(w http.ResponseWriter, r *http.Request, sl
 }
 
 func (s *Server) handleSubdomainLoginPage(w http.ResponseWriter, r *http.Request, slug string) {
+	// Clean up any stale session cookie (valid sessions are handled upstream).
 	c, err := r.Cookie(s.cloudCfg.CookieName)
 	if err == nil && c.Value != "" {
-		if sess, err := s.sessions.Validate(c.Value); err == nil && sess.UserID == slug {
-			http.Redirect(w, r, "/", http.StatusSeeOther)
-			return
-		}
 		_ = s.sessions.Delete(c.Value)
 		http.SetCookie(w, s.sessionCookie("", -time.Hour))
 	}
