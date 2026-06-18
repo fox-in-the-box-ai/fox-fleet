@@ -240,7 +240,7 @@ func newServeCmd() *cobra.Command {
 				cloudTTL := time.Duration(cfg.Cloud.SessionTTL) * time.Second
 				cloudCfg = api.CloudConfig{
 					CookieName:     cfg.Cloud.CookieName,
-					Secure:         cfg.TLS.CertFile != "",
+					Secure:         cfg.TLS.CertFile != "" || cfg.Cloud.Enabled,
 					Domain:         cfg.Cloud.Domain,
 					SessionTTL:     cloudTTL,
 					LoginRateLimit: cfg.Cloud.LoginRateLimit,
