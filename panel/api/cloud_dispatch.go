@@ -49,6 +49,27 @@ func stripPort(host string) string {
 }
 
 func (s *Server) handleSubdomainRequest(w http.ResponseWriter, r *http.Request, slug string) {
+	if r.URL.Path == "/logout" && r.Method == http.MethodPost {
+		s.handleCloudLogout(w, r)
+		return
+	}
+
+	// Session check first: a valid Fleet session proxies everything to Fox,
+	// including /login — Fox has its own auth for instance access.
+	c, err := r.Cookie(s.cloudCfg.CookieName)
+	if err == nil && c.Value != "" {
+		if sess, err := s.sessions.Validate(c.Value); err == nil {
+			if sess.UserID != slug {
+				setSecurityHeaders(w)
+				writeError(w, http.StatusForbidden, "forbidden", "session does not match subdomain")
+				return
+			}
+			s.proxyToInstance(w, r, slug)
+			return
+		}
+	}
+
+	// No valid Fleet session — handle login or redirect to it.
 	if r.URL.Path == "/login" {
 		switch r.Method {
 		case http.MethodGet:
@@ -68,29 +89,11 @@ func (s *Server) handleSubdomainRequest(w http.ResponseWriter, r *http.Request, 
 		}
 		return
 	}
-	if r.URL.Path == "/logout" && r.Method == http.MethodPost {
-		s.handleCloudLogout(w, r)
-		return
-	}
 
-	c, err := r.Cookie(s.cloudCfg.CookieName)
-	if err != nil || c.Value == "" {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
-		return
-	}
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
 
-	sess, err := s.sessions.Validate(c.Value)
-	if err != nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
-		return
-	}
-
-	if sess.UserID != slug {
-		setSecurityHeaders(w)
-		writeError(w, http.StatusForbidden, "forbidden", "session does not match subdomain")
-		return
-	}
-
+func (s *Server) proxyToInstance(w http.ResponseWriter, r *http.Request, slug string) {
 	u, err := s.users.Get(slug)
 	if err != nil {
 		s.log.Error("subdomain proxy: user lookup failed", "slug", slug, "error", err)

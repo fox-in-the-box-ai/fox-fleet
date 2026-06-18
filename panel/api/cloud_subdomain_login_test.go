@@ -113,7 +113,7 @@ func TestSubdomainLoginPage_ServesHTML(t *testing.T) {
 	}
 }
 
-func TestSubdomainLoginPage_RedirectsAuthenticated(t *testing.T) {
+func TestSubdomainLoginPage_AuthenticatedProxiesToFox(t *testing.T) {
 	srv, _, users, sessions := newDispatchTestServer(t, "fleet.example.com")
 
 	if _, err := users.Create("alice", "password123"); err != nil {
@@ -126,15 +126,12 @@ func TestSubdomainLoginPage_RedirectsAuthenticated(t *testing.T) {
 
 	cookie := &http.Cookie{Name: "fox_cloud_session", Value: token}
 	w := subdomainRequest(t, srv, "GET", "alice", "/login", "", cookie)
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("authenticated login page: got %d, want 303", w.Code)
-	}
-	if loc := w.Header().Get("Location"); loc != "/" {
-		t.Errorf("Location = %q, want /", loc)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("authenticated /login without instance: got %d, want 503 (proxied to Fox, not Fleet redirect)", w.Code)
 	}
 }
 
-func TestSubdomainLoginPage_ClearsWrongUserSession(t *testing.T) {
+func TestSubdomainLoginPage_WrongUserSessionRejects(t *testing.T) {
 	srv, _, users, sessions := newDispatchTestServer(t, "fleet.example.com")
 
 	if _, err := users.Create("alice", "password123"); err != nil {
@@ -150,19 +147,8 @@ func TestSubdomainLoginPage_ClearsWrongUserSession(t *testing.T) {
 
 	cookie := &http.Cookie{Name: "fox_cloud_session", Value: token}
 	w := subdomainRequest(t, srv, "GET", "alice", "/login", "", cookie)
-	if w.Code != http.StatusOK {
-		t.Fatalf("wrong user login page: got %d, want 200 (show login)", w.Code)
-	}
-
-	setCookies := w.Result().Cookies()
-	var cleared bool
-	for _, c := range setCookies {
-		if c.Name == "fox_cloud_session" && c.MaxAge < 0 {
-			cleared = true
-		}
-	}
-	if !cleared {
-		t.Error("should clear session cookie for wrong user")
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("wrong user on /login: got %d, want 403", w.Code)
 	}
 }
 

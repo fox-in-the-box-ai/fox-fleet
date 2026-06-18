@@ -632,6 +632,123 @@ func TestSubdomain_503HasSecurityHeaders(t *testing.T) {
 	}
 }
 
+func TestSubdomain_AuthenticatedLoginProxiesToFox(t *testing.T) {
+	srv, reg, users, sessions := newDispatchTestServer(t, "fleet.example.com")
+
+	var gotPath string
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		fmt.Fprintf(w, "fox-login-page")
+	}))
+	defer backend.Close()
+
+	port := parseTestPort(t, backend.URL)
+	if err := reg.Create(registry.Instance{
+		ID: "fox-alice", ImageDigest: "sha256:abc", Port: port,
+		DataDir: "/data/fox-alice", Status: "running",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := users.Create("alice", "password123"); err != nil {
+		t.Fatal(err)
+	}
+	instID := "fox-alice"
+	if _, err := users.Update("alice", nil, &instID); err != nil {
+		t.Fatal(err)
+	}
+
+	token, _, err := sessions.Create("alice", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest("GET", "/login", nil)
+	req.Host = "alice.fleet.example.com"
+	req.AddCookie(&http.Cookie{Name: "fox_cloud_session", Value: token})
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("authenticated /login: got %d, want 200 (proxied to Fox)", w.Code)
+	}
+	if gotPath != "/login" {
+		t.Errorf("proxied path = %q, want /login", gotPath)
+	}
+	if body := w.Body.String(); body != "fox-login-page" {
+		t.Errorf("body = %q, want fox-login-page", body)
+	}
+}
+
+func TestSubdomain_AuthenticatedLoginPostProxiesToFox(t *testing.T) {
+	srv, reg, users, sessions := newDispatchTestServer(t, "fleet.example.com")
+
+	var gotMethod, gotBody string
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		data, _ := io.ReadAll(r.Body)
+		gotBody = string(data)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backend.Close()
+
+	port := parseTestPort(t, backend.URL)
+	if err := reg.Create(registry.Instance{
+		ID: "fox-alice", ImageDigest: "sha256:abc", Port: port,
+		DataDir: "/data/fox-alice", Status: "running",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := users.Create("alice", "password123"); err != nil {
+		t.Fatal(err)
+	}
+	instID := "fox-alice"
+	if _, err := users.Update("alice", nil, &instID); err != nil {
+		t.Fatal(err)
+	}
+
+	token, _, err := sessions.Create("alice", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	postBody := "password=secret123"
+	req := httptest.NewRequest("POST", "/login", strings.NewReader(postBody))
+	req.Host = "alice.fleet.example.com"
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: "fox_cloud_session", Value: token})
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("authenticated POST /login: got %d, want 200 (proxied to Fox)", w.Code)
+	}
+	if gotMethod != "POST" {
+		t.Errorf("method = %q, want POST", gotMethod)
+	}
+	if gotBody != postBody {
+		t.Errorf("body = %q, want %q", gotBody, postBody)
+	}
+}
+
+func TestSubdomain_UnauthenticatedLoginShowsFleetPage(t *testing.T) {
+	srv, _, _, _ := newDispatchTestServer(t, "fleet.example.com")
+
+	req := httptest.NewRequest("GET", "/login", nil)
+	req.Host = "alice.fleet.example.com"
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("unauthenticated /login: got %d, want 200 (Fleet login page)", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); !strings.Contains(ct, "text/html") {
+		t.Errorf("Content-Type = %q, want text/html", ct)
+	}
+	if !strings.Contains(w.Body.String(), "Fox Fleet") {
+		t.Error("body should contain Fleet login page content")
+	}
+}
+
 func TestStripPort(t *testing.T) {
 	tests := []struct {
 		input, want string
