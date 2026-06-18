@@ -198,7 +198,7 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 		PrincipalRole:    req.PrincipalRole,
 	}
 
-	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+	if err := os.MkdirAll(dataDir, 0o711); err != nil {
 		s.rollback(ctx, req.InstanceID, dataDir, false)
 		return nil, fmt.Errorf("provisioner: create data dir: %w", err)
 	}
