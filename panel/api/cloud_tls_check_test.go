@@ -41,6 +41,7 @@ func newTLSCheckTestEnv(t *testing.T) (*Server, *registry.Registry, *cloud.UserS
 		SessionStore: sessions,
 		Cloud: CloudConfig{
 			CookieName: "fox_cloud_session",
+			Secure:     true,
 			Domain:     "fleet.example.com",
 			SessionTTL: time.Hour,
 		},
