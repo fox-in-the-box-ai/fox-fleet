@@ -5,6 +5,12 @@ All notable changes to Fox Fleet are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Subdomain proxy sent `InstancePassword` instead of `PlaneAuthToken` as `X-Fox-Auth` header — Fox instances rejected all Fleet-proxied requests because the header value didn't match `FOX_PLANE_AUTH_SECRET`, causing users to see Fox's own login page instead of being transparently authenticated
+
 ## [1.6.2] - 2026-06-18
 
 ### Fixed
