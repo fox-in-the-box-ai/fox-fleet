@@ -46,6 +46,7 @@ func newDispatchTestServer(t *testing.T, domain string) (*Server, *registry.Regi
 		SessionStore: sessions,
 		Cloud: CloudConfig{
 			CookieName: "fox_cloud_session",
+			Secure:     true,
 			Domain:     domain,
 			SessionTTL: time.Hour,
 		},

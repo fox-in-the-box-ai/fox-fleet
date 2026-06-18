@@ -51,6 +51,7 @@ func newTestEnvWithCloud(t *testing.T) *testEnv {
 		SessionStore: sessions,
 		Cloud: CloudConfig{
 			CookieName:     "fox_cloud_session",
+			Secure:         true,
 			SessionTTL:     time.Hour,
 			LoginRateLimit: 5,
 		},
@@ -109,6 +110,9 @@ func TestCloudAuth_LoginSuccess(t *testing.T) {
 	cookie := extractSessionCookie(w)
 	if cookie == nil {
 		t.Fatal("no session cookie set")
+	}
+	if !cookie.Secure {
+		t.Error("cookie should be Secure in cloud mode")
 	}
 	if !cookie.HttpOnly {
 		t.Error("cookie should be HttpOnly")

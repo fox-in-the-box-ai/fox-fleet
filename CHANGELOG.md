@@ -5,6 +5,12 @@ All notable changes to Fox Fleet are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-06-18
+
+### Fixed
+
+- Session cookie missing `Secure` flag when running behind a TLS-terminating reverse proxy (Caddy) — cloud mode now sets `Secure` unconditionally since on-demand TLS is always active; prevents duplicate non-Secure cookies in Chrome that caused login redirects despite valid credentials
+
 ## [1.6.0] - 2026-06-18
 
 ### Added
