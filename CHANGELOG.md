@@ -5,6 +5,20 @@ All notable changes to Fox Fleet are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2026-06-18
+
+### Fixed
+
+- Startup validates `data_root` is writable before opening databases — previously crashed with a cryptic SQLite error when the directory had wrong permissions (#147)
+- Container entrypoint auto-fixes data directory ownership when running as root, with clear error message for bind-mount permission failures (#147)
+- Docker-compose volume section documents bind-mount ownership requirements (uid 65532) (#147)
+
+### Changed
+
+- `.deb` package now includes `postinst` script, systemd unit file, default config template (`/etc/fox-control/fox-control.toml`), and env file (`/etc/fox-control/env`) — previously shipped only the binary (#148)
+- `.deb` package creates `fox-control` system user, config directory, and data directory on install; registers systemd unit (#148)
+- `.deb` `DEBIAN/control` declares `Depends: ca-certificates` and `Recommends: docker-ce | docker.io, docker-compose-plugin` — previously had no dependency declarations (#149)
+
 ## [1.5.1] - 2026-06-17
 
 ### Fixed

@@ -1,0 +1,36 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+        # Create system user (no login shell, no home)
+        if ! id fox-control >/dev/null 2>&1; then
+            useradd --system --no-create-home --shell /usr/sbin/nologin fox-control
+        fi
+
+        # Add fox-control user to docker group if it exists
+        if getent group docker >/dev/null 2>&1; then
+            usermod -aG docker fox-control
+        fi
+
+        # Create data directory
+        install -d -m 0750 -o fox-control -g fox-control /var/lib/fox-control
+
+        # Set ownership on config directory (created by deb install)
+        chown -R fox-control:fox-control /etc/fox-control
+
+        # Prompt for secrets if env file has defaults
+        if grep -q "change-me" /etc/fox-control/env 2>/dev/null; then
+            echo ""
+            echo ">>> Edit /etc/fox-control/env and set real secrets before starting <<<"
+            echo ""
+        fi
+
+        # Reload systemd if available
+        if [ -d /run/systemd/system ]; then
+            systemctl daemon-reload
+        fi
+        ;;
+esac
+
+exit 0
