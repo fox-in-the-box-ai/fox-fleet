@@ -13,9 +13,9 @@ func (s *Server) handleCloudLoginPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	setCloudSecurityHeaders(w)
+	setSecurityHeaders(w)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; form-action 'self'")
 	_, _ = w.Write([]byte(cloudLoginPage))
 }
 

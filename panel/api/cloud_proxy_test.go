@@ -312,6 +312,36 @@ func TestCloudProxy_503WhenBackendUnreachable(t *testing.T) {
 	}
 }
 
+func TestCloud503_HasSecurityHeadersAndCSP(t *testing.T) {
+	env := newTestEnvWithCloud(t)
+
+	w := doCloudRequest(t, env, "POST", "/cloud/login", `{"username":"alice","password":"password123"}`)
+	cookie := extractSessionCookie(w)
+	if cookie == nil {
+		t.Fatal("no session cookie")
+	}
+
+	w = doCloudRequest(t, env, "GET", "/cloud/app", "", cookie)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503", w.Code)
+	}
+	if v := w.Header().Get("X-Frame-Options"); v != "DENY" {
+		t.Errorf("X-Frame-Options = %q, want DENY", v)
+	}
+	if v := w.Header().Get("X-Content-Type-Options"); v != "nosniff" {
+		t.Errorf("X-Content-Type-Options = %q, want nosniff", v)
+	}
+	csp := w.Header().Get("Content-Security-Policy")
+	if csp == "" {
+		t.Fatal("503 page missing Content-Security-Policy header")
+	}
+	for _, directive := range []string{"default-src 'none'", "style-src 'unsafe-inline'"} {
+		if !strings.Contains(csp, directive) {
+			t.Errorf("CSP missing %q\nCSP: %s", directive, csp)
+		}
+	}
+}
+
 func TestCloudLoginPage_HasSecurityHeaders(t *testing.T) {
 	env := newTestEnvWithCloud(t)
 
@@ -324,6 +354,13 @@ func TestCloudLoginPage_HasSecurityHeaders(t *testing.T) {
 	}
 	if v := w.Header().Get("X-Content-Type-Options"); v != "nosniff" {
 		t.Errorf("X-Content-Type-Options = %q, want nosniff", v)
+	}
+
+	csp := w.Header().Get("Content-Security-Policy")
+	for _, directive := range []string{"connect-src 'self'", "form-action 'self'"} {
+		if !strings.Contains(csp, directive) {
+			t.Errorf("CSP missing %q — login page fetch will be blocked by browsers.\nCSP: %s", directive, csp)
+		}
 	}
 }
 

@@ -5,6 +5,14 @@ All notable changes to Fox Fleet are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.3] - 2026-06-18
+
+### Fixed
+
+- Cloud login page CSP now includes `connect-src 'self'` and `form-action 'self'` — previously the page's own `fetch()` call was blocked by browsers because `default-src 'none'` fell through to deny connect-src (#154)
+- `/healthz` endpoint now returns `X-Frame-Options`, `X-Content-Type-Options`, and `Referrer-Policy` security headers — previously only set on panel and cloud page endpoints (#156)
+- Cloud 503 error page now has a `Content-Security-Policy` header and no longer uses `javascript:` URIs — same class of CSP gap as #154
+
 ## [1.5.2] - 2026-06-18
 
 ### Fixed
