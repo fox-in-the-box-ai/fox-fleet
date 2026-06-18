@@ -208,7 +208,7 @@ func TestHostDispatcher_SubdomainInjectsXFoxAuth(t *testing.T) {
 	if err := reg.Create(registry.Instance{
 		ID: "fox-alice", ImageDigest: "sha256:abc", Port: port,
 		DataDir: "/data/fox-alice", Status: "running",
-		InstancePassword: "per-instance-secret",
+		PlaneAuthToken: "per-instance-plane-token",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -234,17 +234,19 @@ func TestHostDispatcher_SubdomainInjectsXFoxAuth(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("proxy: got %d, want 200", w.Code)
 	}
-	if gotHeader != "per-instance-secret" {
-		t.Errorf("X-Fox-Auth = %q, want %q", gotHeader, "per-instance-secret")
+	if gotHeader != "per-instance-plane-token" {
+		t.Errorf("X-Fox-Auth = %q, want %q", gotHeader, "per-instance-plane-token")
 	}
 }
 
-func TestHostDispatcher_SubdomainFallsBackToSharedPassword(t *testing.T) {
+func TestHostDispatcher_SubdomainOmitsXFoxAuthWhenNoToken(t *testing.T) {
 	srv, reg, users, sessions := newDispatchTestServer(t, "fleet.example.com")
 
 	var gotHeader string
+	var hasHeader bool
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotHeader = r.Header.Get("X-Fox-Auth")
+		hasHeader = r.Header.Get("X-Fox-Auth") != ""
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer backend.Close()
@@ -278,8 +280,8 @@ func TestHostDispatcher_SubdomainFallsBackToSharedPassword(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("proxy: got %d, want 200", w.Code)
 	}
-	if gotHeader != "test-pwd" {
-		t.Errorf("X-Fox-Auth = %q, want shared fallback %q", gotHeader, "test-pwd")
+	if hasHeader {
+		t.Errorf("X-Fox-Auth should be absent when PlaneAuthToken is empty, got %q", gotHeader)
 	}
 }
 

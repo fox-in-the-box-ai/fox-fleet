@@ -125,10 +125,7 @@ func (s *Server) proxyToInstance(w http.ResponseWriter, r *http.Request, slug st
 		return
 	}
 
-	proxyPwd := inst.InstancePassword
-	if proxyPwd == "" {
-		proxyPwd = s.instPwd
-	}
+	planeAuth := inst.PlaneAuthToken
 
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
@@ -137,8 +134,8 @@ func (s *Server) proxyToInstance(w http.ResponseWriter, r *http.Request, slug st
 			pr.Out.URL.Path = r.URL.Path
 			pr.Out.URL.RawQuery = r.URL.RawQuery
 			pr.Out.Host = target.Host
-			if proxyPwd != "" {
-				pr.Out.Header.Set("X-Fox-Auth", proxyPwd)
+			if planeAuth != "" {
+				pr.Out.Header.Set("X-Fox-Auth", planeAuth)
 			}
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
