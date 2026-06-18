@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fox-in-the-box-ai/fox-fleet/data-plane/source"
+	"github.com/fox-in-the-box-ai/fox-fleet/internal/config"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/provisioner"
 	"github.com/fox-in-the-box-ai/fox-fleet/internal/registry"
 	"github.com/fox-in-the-box-ai/fox-fleet/plugins"
@@ -41,6 +42,7 @@ type createRequest struct {
 	ID           string `json:"id"`
 	SkillsetPath string `json:"skillset_path,omitempty"`
 	Role         string `json:"role,omitempty"`
+	Owner        string `json:"owner,omitempty"`
 }
 
 type createResponse struct {
@@ -189,6 +191,11 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 		defer s.clearInFlight(body.ID)
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), provisionTimeout)
 		defer cancel()
+		cloud := config.CloudConfig{
+			Enabled: s.cloudCfg.Domain != "",
+			Domain:  s.cloudCfg.Domain,
+			Slug:    body.Owner,
+		}
 		_, err := s.provisioner.Provision(ctx, provisioner.Request{
 			InstanceID:       body.ID,
 			AdminSecret:      string(s.secret),
@@ -197,6 +204,7 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 			DataPlaneURL:     s.dpURL,
 			SkillsetPath:     skillset,
 			PrincipalRole:    role,
+			Cloud:            cloud,
 		})
 		if err != nil {
 			s.log.Error("background provision failed",

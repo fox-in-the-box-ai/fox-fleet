@@ -116,6 +116,7 @@ func (s *Server) handleSubdomainRequest(w http.ResponseWriter, r *http.Request, 
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(target)
+			pr.SetXForwarded()
 			pr.Out.URL.Path = r.URL.Path
 			pr.Out.URL.RawQuery = r.URL.RawQuery
 			pr.Out.Host = target.Host

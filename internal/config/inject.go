@@ -23,6 +23,7 @@ var (
 type CloudConfig struct {
 	Enabled bool
 	Domain  string
+	Slug    string
 }
 
 type InjectParams struct {
@@ -91,9 +92,13 @@ func renderHermesEnv(p InjectParams) ([]byte, error) {
 		env[k] = v
 	}
 	if p.Cloud.Enabled && p.Cloud.Domain != "" {
-		env["HERMES_WEBUI_ALLOWED_ORIGINS"] = "https://" + p.Cloud.Domain
+		origin := p.Cloud.Domain
+		if p.Cloud.Slug != "" {
+			origin = p.Cloud.Slug + "." + p.Cloud.Domain
+		}
+		env["HERMES_WEBUI_ALLOWED_ORIGINS"] = "https://" + origin
 		env["HERMES_WEBUI_TRUST_FORWARDED_HOST"] = "true"
-		env["HERMES_WEBUI_CSP_CONNECT_EXTRA"] = "https://" + p.Cloud.Domain + " wss://" + p.Cloud.Domain
+		env["HERMES_WEBUI_CSP_CONNECT_EXTRA"] = "https://" + origin + " wss://" + origin
 	}
 
 	keys := make([]string, 0, len(env))

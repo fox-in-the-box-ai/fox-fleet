@@ -40,6 +40,7 @@ type Request struct {
 	SkillsetPath     string
 	DataPlaneURL     string
 	PrincipalRole    string
+	Cloud            config.CloudConfig
 }
 
 type Instance struct {
@@ -236,6 +237,7 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 		InstancePassword: instancePwd,
 		Config:           instanceCfg,
 		QueryToken:       queryToken,
+		Cloud:            req.Cloud,
 	}); err != nil {
 		s.rollback(ctx, req.InstanceID, dataDir, false)
 		return nil, fmt.Errorf("provisioner: inject config: %w", err)
