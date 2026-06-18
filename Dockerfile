@@ -11,12 +11,14 @@ RUN CGO_ENABLED=0 go build -trimpath \
     -o /fox-control ./cmd/fox-control
 
 FROM alpine:3.21
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata su-exec
 COPY --from=build /fox-control /usr/local/bin/fox-control
-RUN mkdir -p /etc/fox-control /var/lib/fox-control && \
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh && \
+    mkdir -p /etc/fox-control /var/lib/fox-control && \
     chown 65532:65532 /var/lib/fox-control
 USER 65532:65532
 VOLUME ["/var/lib/fox-control"]
 EXPOSE 9090
-ENTRYPOINT ["fox-control"]
-CMD ["serve", "--config", "/etc/fox-control/fox-control.toml"]
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["fox-control", "serve", "--config", "/etc/fox-control/fox-control.toml"]

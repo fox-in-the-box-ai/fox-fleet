@@ -641,3 +641,42 @@ enabled = false
 		t.Fatalf("LoadConfig with cloud.enabled=false should not require domain: %v", err)
 	}
 }
+
+func TestEnsureDataRoot_CreatesDir(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "nested", "data")
+	if err := ensureDataRoot(dir); err != nil {
+		t.Fatalf("ensureDataRoot(%q) = %v", dir, err)
+	}
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Fatalf("dir not created: %v", err)
+	}
+	if !info.IsDir() {
+		t.Errorf("expected directory, got %v", info.Mode())
+	}
+}
+
+func TestEnsureDataRoot_ExistingDir(t *testing.T) {
+	dir := t.TempDir()
+	if err := ensureDataRoot(dir); err != nil {
+		t.Fatalf("ensureDataRoot(%q) = %v", dir, err)
+	}
+}
+
+func TestEnsureDataRoot_NotWritable(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("test requires non-root")
+	}
+	dir := filepath.Join(t.TempDir(), "readonly")
+	if err := os.MkdirAll(dir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	child := filepath.Join(dir, "data")
+	err := ensureDataRoot(child)
+	if err == nil {
+		t.Fatal("expected error for non-writable parent")
+	}
+	if !strings.Contains(err.Error(), "uid 65532") {
+		t.Errorf("error should mention uid 65532, got: %v", err)
+	}
+}

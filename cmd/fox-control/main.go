@@ -113,6 +113,10 @@ func newServeCmd() *cobra.Command {
 
 			configureLogging(cfg)
 
+			if err := ensureDataRoot(cfg.Control.DataRoot); err != nil {
+				return err
+			}
+
 			reg, plug, err := openRegistryAndPlugin(cfg)
 			if err != nil {
 				return err
@@ -717,6 +721,21 @@ func configureLogging(cfg *Config) {
 		handler = slog.NewTextHandler(os.Stderr, opts)
 	}
 	slog.SetDefault(slog.New(handler))
+}
+
+func ensureDataRoot(path string) error {
+	if err := os.MkdirAll(path, 0750); err != nil {
+		return fmt.Errorf("cannot create data_root %q: %w\n\nIf running in a container with a bind mount, ensure the host directory "+
+			"is owned by uid 65532:\n  sudo chown -R 65532:65532 %s", path, err, path)
+	}
+	f, err := os.CreateTemp(path, ".fox-write-test-*")
+	if err != nil {
+		return fmt.Errorf("data_root %q is not writable: %w\n\nIf running in a container with a bind mount, ensure the host directory "+
+			"is owned by uid 65532:\n  sudo chown -R 65532:65532 %s", path, err, path)
+	}
+	f.Close()
+	_ = os.Remove(f.Name())
+	return nil
 }
 
 func newGenerateSecretCmd() *cobra.Command {

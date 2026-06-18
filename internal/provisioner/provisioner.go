@@ -198,7 +198,7 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 		PrincipalRole:    req.PrincipalRole,
 	}
 
-	if err := os.MkdirAll(dataDir, 0o700); err != nil {
+	if err := os.MkdirAll(dataDir, 0o711); err != nil {
 		s.rollback(ctx, req.InstanceID, dataDir, false)
 		return nil, fmt.Errorf("provisioner: create data dir: %w", err)
 	}
@@ -227,6 +227,11 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 		return nil, fmt.Errorf("provisioner: inject config: %w", err)
 	}
 
+	if err := config.MarkOnboardingComplete(dataDir); err != nil {
+		s.rollback(ctx, req.InstanceID, dataDir, false)
+		return nil, fmt.Errorf("provisioner: mark onboarding complete: %w", err)
+	}
+
 	healthCtx, healthCancel := context.WithTimeout(ctx, s.healthTimeout)
 	defer healthCancel()
 
@@ -239,11 +244,6 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 	}); err != nil {
 		s.rollback(ctx, req.InstanceID, dataDir, true)
 		return nil, fmt.Errorf("provisioner: deploy: %w", err)
-	}
-
-	if err := config.MarkOnboardingComplete(dataDir); err != nil {
-		s.rollback(ctx, req.InstanceID, dataDir, true)
-		return nil, fmt.Errorf("provisioner: mark onboarding complete: %w", err)
 	}
 
 	if err := s.retryUpdateStatus(req.InstanceID, "running"); err != nil {
