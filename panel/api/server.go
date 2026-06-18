@@ -179,7 +179,7 @@ func NewServer(d Deps) *Server {
 		s.mux.Handle("POST /cloud/logout", http.HandlerFunc(s.handleCloudLogout))
 		s.mux.HandleFunc("GET /cloud/login", s.handleCloudLoginPage)
 		s.mux.HandleFunc("GET /cloud/tls-check", s.handleTLSCheck)
-		s.mux.Handle("/cloud/", http.HandlerFunc(s.handleCloudProxy))
+		s.mux.Handle("/cloud/", http.HandlerFunc(s.handleLegacyCloudRedirect))
 
 		if d.WebFS != nil {
 			s.mux.Handle("/admin/", securityHeaders(http.StripPrefix("/admin", http.FileServerFS(d.WebFS))))

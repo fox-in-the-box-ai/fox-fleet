@@ -80,6 +80,10 @@ func (s *Server) handleCloudProxy(w http.ResponseWriter, r *http.Request) {
 	proxy.ServeHTTP(w, r)
 }
 
+func (s *Server) handleLegacyCloudRedirect(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/admin/", http.StatusMovedPermanently)
+}
+
 func (s *Server) handleCloudRoot(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie(s.cloudCfg.CookieName)
 	if err != nil || c.Value == "" {
@@ -92,7 +96,7 @@ func (s *Server) handleCloudRoot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/cloud/", http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/", http.StatusSeeOther)
 }
 
 func (s *Server) serveCloud503(w http.ResponseWriter, instanceID, reason string) {

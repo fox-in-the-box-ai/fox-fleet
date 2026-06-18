@@ -8,7 +8,7 @@ func (s *Server) handleCloudLoginPage(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie(s.cloudCfg.CookieName)
 	if err == nil && c.Value != "" {
 		if _, err := s.sessions.Validate(c.Value); err == nil {
-			http.Redirect(w, r, "/cloud/", http.StatusSeeOther)
+			http.Redirect(w, r, "/admin/", http.StatusSeeOther)
 			return
 		}
 	}
@@ -77,7 +77,7 @@ password:document.getElementById("password").value
 });
 fetch("/cloud/login",{method:"POST",headers:{"Content-Type":"application/json"},body:body,credentials:"same-origin"})
 .then(function(r){
-if(r.ok){window.location.href="/cloud/";return}
+if(r.ok){window.location.href="/admin/";return}
 return r.json().catch(function(){return{}}).then(function(d){throw new Error(d.message||"Invalid credentials")});
 })
 .catch(function(ex){
