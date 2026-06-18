@@ -325,6 +325,13 @@ func TestCloudLoginPage_HasSecurityHeaders(t *testing.T) {
 	if v := w.Header().Get("X-Content-Type-Options"); v != "nosniff" {
 		t.Errorf("X-Content-Type-Options = %q, want nosniff", v)
 	}
+
+	csp := w.Header().Get("Content-Security-Policy")
+	for _, directive := range []string{"connect-src 'self'", "form-action 'self'"} {
+		if !strings.Contains(csp, directive) {
+			t.Errorf("CSP missing %q — login page fetch will be blocked by browsers.\nCSP: %s", directive, csp)
+		}
+	}
 }
 
 func parseTestPort(t *testing.T, rawURL string) int {

@@ -91,13 +91,13 @@ func (s *Server) handleCloudRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) serveCloud503(w http.ResponseWriter, instanceID, reason string) {
-	setCloudSecurityHeaders(w)
+	setSecurityHeaders(w)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusServiceUnavailable)
 	fmt.Fprintf(w, cloud503Page, html.EscapeString(instanceID), html.EscapeString(reason))
 }
 
-func setCloudSecurityHeaders(w http.ResponseWriter) {
+func setSecurityHeaders(w http.ResponseWriter) {
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")

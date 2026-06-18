@@ -331,6 +331,7 @@ func (s *Server) clearInFlight(id string) {
 }
 
 func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
+	setSecurityHeaders(w)
 	status := "ok"
 	resp := map[string]any{}
 	if s.poller.qdrant != nil {
