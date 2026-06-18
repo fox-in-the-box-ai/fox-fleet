@@ -122,7 +122,6 @@ func (s *Server) sessionCookie(token string, maxAge time.Duration) *http.Cookie 
 		Name:     s.cloudCfg.CookieName,
 		Value:    token,
 		Path:     "/",
-		Domain:   s.cloudCfg.Domain,
 		MaxAge:   int(maxAge.Seconds()),
 		HttpOnly: true,
 		Secure:   s.cloudCfg.Secure,
