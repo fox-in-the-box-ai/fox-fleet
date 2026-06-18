@@ -5,6 +5,35 @@ All notable changes to Fox Fleet are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-06-18
+
+### Added
+
+- Subdomain-per-instance routing — each user's Fox instance is served at `<username>.<domain>` instead of behind a `/cloud/` proxy path; Fox receives requests at root with no URL rewriting
+- Host dispatcher routes requests by `Host` header: base domain → admin panel/API, subdomains → instance proxy with session auth
+- Per-subdomain login flow at `<slug>.<domain>/login` — separate session cookies per subdomain host, username-slug enforcement prevents cross-user access
+- TLS check endpoint (`GET /cloud/tls-check`) for Caddy `on_demand_tls` certificate validation — validates subdomain suffix, rejects nested subdomains, verifies user exists with assigned instance
+- Caddy configuration template for wildcard subdomain TLS with `on_demand` certificates
+- Per-instance CSPRNG secrets — each provisioned instance receives unique `PlaneAuthToken` and `InstancePassword` instead of sharing the Fleet-wide password
+- Per-instance CORS origins — `HERMES_WEBUI_ALLOWED_ORIGINS` set to `https://<slug>.<domain>` for subdomain-specific origin matching
+- `X-Forwarded-*` headers set on subdomain proxy for `TRUST_FORWARDED_HOST` compatibility
+- Instance creation accepts optional `owner` field to set subdomain slug at provision time
+
+### Changed
+
+- Legacy `/cloud/*` proxy paths return 301 → `/admin/` instead of reverse-proxying — existing bookmarks redirect cleanly
+- Cloud usernames enforce DNS-label-safe format: 1–63 lowercase alphanumeric or hyphen characters, must start and end with alphanumeric
+
+### Fixed
+
+- Admin SPA i18n JSON loaded via relative path instead of absolute — previously broke when panel was mounted at `/admin/` (#159)
+
+### Security
+
+- Cookie `Domain` attribute removed — browser defaults to exact-host-only scoping, preventing cookie leakage across subdomains
+- SSE token via query parameter path removed — tokens now transmitted only in headers, preventing token logging in access logs and browser history
+- Per-instance secrets replace shared instance password — compromising one instance's credentials does not expose others
+
 ## [1.5.3] - 2026-06-18
 
 ### Fixed
