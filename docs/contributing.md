@@ -41,6 +41,24 @@ Tests use temporary directories and in-memory SQLite — no Docker daemon requir
 
 ---
 
+## Standing discipline rules
+
+These apply to every PR and release. They exist because each was learned from a real incident.
+
+### Secret hygiene
+
+Secrets never appear in chat output, command stdout, transcripts, or unstructured files. Generated secrets pipe to 600-permission files at known paths. Reading uses file references, never echoed variable contents.
+
+### Real-browser conformance
+
+Every change that touches a web surface (login pages, admin panel, SSE endpoints) must be verified in a real browser, not just `curl`. Browser rendering, CSP, cookie behavior, and CORS are not testable from the command line.
+
+### Fresh-deploy conformance
+
+Release-tagged builds must pass a fresh-deploy test: pull the image, run with empty volumes, provision an instance, verify health. This catches first-run failures that incremental testing misses.
+
+---
+
 ## Security
 
 See [SECURITY.md](https://github.com/fox-in-the-box-ai/fox-fleet/blob/main/SECURITY.md) for vulnerability reporting policy.

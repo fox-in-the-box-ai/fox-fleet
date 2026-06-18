@@ -10,5 +10,8 @@
 - [ ] CI status: all required checks green (lint, test, build, Conformance)
 - [ ] CHANGELOG entry added for any user-visible change
 - [ ] No internal/private content added to this public repo (audits, panels, working notes → fox-private-docs)
+- [ ] No secrets in code, logs, comments, or transcripts
+- [ ] Browser-facing changes verified in a real browser, not just curl
+- [ ] Fresh-deploy path tested for release-tagged PRs
 
 ## Deferred / out of scope

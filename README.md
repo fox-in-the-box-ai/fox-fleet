@@ -6,7 +6,7 @@
 
 Open-source management plane for [Fox in the Box](https://github.com/fox-in-the-box-ai/fox-in-the-box) AI assistants. One binary, one config file, one Docker host — provision, monitor, update, and destroy a fleet of Fox instances through a CLI and browser-based panel.
 
-> **Status: v1.5.0 GA.** Production-ready. Signed releases (cosign + SBOM), conformance suite, full deployment paths (Compose / Helm / systemd / Homebrew / apt / container image).
+> **Status: v1.6.0 GA.** Production-ready. Subdomain-per-instance routing, per-user sessions, signed releases (cosign + SBOM), conformance suite, full deployment paths (Compose / Helm / systemd / Homebrew / apt / container image).
 
 ---
 
@@ -40,7 +40,7 @@ Pick your platform. Each guide covers every available install channel and verifi
 
 ```bash
 fox-control version
-# fox-control v1.5.0 (commit abc1234, built 2026-06-17)
+# fox-control v1.6.0 (commit abc1234, built 2026-06-18)
 ```
 
 For container deployments:
@@ -146,7 +146,8 @@ graph TB
 - **SQLite registry** — instance metadata in a single embedded database. CGO-free via `modernc.org/sqlite`. No external database dependency.
 - **Config injection** — each instance gets its own data directory with `config.yaml`, `settings.json`, `hermes.env`, and `tools.json` written before container start. When a data plane is configured, `tools.json` includes a `knowledge_query` tool manifest pointing instances at the query API. Credentials are injected as environment variables, never baked into images.
 - **Data plane** — optional organizational knowledge layer. File and REST ingestion connectors chunk documents, embed them via an OpenAI-compatible API, and store vectors in a shared Qdrant sidecar. Instances query the data plane through the `knowledge_query` tool injected by config injection.
-- **Shared-secret auth** — `admin_secret` authenticates the operator to the panel and is injected into each instance as `FOX_PLANE_AUTH_SECRET`. The instance's `check_auth` gate validates it. `instance_password` enables upstream session auth per the managed-mode invariant.
+- **Shared-secret auth** — `admin_secret` authenticates the operator to the panel and is injected into each instance as `FOX_PLANE_AUTH_SECRET`. The instance's `check_auth` gate validates it. In cloud mode, each instance additionally receives unique CSPRNG-generated credentials at provision time, so compromising one instance does not expose others.
+- **Subdomain routing (cloud mode)** — when `cloud.domain` is configured, each user's Fox instance is served at `<username>.<domain>`. A host dispatcher routes by `Host` header: base domain to the admin panel, subdomains to the instance reverse proxy with session auth. Caddy `on_demand_tls` issues per-subdomain certificates validated by a loopback-restricted TLS check endpoint.
 
 ### Architecture invariants
 
@@ -208,6 +209,8 @@ fox-cloud (Commercial)         Hosted product
 | **v1.2** | Operations — Prometheus metrics, built-in TLS, backup CLI, diagnostics, webhooks, structured logging, rate limiting | Shipped (1.2.0) |
 | **v1.3** | Data plane hardening — embedding retry, Qdrant timeouts/batching/health, incremental ingestion, auto-restart, conformance | Shipped (1.3.0) |
 | **v1.4** | Panel & docs — health timeline, resource gauges, i18n (en/es/fr), skillset picker, operator/developer handbooks, OpenAPI spec, examples | Shipped (1.4.0) |
+| **v1.5** | Cloud mode — multi-user provisioning with login sessions, cloud login page, CSP hardening, data dir permissions, .deb packaging fixes | Shipped (1.5.3) |
+| **v1.6** | Subdomain-per-instance routing — each user's Fox served at `<username>.<domain>`, per-instance secrets, on-demand TLS, host-based dispatch | Shipped (1.6.0) |
 
 Full roadmap: [FLEET_BASE_ROADMAP.md](https://github.com/fox-in-the-box-ai/fox-in-the-box/blob/main/docs/architecture/FLEET_BASE_ROADMAP.md)
 
@@ -266,7 +269,7 @@ docs/                  Product-specific documentation
 
 See [SECURITY.md](SECURITY.md) for vulnerability reporting policy.
 
-Fox Fleet's auth model uses shared secrets (not OIDC/mTLS — those are Fleet Enterprise features). The `admin_secret` authenticates operator-to-panel and panel-to-instance communication via `X-Fox-Auth` headers with constant-time comparison. Credentials are injected at provision time and never logged.
+Fox Fleet's auth model uses shared secrets (not OIDC/mTLS — those are Fleet Enterprise features). The `admin_secret` authenticates operator-to-panel and panel-to-instance communication via `X-Fox-Auth` headers with constant-time comparison. In cloud mode, each instance receives unique CSPRNG-generated credentials at provision time — compromising one instance's secrets does not expose others. Credentials are injected at provision time and never logged.
 
 **Release signing:** every release artifact (binaries, checksums, container images) is signed with [Sigstore cosign](https://docs.sigstore.dev/cosign/overview/) via GitHub Actions OIDC — no long-lived keys. Verify with `fox-control verify <tarball>` or cosign directly. See [docs/security/signing.md](docs/security/signing.md).
 
