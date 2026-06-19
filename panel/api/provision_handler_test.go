@@ -450,7 +450,7 @@ func TestProvision_BindsUserAfterProvision(t *testing.T) {
 		InstancePwd:  "test-instance-pwd",
 		MaxInstances: 5,
 		PollInterval: time.Hour,
-		SigningKey:    testSigningKey,
+		SigningKey:   testSigningKey,
 		Logger:       slog.New(slog.NewTextHandler(&logBuf, nil)),
 		UserStore:    users,
 	})
