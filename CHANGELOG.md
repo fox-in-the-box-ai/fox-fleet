@@ -5,6 +5,22 @@ All notable changes to Fox Fleet are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-06-19
+
+### Added
+
+- Composite provision endpoint (`POST /api/provision`) — single API call provisions a Fox instance with slug assignment, image pull, container startup, and subdomain routing; replaces the multi-step manual workflow
+- Slug availability check (`GET /api/slug-available?slug=...`) — real-time validation before provisioning
+- Cloud provision modal — admin SPA UI for provisioning new instances with live slug availability feedback, image selection, and progress reporting
+- Design-system tokens (`tokens.css`) — vendor Fox Design System v0.1.0 color, typography, spacing, and shadow tokens; restyle admin panel, login, and subdomain login surfaces for visual consistency
+- Playwright browser conformance suite (19 tests) — catches CSP violations, cookie attribute mismatches, redirect loops, console errors, mixed content, and fetch failures that curl-based conformance cannot detect; runs in CI on every PR
+
+### Fixed
+
+- Plugin conformance suite failed to provision Fox instances when Fleet auth was enabled — now passes `InstancePassword` alongside `AuthSecret` to satisfy the Fox overlay auth guard (8/8 plugin checks pass)
+- Plugin conformance `runIdempotent` silently discarded data directory preparation errors — now reports failure explicitly
+- Plugin conformance `dumpContainerDiag` logged nothing when Docker client initialization failed — now emits a structured warning
+
 ## [1.6.3] - 2026-06-19
 
 ### Fixed
