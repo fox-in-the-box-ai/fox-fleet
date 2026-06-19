@@ -155,6 +155,8 @@ func NewServer(d Deps) *Server {
 		apiMux.HandleFunc("GET /api/users/{username}", s.handleGetUser)
 		apiMux.HandleFunc("PUT /api/users/{username}", s.handleUpdateUser)
 		apiMux.HandleFunc("DELETE /api/users/{username}", s.handleDeleteUser)
+		apiMux.HandleFunc("POST /api/instances/provision", s.handleProvision)
+		apiMux.HandleFunc("GET /api/slugs/check/{slug}", s.handleCheckSlug)
 	}
 
 	apiHandler := s.requireAuth(apiMux)
