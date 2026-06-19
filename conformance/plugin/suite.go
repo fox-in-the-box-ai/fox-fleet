@@ -85,7 +85,15 @@ func (s *Suite) runLifecycle(ctx context.Context, plug *docker.Plugin, result *r
 
 func (s *Suite) runIdempotent(ctx context.Context, plug *docker.Plugin, result *report.Suite, imageRef plugins.ImageRef) {
 	dataDir := filepath.Join(os.TempDir(), "fox-conformance-plugin", "idem-test")
-	_ = prepareDataDir(dataDir)
+	if err := prepareDataDir(dataDir); err != nil {
+		result.Add(report.Result{
+			Number: 7,
+			Name:   "Idempotent provision (same ID twice)",
+			Status: report.Fail,
+			Detail: fmt.Sprintf("prepare data dir: %v", err),
+		})
+		return
+	}
 	defer func() {
 		_ = plug.Destroy(context.WithoutCancel(ctx), "conf-plug-idem")
 		_ = os.RemoveAll(dataDir)

@@ -100,8 +100,9 @@ func check03Configure(ctx context.Context, plug *docker.Plugin) report.Result {
 	start := time.Now()
 
 	err := plug.Configure(ctx, testInstanceID, plugins.InstanceConfig{
-		AuthSecret:    testAuthSecret,
-		ProxyEndpoint: "http://example.com:8080",
+		AuthSecret:       testAuthSecret,
+		InstancePassword: testInstPassword,
+		ProxyEndpoint:    "http://example.com:8080",
 	})
 	if err != nil {
 		return report.Result{
@@ -306,6 +307,7 @@ func check08NonexistentHealth(ctx context.Context, plug *docker.Plugin) report.R
 func dumpContainerDiag(containerName, dataDir string) string {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
+		slog.Warn("dumpContainerDiag: docker client init failed", "error", err)
 		return ""
 	}
 	defer cli.Close()
