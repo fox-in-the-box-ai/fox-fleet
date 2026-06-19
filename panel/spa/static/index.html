@@ -616,6 +616,19 @@ body {
   color: var(--color-text-muted);
   margin-bottom: 6px;
 }
+.slug-field-wrap { position: relative; }
+.slug-status {
+  font-size: 12px; margin-top: 4px; min-height: 18px;
+  transition: color var(--transition);
+}
+.slug-available { color: var(--color-success); }
+.slug-taken, .slug-invalid { color: var(--color-error); }
+.slug-checking { color: var(--color-text-muted); }
+.slug-reserved { color: var(--color-warning); }
+.password-hint {
+  font-size: 12px; margin-top: 4px; min-height: 18px;
+  color: var(--color-error);
+}
 
 /* ── Drop Zone ────────────────────────────────────────────────────── */
 .drop-zone {
@@ -945,6 +958,8 @@ var state = {
   locale: localStorage.getItem("fox_locale") || "en",
   theme: localStorage.getItem("fox_theme") || "system"
 };
+
+var isCloudMode = window.location.pathname.indexOf("/admin/") === 0;
 
 /* ── i18n ─────────────────────────────────────────────────────────── */
 
@@ -1363,6 +1378,140 @@ function doProvision() {
     if (!res.ok) return res.json().then(function(err) { throw new Error(err.message || err.error || t("err.failed")); });
     closeModal();
     showToast(t("prov.started", { id: id }), "success");
+    refresh();
+  }).catch(function(e) {
+    document.getElementById("m-create").disabled = false;
+    if (e.message !== "Unauthorized") showToast(t("err.action", { msg: e.message }));
+  });
+}
+
+/* ── Cloud Provision Modal ────────────────────────────────────────── */
+
+var _slugTimer = null;
+
+function showCloudProvisionModal() {
+  showModal(
+    '<div class="modal">'
+    + '<div class="modal-title">' + esc(t("cprov.title")) + '</div>'
+    + '<div class="modal-desc">' + esc(t("cprov.desc")) + '</div>'
+    + '<div class="modal-field slug-field-wrap">'
+    + '<label class="modal-label" for="m-slug">' + esc(t("cprov.slug_label")) + '</label>'
+    + '<input class="input" id="m-slug" style="width:100%" placeholder="' + esc(t("cprov.slug_placeholder")) + '" autocomplete="off" spellcheck="false">'
+    + '<div class="slug-status" id="m-slug-status"></div>'
+    + '</div>'
+    + '<div class="modal-field">'
+    + '<label class="modal-label" for="m-username">' + esc(t("cprov.username_label")) + '</label>'
+    + '<input class="input" id="m-username" style="width:100%" placeholder="' + esc(t("cprov.username_placeholder")) + '" autocomplete="off" spellcheck="false">'
+    + '</div>'
+    + '<div class="modal-field">'
+    + '<label class="modal-label" for="m-password">' + esc(t("cprov.password_label")) + '</label>'
+    + '<input class="input" type="password" id="m-password" style="width:100%" placeholder="' + esc(t("cprov.password_placeholder")) + '" autocomplete="new-password">'
+    + '<div class="password-hint" id="m-password-hint"></div>'
+    + '</div>'
+    + '<div class="modal-actions">'
+    + '<button class="btn btn-ghost" id="m-cancel">' + esc(t("cancel")) + '</button>'
+    + '<button class="btn btn-primary" id="m-create">' + esc(t("create")) + '</button>'
+    + '</div></div>'
+  );
+  document.getElementById("m-cancel").addEventListener("click", closeModal);
+  document.getElementById("m-create").addEventListener("click", doCloudProvision);
+  document.getElementById("m-slug").addEventListener("input", onSlugInput);
+  document.getElementById("m-username").addEventListener("input", function() {
+    this.dataset.manual = "1";
+  });
+  document.getElementById("m-password").addEventListener("input", function() {
+    var hint = document.getElementById("m-password-hint");
+    hint.textContent = this.value.length > 0 && this.value.length < 8 ? t("cprov.password_short") : "";
+  });
+  document.getElementById("m-password").addEventListener("keydown", function(e) {
+    if (e.key === "Enter") doCloudProvision();
+  });
+  document.getElementById("m-slug").focus();
+}
+
+function isValidSlugClient(s) {
+  if (!s || s.length > 63) return false;
+  if (s.length === 1) return /^[a-z0-9]$/.test(s);
+  return /^[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/.test(s) && s.indexOf("--") === -1;
+}
+
+function onSlugInput() {
+  var raw = document.getElementById("m-slug").value.trim().toLowerCase();
+  var indicator = document.getElementById("m-slug-status");
+  clearTimeout(_slugTimer);
+
+  if (!raw) {
+    indicator.textContent = "";
+    indicator.className = "slug-status";
+    return;
+  }
+
+  if (!isValidSlugClient(raw)) {
+    indicator.textContent = t("cprov.slug_invalid");
+    indicator.className = "slug-status slug-invalid";
+    return;
+  }
+
+  indicator.textContent = t("cprov.slug_checking");
+  indicator.className = "slug-status slug-checking";
+
+  var usernameInput = document.getElementById("m-username");
+  if (usernameInput && !usernameInput.dataset.manual) {
+    usernameInput.value = raw;
+  }
+
+  _slugTimer = setTimeout(function() {
+    apiFetch("/api/slugs/check/" + encodeURIComponent(raw))
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        var cur = document.getElementById("m-slug");
+        if (!cur || cur.value.trim().toLowerCase() !== raw) return;
+        if (data.available) {
+          indicator.textContent = t("cprov.slug_available");
+          indicator.className = "slug-status slug-available";
+        } else if (data.reason === "reserved") {
+          indicator.textContent = t("cprov.slug_reserved");
+          indicator.className = "slug-status slug-reserved";
+        } else {
+          indicator.textContent = t("cprov.slug_taken", { reason: data.reason || "" });
+          indicator.className = "slug-status slug-taken";
+        }
+      })
+      .catch(function() {
+        indicator.textContent = "";
+        indicator.className = "slug-status";
+      });
+  }, 300);
+}
+
+function doCloudProvision() {
+  var slug = document.getElementById("m-slug").value.trim().toLowerCase();
+  var username = document.getElementById("m-username").value.trim();
+  var password = document.getElementById("m-password").value;
+
+  if (!slug || !isValidSlugClient(slug)) {
+    var si = document.getElementById("m-slug-status");
+    if (si) { si.textContent = t("cprov.slug_invalid"); si.className = "slug-status slug-invalid"; }
+    document.getElementById("m-slug").focus();
+    return;
+  }
+  if (!username) { username = slug; }
+  if (password.length < 8) {
+    document.getElementById("m-password-hint").textContent = t("cprov.password_short");
+    document.getElementById("m-password").focus();
+    return;
+  }
+
+  document.getElementById("m-create").disabled = true;
+
+  apiFetch("/api/instances/provision", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: username, password: password, slug: slug })
+  }).then(function(res) {
+    if (!res.ok) return res.json().catch(function() { return {}; }).then(function(err) { throw new Error(err.message || err.error || t("err.failed")); });
+    closeModal();
+    showToast(t("cprov.started", { slug: slug }), "success");
     refresh();
   }).catch(function(e) {
     document.getElementById("m-create").disabled = false;
@@ -2010,7 +2159,7 @@ document.getElementById("content").addEventListener("click", function(e) {
   var destroy = e.target.closest("[data-action='destroy']");
   if (destroy) { showDestroyModal(destroy.dataset.id); return; }
   var prov = e.target.closest("#btn-provision, #btn-provision-empty");
-  if (prov) { showProvisionModal(); return; }
+  if (prov) { isCloudMode ? showCloudProvisionModal() : showProvisionModal(); return; }
   var srcDetail = e.target.closest("[data-action='source-detail']");
   if (srcDetail) { showSourceDetail(srcDetail.dataset.id); return; }
   var srcBack = e.target.closest("[data-action='source-back']");
