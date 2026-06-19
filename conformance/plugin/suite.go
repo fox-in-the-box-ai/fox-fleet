@@ -19,10 +19,11 @@ import (
 )
 
 const (
-	testInstanceID = "conf-plug-test"
-	testPort       = 9177
-	testAuthSecret = "conf-plug-secret-4e9a"
-	healthTimeout  = 120 * time.Second
+	testInstanceID   = "conf-plug-test"
+	testPort         = 9177
+	testAuthSecret   = "conf-plug-secret-4e9a"
+	testInstPassword = "conf-plug-pass-8b1c"
+	healthTimeout    = 120 * time.Second
 )
 
 type Suite struct {
@@ -56,8 +57,8 @@ func (s *Suite) Run(ctx context.Context) (*report.Suite, error) {
 
 	dataDir := filepath.Join(os.TempDir(), "fox-conformance-plugin", testInstanceID)
 	_ = os.RemoveAll(dataDir)
-	if err := os.MkdirAll(dataDir, 0o700); err != nil {
-		return nil, fmt.Errorf("conformance: create data dir: %w", err)
+	if err := prepareDataDir(dataDir); err != nil {
+		return nil, fmt.Errorf("conformance: %w", err)
 	}
 	defer os.RemoveAll(filepath.Join(os.TempDir(), "fox-conformance-plugin"))
 
@@ -84,7 +85,15 @@ func (s *Suite) runLifecycle(ctx context.Context, plug *docker.Plugin, result *r
 
 func (s *Suite) runIdempotent(ctx context.Context, plug *docker.Plugin, result *report.Suite, imageRef plugins.ImageRef) {
 	dataDir := filepath.Join(os.TempDir(), "fox-conformance-plugin", "idem-test")
-	_ = os.MkdirAll(dataDir, 0o700)
+	if err := prepareDataDir(dataDir); err != nil {
+		result.Add(report.Result{
+			Number: 7,
+			Name:   "Idempotent provision (same ID twice)",
+			Status: report.Fail,
+			Detail: fmt.Sprintf("prepare data dir: %v", err),
+		})
+		return
+	}
 	defer func() {
 		_ = plug.Destroy(context.WithoutCancel(ctx), "conf-plug-idem")
 		_ = os.RemoveAll(dataDir)
@@ -107,6 +116,24 @@ func isMovingTag(ref string) bool {
 	}
 	tag := ref[i+1:]
 	return tag == "stable" || tag == "latest"
+}
+
+// prepareDataDir creates the data directory with world-rwx permissions and a
+// config/ subdirectory, matching the SUT runner's setup. The plugin conformance
+// suite tests the Docker plugin API, not the container's behaviour under
+// production-restrictive permissions; the provisioner owns that setup in prod.
+func prepareDataDir(dataDir string) error {
+	if err := os.MkdirAll(dataDir, 0o777); err != nil {
+		return fmt.Errorf("create data dir: %w", err)
+	}
+	if err := os.Chmod(dataDir, 0o777); err != nil {
+		return fmt.Errorf("chmod data dir: %w", err)
+	}
+	configDir := filepath.Join(dataDir, "config")
+	if err := os.MkdirAll(configDir, 0o777); err != nil {
+		return fmt.Errorf("create config dir: %w", err)
+	}
+	return os.Chmod(configDir, 0o777)
 }
 
 func parseImageRef(s string) plugins.ImageRef {

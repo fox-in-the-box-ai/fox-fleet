@@ -3,8 +3,15 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
 
 	"github.com/fox-in-the-box-ai/fox-fleet/conformance/runtime/report"
 	"github.com/fox-in-the-box-ai/fox-fleet/plugins"
@@ -21,18 +28,21 @@ func check01Provision(ctx context.Context, plug *docker.Plugin, imageRef plugins
 		InstanceID: testInstanceID,
 		Image:      imageRef,
 		Config: plugins.InstanceConfig{
-			AuthSecret: testAuthSecret,
+			AuthSecret:       testAuthSecret,
+			InstancePassword: testInstPassword,
 		},
 		Port:    testPort,
 		DataDir: dataDir,
 	})
 	if err != nil {
+		diag := dumpContainerDiag("fox-"+testInstanceID, dataDir)
+		slog.Error("check01 provision failed", "error", err, "diag", diag)
 		return report.Result{
 			Number:   1,
 			Name:     "Provision valid config",
 			Status:   report.Fail,
 			Duration: time.Since(start),
-			Detail:   fmt.Sprintf("Provision failed: %v", err),
+			Detail:   fmt.Sprintf("Provision failed: %v%s", err, diag),
 		}
 	}
 
@@ -90,8 +100,9 @@ func check03Configure(ctx context.Context, plug *docker.Plugin) report.Result {
 	start := time.Now()
 
 	err := plug.Configure(ctx, testInstanceID, plugins.InstanceConfig{
-		AuthSecret:    testAuthSecret,
-		ProxyEndpoint: "http://example.com:8080",
+		AuthSecret:       testAuthSecret,
+		InstancePassword: testInstPassword,
+		ProxyEndpoint:    "http://example.com:8080",
 	})
 	if err != nil {
 		return report.Result{
@@ -227,7 +238,7 @@ func check07Idempotent(ctx context.Context, plug *docker.Plugin, imageRef plugin
 	err := plug.Provision(provCtx, plugins.ProvisionRequest{
 		InstanceID: id,
 		Image:      imageRef,
-		Config:     plugins.InstanceConfig{AuthSecret: testAuthSecret},
+		Config:     plugins.InstanceConfig{AuthSecret: testAuthSecret, InstancePassword: testInstPassword},
 		Port:       testPort + 1,
 		DataDir:    dataDir,
 	})
@@ -249,7 +260,7 @@ func check07Idempotent(ctx context.Context, plug *docker.Plugin, imageRef plugin
 	err = plug.Provision(provCtx2, plugins.ProvisionRequest{
 		InstanceID: id,
 		Image:      imageRef,
-		Config:     plugins.InstanceConfig{AuthSecret: testAuthSecret},
+		Config:     plugins.InstanceConfig{AuthSecret: testAuthSecret, InstancePassword: testInstPassword},
 		Port:       testPort + 1,
 		DataDir:    dataDir,
 	})
@@ -291,6 +302,84 @@ func check08NonexistentHealth(ctx context.Context, plug *docker.Plugin) report.R
 		Status:   report.Pass,
 		Duration: time.Since(start),
 	}
+}
+
+func dumpContainerDiag(containerName, dataDir string) string {
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		slog.Warn("dumpContainerDiag: docker client init failed", "error", err)
+		return ""
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	info, err := cli.ContainerInspect(ctx, containerName)
+	if err != nil {
+		return fmt.Sprintf(" [diag: inspect failed: %v]", err)
+	}
+
+	diag := fmt.Sprintf(" [diag: status=%s running=%v exitCode=%d",
+		info.State.Status, info.State.Running, info.State.ExitCode)
+	if info.State.Error != "" {
+		diag += fmt.Sprintf(" error=%q", info.State.Error)
+	}
+
+	rc, err := cli.ContainerLogs(ctx, containerName, container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Tail:       "80",
+	})
+	if err == nil {
+		logBytes, _ := io.ReadAll(rc)
+		rc.Close()
+		if len(logBytes) > 0 {
+			const maxLog = 3000
+			logStr := string(logBytes)
+			if len(logStr) > maxLog {
+				logStr = logStr[len(logStr)-maxLog:]
+			}
+			diag += fmt.Sprintf(" container-logs=\n%s", logStr)
+		}
+	}
+
+	if dataDir != "" {
+		diag += collectProcessLogs(dataDir)
+	}
+
+	diag += "]"
+	return diag
+}
+
+func collectProcessLogs(dataDir string) string {
+	logDir := filepath.Join(dataDir, "logs")
+	entries, err := os.ReadDir(logDir)
+	if err != nil {
+		return fmt.Sprintf(" process-logs-err=%v", err)
+	}
+	const maxPerFile = 2000
+	var result string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		ext := filepath.Ext(name)
+		if ext != ".err" && ext != ".log" {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(logDir, name))
+		if err != nil || len(data) == 0 {
+			continue
+		}
+		content := string(data)
+		if len(content) > maxPerFile {
+			content = content[len(content)-maxPerFile:]
+		}
+		result += fmt.Sprintf("\n--- %s (last %d bytes) ---\n%s", name, len(content), content)
+	}
+	return result
 }
 
 func httpProbe(ctx context.Context, port int) bool {

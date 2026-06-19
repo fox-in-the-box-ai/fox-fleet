@@ -121,7 +121,6 @@ jobs:
     name: Conformance (plugin)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    continue-on-error: true
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
@@ -139,3 +138,24 @@ jobs:
 
       - name: Run plugin conformance suite
         run: ./fox-control conformance plugin --image ghcr.io/fox-in-the-box-ai/cloud:stable
+
+      - name: Collect diagnostic info on failure
+        if: failure()
+        run: |
+          echo "=== docker ps -a ==="
+          docker ps -a --filter 'name=fox-' --no-trunc
+          echo ""
+          for cid in $(docker ps -aq --filter 'name=fox-'); do
+            name=$(docker inspect --format '{{.Name}}' "$cid")
+            echo "=== logs for $name ==="
+            docker logs "$cid" --tail 200 2>&1 || true
+            echo ""
+            echo "=== inspect $name (State) ==="
+            docker inspect --format '{{json .State}}' "$cid" 2>&1 || true
+            echo ""
+          done
+          echo "=== /dev/net/tun ==="
+          ls -la /dev/net/tun 2>&1 || echo "/dev/net/tun does not exist"
+          echo ""
+          echo "=== sysctl net.ipv4.ip_forward ==="
+          sysctl net.ipv4.ip_forward 2>&1 || true
