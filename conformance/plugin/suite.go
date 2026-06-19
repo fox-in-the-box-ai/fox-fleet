@@ -56,7 +56,7 @@ func (s *Suite) Run(ctx context.Context) (*report.Suite, error) {
 
 	dataDir := filepath.Join(os.TempDir(), "fox-conformance-plugin", testInstanceID)
 	_ = os.RemoveAll(dataDir)
-	if err := os.MkdirAll(dataDir, 0o700); err != nil {
+	if err := os.MkdirAll(dataDir, 0o711); err != nil {
 		return nil, fmt.Errorf("conformance: create data dir: %w", err)
 	}
 	defer os.RemoveAll(filepath.Join(os.TempDir(), "fox-conformance-plugin"))
@@ -84,7 +84,7 @@ func (s *Suite) runLifecycle(ctx context.Context, plug *docker.Plugin, result *r
 
 func (s *Suite) runIdempotent(ctx context.Context, plug *docker.Plugin, result *report.Suite, imageRef plugins.ImageRef) {
 	dataDir := filepath.Join(os.TempDir(), "fox-conformance-plugin", "idem-test")
-	_ = os.MkdirAll(dataDir, 0o700)
+	_ = os.MkdirAll(dataDir, 0o711)
 	defer func() {
 		_ = plug.Destroy(context.WithoutCancel(ctx), "conf-plug-idem")
 		_ = os.RemoveAll(dataDir)
