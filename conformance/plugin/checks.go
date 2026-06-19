@@ -3,8 +3,13 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
 
 	"github.com/fox-in-the-box-ai/fox-fleet/conformance/runtime/report"
 	"github.com/fox-in-the-box-ai/fox-fleet/plugins"
@@ -27,12 +32,14 @@ func check01Provision(ctx context.Context, plug *docker.Plugin, imageRef plugins
 		DataDir: dataDir,
 	})
 	if err != nil {
+		diag := dumpContainerDiag("fox-" + testInstanceID)
+		slog.Error("check01 provision failed", "error", err, "diag", diag)
 		return report.Result{
 			Number:   1,
 			Name:     "Provision valid config",
 			Status:   report.Fail,
 			Duration: time.Since(start),
-			Detail:   fmt.Sprintf("Provision failed: %v", err),
+			Detail:   fmt.Sprintf("Provision failed: %v%s", err, diag),
 		}
 	}
 
@@ -291,6 +298,49 @@ func check08NonexistentHealth(ctx context.Context, plug *docker.Plugin) report.R
 		Status:   report.Pass,
 		Duration: time.Since(start),
 	}
+}
+
+func dumpContainerDiag(containerName string) string {
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return ""
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	info, err := cli.ContainerInspect(ctx, containerName)
+	if err != nil {
+		return fmt.Sprintf(" [diag: inspect failed: %v]", err)
+	}
+
+	diag := fmt.Sprintf(" [diag: status=%s running=%v exitCode=%d",
+		info.State.Status, info.State.Running, info.State.ExitCode)
+	if info.State.Error != "" {
+		diag += fmt.Sprintf(" error=%q", info.State.Error)
+	}
+
+	rc, err := cli.ContainerLogs(ctx, containerName, container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Tail:       "50",
+	})
+	if err == nil {
+		logBytes, _ := io.ReadAll(rc)
+		rc.Close()
+		if len(logBytes) > 0 {
+			const maxLog = 1500
+			logStr := string(logBytes)
+			if len(logStr) > maxLog {
+				logStr = logStr[len(logStr)-maxLog:]
+			}
+			diag += fmt.Sprintf(" logs=\n%s", logStr)
+		}
+	}
+
+	diag += "]"
+	return diag
 }
 
 func httpProbe(ctx context.Context, port int) bool {
