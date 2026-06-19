@@ -28,7 +28,8 @@ func check01Provision(ctx context.Context, plug *docker.Plugin, imageRef plugins
 		InstanceID: testInstanceID,
 		Image:      imageRef,
 		Config: plugins.InstanceConfig{
-			AuthSecret: testAuthSecret,
+			AuthSecret:       testAuthSecret,
+			InstancePassword: testInstPassword,
 		},
 		Port:    testPort,
 		DataDir: dataDir,
@@ -236,7 +237,7 @@ func check07Idempotent(ctx context.Context, plug *docker.Plugin, imageRef plugin
 	err := plug.Provision(provCtx, plugins.ProvisionRequest{
 		InstanceID: id,
 		Image:      imageRef,
-		Config:     plugins.InstanceConfig{AuthSecret: testAuthSecret},
+		Config:     plugins.InstanceConfig{AuthSecret: testAuthSecret, InstancePassword: testInstPassword},
 		Port:       testPort + 1,
 		DataDir:    dataDir,
 	})
@@ -258,7 +259,7 @@ func check07Idempotent(ctx context.Context, plug *docker.Plugin, imageRef plugin
 	err = plug.Provision(provCtx2, plugins.ProvisionRequest{
 		InstanceID: id,
 		Image:      imageRef,
-		Config:     plugins.InstanceConfig{AuthSecret: testAuthSecret},
+		Config:     plugins.InstanceConfig{AuthSecret: testAuthSecret, InstancePassword: testInstPassword},
 		Port:       testPort + 1,
 		DataDir:    dataDir,
 	})

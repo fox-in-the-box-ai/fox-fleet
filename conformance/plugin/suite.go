@@ -21,8 +21,9 @@ import (
 const (
 	testInstanceID = "conf-plug-test"
 	testPort       = 9177
-	testAuthSecret = "conf-plug-secret-4e9a"
-	healthTimeout  = 120 * time.Second
+	testAuthSecret    = "conf-plug-secret-4e9a"
+	testInstPassword  = "conf-plug-pass-8b1c"
+	healthTimeout     = 120 * time.Second
 )
 
 type Suite struct {
