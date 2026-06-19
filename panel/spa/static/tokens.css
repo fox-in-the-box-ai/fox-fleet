@@ -1,0 +1,141 @@
+/* Fox in the Box — Design System v0.1.0
+   Vendored from fox-in-the-box-ai/design-system.
+   Consumers load fonts separately; this file is pure tokens. */
+
+:root {
+  /* ---- Fox Orange (primary brand scale) ---- */
+  --fox-50:  #FFF7ED;
+  --fox-100: #FFEDD5;
+  --fox-200: #FED7AA;
+  --fox-300: #FDBA74;
+  --fox-400: #FB923C;
+  --fox-500: #F97316;
+  --fox-600: #EA580C;
+  --fox-700: #C2410C;
+  --fox-800: #9A3412;
+  --fox-900: #7C2D12;
+  --fox-950: #431407;
+
+  /* ---- Warm sand / parchment neutrals (light) ---- */
+  --sand-0:   #FFFFFF;
+  --sand-50:  #FEFCF7;
+  --sand-100: #FAF7F0;
+  --sand-150: #F5F0E5;
+  --sand-200: #F3EEE3;
+  --sand-300: #E0D8C8;
+  --sand-400: #C9BCA4;
+  --sand-500: #9A8C73;
+  --sand-600: #5C5344;
+  --sand-700: #3A342A;
+  --sand-800: #1A1610;
+  --sand-900: #0F0D08;
+
+  /* ---- Warm night neutrals (dark) ---- */
+  --night-950: #08080F;
+  --night-900: #0D0D1A;
+  --night-800: #141425;
+  --night-700: #1A1A2E;
+  --night-600: #2A2A45;
+  --night-500: #3A3A55;
+  --cream:     #FFF8DC;
+
+  /* ---- Heritage gold (secondary accent) ---- */
+  --gold-deep:   #8B6508;
+  --gold:        #B8860B;
+  --gold-warm:   #D4961C;
+  --gold-bright: #FFD700;
+  --gold-amber:  #FFBF00;
+
+  /* ---- Cyan (technical accent) ---- */
+  --cyan-deep:   #0288A8;
+  --cyan:        #2BA6C4;
+  --cyan-bright: #4DD0E1;
+
+  /* ---- Semantic hues ---- */
+  --ds-success:  #3D8B40;
+  --ds-warning:  #E68A00;
+  --ds-error:    #C62828;
+  --ds-info:     #0288A8;
+  --ds-success-bright: #4CAF50;
+  --ds-warning-bright: #FFA726;
+  --ds-error-bright:   #EF5350;
+  --ds-info-bright:    #4DD0E1;
+
+  /* ---- Typography ---- */
+  --font-sans:  'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-mono:  'JetBrains Mono', 'SF Mono', ui-monospace, 'Cascadia Code', monospace;
+
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+  --weight-heavy:    800;
+
+  --text-h1: 30px;
+  --text-h2: 24px;
+  --text-h3: 20px;
+  --text-h4: 17px;
+  --text-body-lg: 18px;
+  --text-body:    16px;
+  --text-body-sm: 14px;
+  --text-label:   13px;
+  --text-caption: 12px;
+  --text-micro:   11px;
+
+  --leading-tight:   1.05;
+  --leading-snug:    1.18;
+  --leading-normal:  1.5;
+  --leading-relaxed: 1.68;
+
+  --tracking-tighter: -0.035em;
+  --tracking-tight:   -0.02em;
+  --tracking-normal:  0;
+  --tracking-wide:    0.04em;
+  --tracking-caps:    0.12em;
+
+  /* ---- Spacing (4px grid) ---- */
+  --space-0:  0;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ---- Radii ---- */
+  --ds-radius-xs:   4px;
+  --ds-radius-sm:   6px;
+  --ds-radius-md:   8px;
+  --ds-radius-lg:   12px;
+  --ds-radius-xl:   16px;
+  --ds-radius-pill: 999px;
+
+  /* ---- Shadows (warm-tinted) ---- */
+  --ds-shadow-xs:    0 1px 2px rgba(26, 22, 16, 0.06);
+  --ds-shadow-sm:    0 1px 3px rgba(26, 22, 16, 0.08), 0 1px 2px rgba(26, 22, 16, 0.05);
+  --ds-shadow-md:    0 4px 12px rgba(26, 22, 16, 0.10), 0 2px 4px rgba(26, 22, 16, 0.06);
+  --ds-shadow-lg:    0 12px 32px rgba(26, 22, 16, 0.14), 0 4px 8px rgba(26, 22, 16, 0.08);
+  --ds-shadow-brand: 5px 5px 10px 0 rgba(184, 160, 137, 0.55);
+  --ds-shadow-accent: 0 4px 16px rgba(234, 88, 12, 0.28);
+
+  /* ---- Motion ---- */
+  --ease-out:    cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.2, 1);
+  --dur-fast:   0.12s;
+  --dur-base:   0.18s;
+  --dur-slow:   0.32s;
+}
+
+:root.dark,
+:root[data-theme="dark"] {
+  --ds-shadow-xs:    0 1px 2px rgba(0, 0, 0, 0.35);
+  --ds-shadow-sm:    0 1px 3px rgba(0, 0, 0, 0.40);
+  --ds-shadow-md:    0 4px 12px rgba(0, 0, 0, 0.45);
+  --ds-shadow-lg:    0 12px 32px rgba(0, 0, 0, 0.55);
+  --ds-shadow-brand: 5px 5px 12px 0 rgba(0, 0, 0, 0.50);
+}
