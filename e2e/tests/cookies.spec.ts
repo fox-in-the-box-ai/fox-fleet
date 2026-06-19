@@ -1,4 +1,4 @@
-import { test, expect } from "../fixtures/fleet";
+import { test, expect, testUsername, testPassword } from "../fixtures/fleet";
 
 const COOKIE_NAME = "fox_cloud_session";
 
@@ -6,11 +6,8 @@ test.describe("Cookie security attributes", () => {
   test("login sets session cookie with correct attributes", async ({
     request,
   }) => {
-    const username = process.env.E2E_USERNAME || "e2e-admin";
-    const password = process.env.E2E_PASSWORD || "e2e-password-8f3a";
-
     const resp = await request.post("/cloud/login", {
-      data: { username, password },
+      data: { username: testUsername, password: testPassword },
     });
     expect(resp.ok()).toBe(true);
 
@@ -29,11 +26,8 @@ test.describe("Cookie security attributes", () => {
   test("login does not set Domain attribute (host-only scoping)", async ({
     request,
   }) => {
-    const username = process.env.E2E_USERNAME || "e2e-admin";
-    const password = process.env.E2E_PASSWORD || "e2e-password-8f3a";
-
     const resp = await request.post("/cloud/login", {
-      data: { username, password },
+      data: { username: testUsername, password: testPassword },
     });
     expect(resp.ok()).toBe(true);
 
@@ -44,16 +38,13 @@ test.describe("Cookie security attributes", () => {
   });
 
   test("repeated login overwrites session cookie", async ({ request }) => {
-    const username = process.env.E2E_USERNAME || "e2e-admin";
-    const password = process.env.E2E_PASSWORD || "e2e-password-8f3a";
-
     const resp1 = await request.post("/cloud/login", {
-      data: { username, password },
+      data: { username: testUsername, password: testPassword },
     });
     expect(resp1.ok()).toBe(true);
 
     const resp2 = await request.post("/cloud/login", {
-      data: { username, password },
+      data: { username: testUsername, password: testPassword },
     });
     expect(resp2.ok()).toBe(true);
 
@@ -63,11 +54,8 @@ test.describe("Cookie security attributes", () => {
   });
 
   test("logout clears session cookie", async ({ request }) => {
-    const username = process.env.E2E_USERNAME || "e2e-admin";
-    const password = process.env.E2E_PASSWORD || "e2e-password-8f3a";
-
     const loginResp = await request.post("/cloud/login", {
-      data: { username, password },
+      data: { username: testUsername, password: testPassword },
     });
     expect(loginResp.ok()).toBe(true);
 

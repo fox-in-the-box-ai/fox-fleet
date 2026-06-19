@@ -1,4 +1,4 @@
-import { test, expect } from "../fixtures/fleet";
+import { test, expect, testUsername, testPassword } from "../fixtures/fleet";
 
 test.describe("Content-Security-Policy", () => {
   test("login page has CSP header and no violations", async ({
@@ -40,10 +40,7 @@ test.describe("Content-Security-Policy", () => {
     loginAsOperator,
     consoleErrors,
   }) => {
-    const username = process.env.E2E_USERNAME || "e2e-admin";
-    const password = process.env.E2E_PASSWORD || "e2e-password-8f3a";
-
-    await loginAsOperator(username, password);
+    await loginAsOperator(testUsername, testPassword);
     const response = await page.goto("/admin/");
     expect(response).not.toBeNull();
 

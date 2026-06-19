@@ -1,4 +1,4 @@
-import { test, expect } from "../fixtures/fleet";
+import { test, expect, testUsername, testPassword } from "../fixtures/fleet";
 
 test.describe("Redirect loop protection", () => {
   test("unauthenticated root redirects to login without looping", async ({
@@ -21,12 +21,9 @@ test.describe("Redirect loop protection", () => {
   test("authenticated user does not redirect back to login", async ({
     page,
   }) => {
-    const username = process.env.E2E_USERNAME || "e2e-admin";
-    const password = process.env.E2E_PASSWORD || "e2e-password-8f3a";
-
     await page.goto("/cloud/login");
-    await page.fill("#username", username);
-    await page.fill("#password", password);
+    await page.fill("#username", testUsername);
+    await page.fill("#password", testPassword);
     await page.click("#submitBtn");
     await page.waitForURL("**/admin/**");
 

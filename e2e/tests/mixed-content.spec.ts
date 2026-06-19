@@ -1,4 +1,4 @@
-import { test, expect } from "../fixtures/fleet";
+import { test, expect, testUsername, testPassword } from "../fixtures/fleet";
 
 const isSecure = process.env.FLEET_SECURE === "true";
 
@@ -10,9 +10,6 @@ test.describe("Mixed content protection", () => {
     loginAsOperator,
     consoleErrors,
   }) => {
-    const username = process.env.E2E_USERNAME || "e2e-admin";
-    const password = process.env.E2E_PASSWORD || "e2e-password-8f3a";
-
     const httpResources: string[] = [];
     page.on("response", (resp) => {
       const url = resp.url();
@@ -21,7 +18,7 @@ test.describe("Mixed content protection", () => {
       }
     });
 
-    await loginAsOperator(username, password);
+    await loginAsOperator(testUsername, testPassword);
     await page.goto("/admin/");
     await page.waitForLoadState("networkidle");
 

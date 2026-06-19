@@ -1,4 +1,4 @@
-import { test, expect } from "../fixtures/fleet";
+import { test, expect, testUsername, testPassword } from "../fixtures/fleet";
 
 test.describe("Console error freedom", () => {
   test("login page has no console errors", async ({
@@ -19,10 +19,7 @@ test.describe("Console error freedom", () => {
     consoleErrors,
     pageErrors,
   }) => {
-    const username = process.env.E2E_USERNAME || "e2e-admin";
-    const password = process.env.E2E_PASSWORD || "e2e-password-8f3a";
-
-    await loginAsOperator(username, password);
+    await loginAsOperator(testUsername, testPassword);
     await page.goto("/admin/");
     await page.waitForLoadState("networkidle");
 
@@ -35,10 +32,7 @@ test.describe("Console error freedom", () => {
     loginAsOperator,
     consoleErrors,
   }) => {
-    const username = process.env.E2E_USERNAME || "e2e-admin";
-    const password = process.env.E2E_PASSWORD || "e2e-password-8f3a";
-
-    await loginAsOperator(username, password);
+    await loginAsOperator(testUsername, testPassword);
     await page.goto("/admin/");
     await page.waitForLoadState("networkidle");
 

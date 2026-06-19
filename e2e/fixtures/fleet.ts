@@ -1,4 +1,7 @@
-import { test as base, type Page, type APIRequestContext } from "@playwright/test";
+import { test as base, type Page } from "@playwright/test";
+
+export const testUsername = process.env.E2E_USERNAME || "e2e-admin";
+export const testPassword = process.env.E2E_PASSWORD || "e2e-password-8f3a";
 
 export type ConsoleEntry = {
   type: string;
@@ -53,20 +56,3 @@ export const test = base.extend<FleetFixtures>({
 });
 
 export { expect } from "@playwright/test";
-
-export async function awaitHealthy(
-  request: APIRequestContext,
-  maxAttempts = 30,
-  intervalMs = 1000,
-): Promise<void> {
-  for (let i = 0; i < maxAttempts; i++) {
-    try {
-      const resp = await request.get("/healthz");
-      if (resp.ok()) return;
-    } catch {
-      // not ready yet
-    }
-    await new Promise((r) => setTimeout(r, intervalMs));
-  }
-  throw new Error(`Fleet not healthy after ${maxAttempts} attempts`);
-}

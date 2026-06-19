@@ -1,4 +1,4 @@
-import { test, expect } from "../fixtures/fleet";
+import { test, expect, testUsername, testPassword } from "../fixtures/fleet";
 
 test.describe("Fetch and API failures", () => {
   test("API returns JSON with correct content-type", async ({ request }) => {
@@ -15,10 +15,7 @@ test.describe("Fetch and API failures", () => {
     fetchFailures,
     consoleErrors,
   }) => {
-    const username = process.env.E2E_USERNAME || "e2e-admin";
-    const password = process.env.E2E_PASSWORD || "e2e-password-8f3a";
-
-    await loginAsOperator(username, password);
+    await loginAsOperator(testUsername, testPassword);
     await page.goto("/admin/");
     await page.waitForLoadState("networkidle");
 
@@ -39,10 +36,7 @@ test.describe("Fetch and API failures", () => {
     page,
     loginAsOperator,
   }) => {
-    const username = process.env.E2E_USERNAME || "e2e-admin";
-    const password = process.env.E2E_PASSWORD || "e2e-password-8f3a";
-
-    await loginAsOperator(username, password);
+    await loginAsOperator(testUsername, testPassword);
 
     const resp = await page.request.get("/admin/i18n/en.json");
     expect(resp.ok()).toBe(true);

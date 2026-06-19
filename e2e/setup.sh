@@ -10,7 +10,7 @@ FLEET_PID=""
 export E2E_USERNAME="e2e-admin"
 export E2E_PASSWORD="e2e-password-8f3a"
 ADMIN_SECRET="e2e-admin-secret-00ff"
-SIGNING_KEY="e2e-signing-key-must-be-32-bytes!!"
+SIGNING_KEY="e2e-signing-key-must-be-32bytes!"
 
 cleanup() {
   if [ -n "$FLEET_PID" ] && kill -0 "$FLEET_PID" 2>/dev/null; then
@@ -18,6 +18,7 @@ cleanup() {
     wait "$FLEET_PID" 2>/dev/null || true
   fi
   rm -rf "$FLEET_DATA"
+  rm -f "$REPO_ROOT/fox-control"
 }
 trap cleanup EXIT
 
