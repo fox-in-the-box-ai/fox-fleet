@@ -6,6 +6,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -32,7 +34,7 @@ func check01Provision(ctx context.Context, plug *docker.Plugin, imageRef plugins
 		DataDir: dataDir,
 	})
 	if err != nil {
-		diag := dumpContainerDiag("fox-" + testInstanceID)
+		diag := dumpContainerDiag("fox-"+testInstanceID, dataDir)
 		slog.Error("check01 provision failed", "error", err, "diag", diag)
 		return report.Result{
 			Number:   1,
@@ -300,7 +302,7 @@ func check08NonexistentHealth(ctx context.Context, plug *docker.Plugin) report.R
 	}
 }
 
-func dumpContainerDiag(containerName string) string {
+func dumpContainerDiag(containerName, dataDir string) string {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return ""
@@ -324,23 +326,57 @@ func dumpContainerDiag(containerName string) string {
 	rc, err := cli.ContainerLogs(ctx, containerName, container.LogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
-		Tail:       "50",
+		Tail:       "80",
 	})
 	if err == nil {
 		logBytes, _ := io.ReadAll(rc)
 		rc.Close()
 		if len(logBytes) > 0 {
-			const maxLog = 1500
+			const maxLog = 3000
 			logStr := string(logBytes)
 			if len(logStr) > maxLog {
 				logStr = logStr[len(logStr)-maxLog:]
 			}
-			diag += fmt.Sprintf(" logs=\n%s", logStr)
+			diag += fmt.Sprintf(" container-logs=\n%s", logStr)
 		}
+	}
+
+	if dataDir != "" {
+		diag += collectProcessLogs(dataDir)
 	}
 
 	diag += "]"
 	return diag
+}
+
+func collectProcessLogs(dataDir string) string {
+	logDir := filepath.Join(dataDir, "logs")
+	entries, err := os.ReadDir(logDir)
+	if err != nil {
+		return fmt.Sprintf(" process-logs-err=%v", err)
+	}
+	const maxPerFile = 2000
+	var result string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		ext := filepath.Ext(name)
+		if ext != ".err" && ext != ".log" {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(logDir, name))
+		if err != nil || len(data) == 0 {
+			continue
+		}
+		content := string(data)
+		if len(content) > maxPerFile {
+			content = content[len(content)-maxPerFile:]
+		}
+		result += fmt.Sprintf("\n--- %s (last %d bytes) ---\n%s", name, len(content), content)
+	}
+	return result
 }
 
 func httpProbe(ctx context.Context, port int) bool {
