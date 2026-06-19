@@ -6,97 +6,101 @@
 <title>Fox Fleet</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css">
 <style>
 :root {
-  --color-bg: #fbf9f4;
-  --color-surface: #f8f5ef;
-  --color-surface-strong: #171513;
-  --color-text: #171513;
-  --color-text-muted: rgb(23 21 19 / 60%);
-  --color-border: #b8a089;
-  --color-border-subtle: rgb(184 160 137 / 22%);
-  --color-accent: #b8a089;
-  --color-wash: rgb(184 160 137 / 5%);
-  --color-wash-hover: rgb(184 160 137 / 12%);
-  --color-primary-fill: rgb(184 160 137 / 50%);
-  --color-shadow: rgb(184 160 137 / 40%);
-  --color-success: #3d8b40;
-  --color-error: #c62828;
-  --color-warning: #e68a00;
-  --color-info: #2e6f9e;
+  --color-bg: var(--sand-50);
+  --color-surface: var(--sand-100);
+  --color-surface-strong: var(--sand-800);
+  --color-text: var(--sand-800);
+  --color-text-muted: var(--sand-600);
+  --color-border: var(--sand-300);
+  --color-border-subtle: rgba(26, 22, 16, 0.08);
+  --color-accent: var(--fox-600);
+  --color-wash: rgba(26, 22, 16, 0.025);
+  --color-wash-hover: rgba(234, 88, 12, 0.08);
+  --color-primary-fill: var(--fox-600);
+  --color-primary-hover: var(--fox-700);
+  --color-on-primary: var(--sand-0);
+  --color-shadow: rgba(184, 160, 137, 0.40);
+  --color-success: var(--ds-success);
+  --color-error: var(--ds-error);
+  --color-warning: var(--ds-warning);
+  --color-info: var(--cyan-deep);
 
-  --sidebar-bg: #171513;
-  --sidebar-text: #f5f2ec;
-  --sidebar-muted: rgb(245 242 236 / 55%);
-  --sidebar-hover: rgb(255 255 255 / 8%);
-  --sidebar-active: rgb(255 255 255 / 12%);
-  --sidebar-border: rgb(255 255 255 / 8%);
+  --sidebar-bg: var(--sand-800);
+  --sidebar-text: var(--sand-50);
+  --sidebar-muted: rgba(254, 252, 247, 0.55);
+  --sidebar-hover: rgba(255, 255, 255, 0.08);
+  --sidebar-active: rgba(234, 88, 12, 0.18);
+  --sidebar-border: rgba(255, 255, 255, 0.08);
 
-  --font-heading: "Sora", system-ui, sans-serif;
-  --font-body: "Manrope", system-ui, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  --font-heading: var(--font-sans);
+  --font-body: var(--font-sans);
 
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --shadow-card: 3px 3px 8px 0 var(--color-shadow);
-  --shadow-modal: 0 20px 60px rgb(0 0 0 / 18%);
+  --radius-sm: var(--ds-radius-xs);
+  --radius-md: var(--ds-radius-md);
+  --radius-lg: var(--ds-radius-lg);
+  --shadow-card: var(--ds-shadow-brand);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.18);
   --sidebar-width: 240px;
-  --transition: 0.15s ease;
+  --transition: var(--dur-fast) ease;
 
   --toast-error-bg: #fef2f2;
-  --toast-error-border: rgb(198 40 40 / 20%);
+  --toast-error-border: rgba(198, 40, 40, 0.20);
   --toast-success-bg: #f0fdf4;
-  --toast-success-border: rgb(61 139 64 / 20%);
-  --toast-shadow: 0 4px 20px rgb(0 0 0 / 12%);
-  --overlay-bg: rgb(0 0 0 / 40%);
-  --badge-error-bg: rgb(198 40 40 / 8%);
-  --badge-success-bg: rgb(61 139 64 / 10%);
-  --badge-warning-bg: rgb(230 138 0 / 10%);
-  --code-bg: #171513;
-  --code-text: #f5f2ec;
+  --toast-success-border: rgba(61, 139, 64, 0.20);
+  --toast-shadow: var(--ds-shadow-md);
+  --overlay-bg: rgba(26, 22, 16, 0.40);
+  --badge-error-bg: rgba(198, 40, 40, 0.08);
+  --badge-success-bg: rgba(61, 139, 64, 0.10);
+  --badge-warning-bg: rgba(230, 138, 0, 0.10);
+  --code-bg: var(--sand-800);
+  --code-text: var(--sand-50);
 }
 
 [data-theme="dark"] {
-  --color-bg: #151312;
-  --color-surface: #1e1b18;
-  --color-surface-strong: #f5f2ec;
-  --color-text: #e8e4dd;
-  --color-text-muted: rgb(232 228 221 / 55%);
-  --color-border: #7a6a58;
-  --color-border-subtle: rgb(122 106 88 / 25%);
-  --color-accent: #c4a882;
-  --color-wash: rgb(184 160 137 / 6%);
-  --color-wash-hover: rgb(184 160 137 / 14%);
-  --color-primary-fill: rgb(184 160 137 / 25%);
-  --color-shadow: rgb(0 0 0 / 50%);
-  --color-success: #5cb85f;
-  --color-error: #e57373;
-  --color-warning: #ffb74d;
-  --color-info: #64b5f6;
+  --color-bg: var(--night-900);
+  --color-surface: var(--night-800);
+  --color-surface-strong: var(--sand-50);
+  --color-text: var(--cream);
+  --color-text-muted: #C0B6A2;
+  --color-border: var(--night-600);
+  --color-border-subtle: rgba(255, 255, 255, 0.075);
+  --color-accent: var(--fox-500);
+  --color-wash: rgba(255, 255, 255, 0.025);
+  --color-wash-hover: rgba(249, 115, 22, 0.12);
+  --color-primary-fill: var(--fox-500);
+  --color-primary-hover: var(--fox-400);
+  --color-on-primary: var(--sand-0);
+  --color-shadow: rgba(0, 0, 0, 0.50);
+  --color-success: var(--ds-success-bright);
+  --color-error: var(--ds-error-bright);
+  --color-warning: var(--ds-warning-bright);
+  --color-info: var(--ds-info-bright);
 
-  --sidebar-bg: #0d0c0b;
-  --sidebar-text: #e8e4dd;
-  --sidebar-muted: rgb(232 228 221 / 50%);
-  --sidebar-hover: rgb(255 255 255 / 6%);
-  --sidebar-active: rgb(255 255 255 / 10%);
-  --sidebar-border: rgb(255 255 255 / 6%);
+  --sidebar-bg: var(--night-950);
+  --sidebar-text: var(--cream);
+  --sidebar-muted: rgba(255, 248, 220, 0.50);
+  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  --sidebar-active: rgba(249, 115, 22, 0.18);
+  --sidebar-border: rgba(255, 255, 255, 0.06);
 
-  --shadow-card: 3px 3px 12px 0 rgb(0 0 0 / 40%);
-  --shadow-modal: 0 20px 60px rgb(0 0 0 / 40%);
+  --shadow-card: var(--ds-shadow-brand);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.40);
 
-  --toast-error-bg: rgb(229 115 115 / 10%);
-  --toast-error-border: rgb(229 115 115 / 20%);
-  --toast-success-bg: rgb(92 184 95 / 10%);
-  --toast-success-border: rgb(92 184 95 / 20%);
-  --toast-shadow: 0 4px 20px rgb(0 0 0 / 30%);
-  --overlay-bg: rgb(0 0 0 / 60%);
-  --badge-error-bg: rgb(229 115 115 / 10%);
-  --badge-success-bg: rgb(92 184 95 / 10%);
-  --badge-warning-bg: rgb(255 183 77 / 10%);
-  --code-bg: #0d0c0b;
-  --code-text: #d4d0c9;
+  --toast-error-bg: rgba(239, 83, 80, 0.10);
+  --toast-error-border: rgba(239, 83, 80, 0.20);
+  --toast-success-bg: rgba(76, 175, 80, 0.10);
+  --toast-success-border: rgba(76, 175, 80, 0.20);
+  --toast-shadow: var(--ds-shadow-md);
+  --overlay-bg: rgba(0, 0, 0, 0.60);
+  --badge-error-bg: rgba(239, 83, 80, 0.10);
+  --badge-success-bg: rgba(76, 175, 80, 0.10);
+  --badge-warning-bg: rgba(255, 167, 38, 0.10);
+  --code-bg: var(--night-950);
+  --code-text: #C0B6A2;
 }
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -154,14 +158,14 @@ body {
 .auth-btn {
   width: 100%; margin-top: 16px; padding: 11px 20px;
   background: var(--color-primary-fill);
-  border: 1px solid var(--color-border);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
   font: inherit; font-size: 14px; font-weight: 600;
-  color: var(--color-text);
+  color: var(--color-on-primary);
   cursor: pointer;
   transition: background var(--transition);
 }
-.auth-btn:hover { background: var(--color-accent); }
+.auth-btn:hover { background: var(--color-primary-hover); }
 .auth-error {
   margin-top: 12px; padding: 8px 12px;
   background: var(--badge-error-bg);
@@ -312,10 +316,10 @@ body {
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-primary {
   background: var(--color-primary-fill);
-  border-color: var(--color-border);
-  color: var(--color-text);
+  border-color: transparent;
+  color: var(--color-on-primary);
 }
-.btn-primary:hover:not(:disabled) { background: var(--color-accent); }
+.btn-primary:hover:not(:disabled) { background: var(--color-primary-hover); }
 .btn-danger {
   background: var(--badge-error-bg);
   border-color: var(--toast-error-border);
@@ -378,8 +382,8 @@ body {
 }
 .dot.unknown { background: var(--color-border); }
 @keyframes pulse-dot {
-  0%, 100% { box-shadow: 0 0 0 0 rgb(198 40 40 / 40%); }
-  50% { box-shadow: 0 0 0 5px rgb(198 40 40 / 0%); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0.40); }
+  50% { box-shadow: 0 0 0 5px rgba(198, 40, 40, 0); }
 }
 
 /* ── Detail View ───────────────────────────────────────────────────── */
