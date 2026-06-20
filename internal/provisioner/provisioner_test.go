@@ -508,10 +508,14 @@ func TestSecretsCleanedAfterFailure(t *testing.T) {
 	}
 
 	dataDir := filepath.Join(dataRoot, "instances", "secrets-test")
-	for _, name := range []string{"hermes.env", "config.yaml", "settings.json"} {
-		path := filepath.Join(dataDir, name)
+	secretPaths := []string{
+		filepath.Join(dataDir, "config", "hermes.env"),
+		filepath.Join(dataDir, "config.yaml"),
+		filepath.Join(dataDir, "settings.json"),
+	}
+	for _, path := range secretPaths {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
-			t.Errorf("%s should not persist after failed provision", name)
+			t.Errorf("%s should not persist after failed provision", filepath.Base(path))
 		}
 	}
 }
@@ -693,6 +697,75 @@ func TestProvisionPassesCloudConfig(t *testing.T) {
 	}
 	if captured.Cloud.Slug != "alice" {
 		t.Errorf("Cloud.Slug = %q, want alice", captured.Cloud.Slug)
+	}
+}
+
+func TestProvisionPassesCloudEnvToPlugin(t *testing.T) {
+	reg := testRegistry(t)
+	plug := &fakePlugin{}
+	dataRoot := t.TempDir()
+
+	prov := New(Options{
+		Registry:       reg,
+		Plugin:         plug,
+		ConfigWriter:   okConfigWriter,
+		DataRoot:       dataRoot,
+		PortRangeStart: 9100,
+	})
+
+	req := baseRequest("cloud-env-test")
+	req.Cloud = config.CloudConfig{
+		Enabled: true,
+		Domain:  "fleet.example.com",
+		Slug:    "bob",
+	}
+
+	_, err := prov.Provision(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(plug.provisioned) != 1 {
+		t.Fatalf("expected 1 provision call, got %d", len(plug.provisioned))
+	}
+	cloudEnv := plug.provisioned[0].CloudEnv
+	if cloudEnv == nil {
+		t.Fatal("CloudEnv is nil")
+	}
+	if cloudEnv["HERMES_WEBUI_ALLOWED_ORIGINS"] != "https://bob.fleet.example.com" {
+		t.Errorf("ALLOWED_ORIGINS = %q", cloudEnv["HERMES_WEBUI_ALLOWED_ORIGINS"])
+	}
+	if cloudEnv["HERMES_WEBUI_TRUST_FORWARDED_HOST"] != "true" {
+		t.Errorf("TRUST_FORWARDED_HOST = %q", cloudEnv["HERMES_WEBUI_TRUST_FORWARDED_HOST"])
+	}
+	if cloudEnv["HERMES_WEBUI_CSP_CONNECT_EXTRA"] != "https://bob.fleet.example.com wss://bob.fleet.example.com" {
+		t.Errorf("CSP_CONNECT_EXTRA = %q", cloudEnv["HERMES_WEBUI_CSP_CONNECT_EXTRA"])
+	}
+}
+
+func TestProvisionNoCloudEnvWhenDisabled(t *testing.T) {
+	reg := testRegistry(t)
+	plug := &fakePlugin{}
+	dataRoot := t.TempDir()
+
+	prov := New(Options{
+		Registry:       reg,
+		Plugin:         plug,
+		ConfigWriter:   okConfigWriter,
+		DataRoot:       dataRoot,
+		PortRangeStart: 9100,
+	})
+
+	req := baseRequest("no-cloud-test")
+
+	_, err := prov.Provision(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cloudEnv := plug.provisioned[0].CloudEnv
+	if cloudEnv != nil {
+		t.Errorf("CloudEnv should be nil when cloud disabled, got %v", cloudEnv)
 	}
 }
 

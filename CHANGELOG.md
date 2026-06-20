@@ -5,6 +5,14 @@ All notable changes to Fox Fleet are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Config injection wrote `hermes.env` to `{DataDir}/hermes.env` instead of `{DataDir}/config/hermes.env` — Fox container expected the file at `/data/config/hermes.env`, so provider keys set via Fleet were never loaded by the runtime
+- Cloud-mode environment variables (`HERMES_WEBUI_ALLOWED_ORIGINS`, `HERMES_WEBUI_TRUST_FORWARDED_HOST`, `HERMES_WEBUI_CSP_CONNECT_EXTRA`) were written to the on-disk `hermes.env` but not injected into the Docker container's initial environment — Cloud instances failed CSRF/CSP checks on first boot until a hot-reload occurred
+- Cloud-mode env keys missing from the Docker plugin's blocked-key list — user-supplied custom env could override system-managed CSRF/CSP values
+
 ## [1.7.0] - 2026-06-19
 
 ### Added

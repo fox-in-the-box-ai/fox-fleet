@@ -19,16 +19,19 @@ import (
 )
 
 var blockedEnvKeys = map[string]bool{
-	"FOX_PLANE_AUTH_SECRET": true,
-	"FOX_PROXY_ENDPOINT":    true,
-	"FOX_DATA_PLANE_URL":    true,
-	"FOX_DATA_PLANE_TOKEN":  true,
-	"FOX_SKILLSET_PATH":     true,
-	"HERMES_WEBUI_PASSWORD": true,
-	"PATH":                  true,
-	"HOME":                  true,
-	"LD_PRELOAD":            true,
-	"LD_LIBRARY_PATH":       true,
+	"FOX_PLANE_AUTH_SECRET":             true,
+	"FOX_PROXY_ENDPOINT":                true,
+	"FOX_DATA_PLANE_URL":                true,
+	"FOX_DATA_PLANE_TOKEN":              true,
+	"FOX_SKILLSET_PATH":                 true,
+	"HERMES_WEBUI_PASSWORD":             true,
+	"HERMES_WEBUI_ALLOWED_ORIGINS":      true,
+	"HERMES_WEBUI_TRUST_FORWARDED_HOST": true,
+	"HERMES_WEBUI_CSP_CONNECT_EXTRA":    true,
+	"PATH":                              true,
+	"HOME":                              true,
+	"LD_PRELOAD":                        true,
+	"LD_LIBRARY_PATH":                   true,
 }
 
 const (
@@ -78,6 +81,9 @@ func (p *Plugin) Provision(ctx context.Context, req plugins.ProvisionRequest) er
 		if blockedEnvKeys[upper] {
 			return fmt.Errorf("docker: env key %q is reserved and cannot be overridden", k)
 		}
+		env = append(env, fmt.Sprintf("%s=%s", k, v))
+	}
+	for k, v := range req.CloudEnv {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
 

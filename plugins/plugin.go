@@ -28,11 +28,12 @@ type ImageRef struct {
 
 // ProvisionRequest contains everything needed to create a new instance.
 type ProvisionRequest struct {
-	InstanceID string         `json:"instance_id"`
-	Image      ImageRef       `json:"image"`
-	Config     InstanceConfig `json:"config"`
-	Port       int            `json:"port"`
-	DataDir    string         `json:"data_dir"`
+	InstanceID string            `json:"instance_id"`
+	Image      ImageRef          `json:"image"`
+	Config     InstanceConfig    `json:"config"`
+	Port       int               `json:"port"`
+	DataDir    string            `json:"data_dir"`
+	CloudEnv   map[string]string `json:"cloud_env,omitempty"`
 }
 
 // InstanceConfig holds per-instance configuration injected before boot.

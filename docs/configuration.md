@@ -205,3 +205,40 @@ Global flags available to all subcommands:
 | `fox-control sec rotate-query-token --instance <id>` | Rotate the data plane query token for an instance |
 | `fox-control conformance run --image <img>` | Run runtime conformance suite |
 | `fox-control conformance plugin --image <img>` | Run plugin conformance suite |
+
+---
+
+## Instance data directory layout
+
+When Fleet provisions a Fox instance, it creates a data directory under `<data_root>/instances/<instance-id>/` and writes configuration files before starting the container. The directory is bind-mounted into the Fox container as `/data`.
+
+### Files written by Fleet
+
+| Host path | Container path | Permissions | Purpose |
+|-----------|---------------|-------------|---------|
+| `<data_dir>/config/hermes.env` | `/data/config/hermes.env` | `0600` | Environment variables for the Fox runtime: auth secrets, proxy config, Cloud-mode CSRF/CSP origins, data plane token, custom operator env. Sourced by `run-with-env.sh` on each supervisord restart (hot-reload path). |
+| `<data_dir>/config.yaml` | `/data/config.yaml` | `0644` | Hermes configuration overlay (model defaults, title). |
+| `<data_dir>/settings.json` | `/data/settings.json` | `0644` | Hermes WebUI settings (model filter list). |
+| `<data_dir>/tools.json` | `/data/tools.json` | `0600` | Tool/function definitions injected into the runtime. |
+
+Fleet also calls `MarkOnboardingComplete()`, which writes:
+
+| Host path | Container path | Permissions | Purpose |
+|-----------|---------------|-------------|---------|
+| `<data_dir>/config/onboarding_complete` | `/data/config/onboarding_complete` | `0644` | Marker file that skips the Fox onboarding wizard. |
+
+### Cloud-mode environment variables
+
+When `[cloud]` is enabled and `domain` is set, Fleet injects these into both `hermes.env` (for hot-reload) and the Docker container's initial environment (for first-boot):
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `HERMES_WEBUI_ALLOWED_ORIGINS` | `https://<slug>.<domain>` | CSRF origin allowlist |
+| `HERMES_WEBUI_TRUST_FORWARDED_HOST` | `true` | Trust `X-Forwarded-Host` behind the Fleet reverse proxy |
+| `HERMES_WEBUI_CSP_CONNECT_EXTRA` | `https://<slug>.<domain> wss://<slug>.<domain>` | Content Security Policy connect-src additions |
+
+These keys are blocked from user-supplied custom env (`[instances]` env overrides) to prevent accidental override of system-managed values.
+
+### Rollback behavior
+
+If provisioning fails at any stage after the data directory is created, Fleet removes the entire `<data_dir>` tree (including all config files and the `config/` subdirectory) and deletes the registry entry. No secret material persists after a failed provision.

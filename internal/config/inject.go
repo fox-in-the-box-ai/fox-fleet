@@ -34,6 +34,23 @@ type InjectParams struct {
 	Cloud            CloudConfig
 }
 
+// CloudEnvVars returns the env vars needed for Cloud-mode instances.
+// Returns nil when Cloud mode is disabled or has no domain configured.
+func CloudEnvVars(cloud CloudConfig) map[string]string {
+	if !cloud.Enabled || cloud.Domain == "" {
+		return nil
+	}
+	origin := cloud.Domain
+	if cloud.Slug != "" {
+		origin = cloud.Slug + "." + cloud.Domain
+	}
+	return map[string]string{
+		"HERMES_WEBUI_ALLOWED_ORIGINS":      "https://" + origin,
+		"HERMES_WEBUI_TRUST_FORWARDED_HOST": "true",
+		"HERMES_WEBUI_CSP_CONNECT_EXTRA":    "https://" + origin + " wss://" + origin,
+	}
+}
+
 func Inject(p InjectParams) error {
 	if p.Config.AuthSecret == "" {
 		return ErrMissingAuthSecret
@@ -42,24 +59,25 @@ func Inject(p InjectParams) error {
 		return ErrMissingInstancePassword
 	}
 
-	writers := []struct {
-		name string
+	type writer struct {
+		path string
 		fn   func(InjectParams) ([]byte, error)
 		perm os.FileMode
-	}{
-		{"hermes.env", renderHermesEnv, 0o600},
-		{"config.yaml", renderConfigYAML, 0o644},
-		{"settings.json", renderSettingsJSON, 0o644},
-		{"tools.json", renderToolsJSON, 0o600},
+	}
+	writers := []writer{
+		{filepath.Join(p.DataDir, "config", "hermes.env"), renderHermesEnv, 0o600},
+		{filepath.Join(p.DataDir, "config.yaml"), renderConfigYAML, 0o644},
+		{filepath.Join(p.DataDir, "settings.json"), renderSettingsJSON, 0o644},
+		{filepath.Join(p.DataDir, "tools.json"), renderToolsJSON, 0o600},
 	}
 
 	for _, w := range writers {
 		data, err := w.fn(p)
 		if err != nil {
-			return fmt.Errorf("config: render %s: %w", w.name, err)
+			return fmt.Errorf("config: render %s: %w", filepath.Base(w.path), err)
 		}
-		if err := writeIfChanged(filepath.Join(p.DataDir, w.name), data, w.perm); err != nil {
-			return fmt.Errorf("config: write %s: %w", w.name, err)
+		if err := writeIfChanged(w.path, data, w.perm); err != nil {
+			return fmt.Errorf("config: write %s: %w", filepath.Base(w.path), err)
 		}
 	}
 	return nil
@@ -91,14 +109,8 @@ func renderHermesEnv(p InjectParams) ([]byte, error) {
 		}
 		env[k] = v
 	}
-	if p.Cloud.Enabled && p.Cloud.Domain != "" {
-		origin := p.Cloud.Domain
-		if p.Cloud.Slug != "" {
-			origin = p.Cloud.Slug + "." + p.Cloud.Domain
-		}
-		env["HERMES_WEBUI_ALLOWED_ORIGINS"] = "https://" + origin
-		env["HERMES_WEBUI_TRUST_FORWARDED_HOST"] = "true"
-		env["HERMES_WEBUI_CSP_CONNECT_EXTRA"] = "https://" + origin + " wss://" + origin
+	for k, v := range CloudEnvVars(p.Cloud) {
+		env[k] = v
 	}
 
 	keys := make([]string, 0, len(env))
