@@ -35,10 +35,15 @@ func TestInjectCreatesAllFiles(t *testing.T) {
 	if err := Inject(p); err != nil {
 		t.Fatalf("Inject: %v", err)
 	}
-	for _, name := range []string{"hermes.env", "config.yaml", "settings.json", "tools.json"} {
-		path := filepath.Join(p.DataDir, name)
+	paths := []string{
+		filepath.Join(p.DataDir, "config", "hermes.env"),
+		filepath.Join(p.DataDir, "config.yaml"),
+		filepath.Join(p.DataDir, "settings.json"),
+		filepath.Join(p.DataDir, "tools.json"),
+	}
+	for _, path := range paths {
 		if _, err := os.Stat(path); err != nil {
-			t.Errorf("%s not created: %v", name, err)
+			t.Errorf("%s not created: %v", filepath.Base(path), err)
 		}
 	}
 }
@@ -48,7 +53,7 @@ func TestHermesEnvContents(t *testing.T) {
 	if err := Inject(p); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(filepath.Join(p.DataDir, "hermes.env"))
+	data, err := os.ReadFile(filepath.Join(p.DataDir, "config", "hermes.env"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +75,7 @@ func TestHermesEnvSorted(t *testing.T) {
 	if err := Inject(p); err != nil {
 		t.Fatal(err)
 	}
-	data, _ := os.ReadFile(filepath.Join(p.DataDir, "hermes.env"))
+	data, _ := os.ReadFile(filepath.Join(p.DataDir, "config", "hermes.env"))
 	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
 	for i := 1; i < len(lines); i++ {
 		if lines[i] < lines[i-1] {
@@ -159,7 +164,7 @@ func TestInjectIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	envPath := filepath.Join(p.DataDir, "hermes.env")
+	envPath := filepath.Join(p.DataDir, "config", "hermes.env")
 	info1, _ := os.Stat(envPath)
 
 	if err := Inject(p); err != nil {
@@ -178,14 +183,14 @@ func TestInjectOverwritesOnChange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	data1, _ := os.ReadFile(filepath.Join(p.DataDir, "hermes.env"))
+	data1, _ := os.ReadFile(filepath.Join(p.DataDir, "config", "hermes.env"))
 
 	p.Config.AuthSecret = "new-secret"
 	if err := Inject(p); err != nil {
 		t.Fatal(err)
 	}
 
-	data2, _ := os.ReadFile(filepath.Join(p.DataDir, "hermes.env"))
+	data2, _ := os.ReadFile(filepath.Join(p.DataDir, "config", "hermes.env"))
 	if string(data1) == string(data2) {
 		t.Error("Inject did not update hermes.env after config change")
 	}
@@ -201,7 +206,7 @@ func TestInjectCreatesDataDir(t *testing.T) {
 	if err := Inject(p); err != nil {
 		t.Fatalf("Inject with nested dir: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "hermes.env")); err != nil {
+	if _, err := os.Stat(filepath.Join(dir, "config", "hermes.env")); err != nil {
 		t.Error("hermes.env not created in nested dir")
 	}
 }
@@ -268,7 +273,7 @@ func TestHermesEnvQueryToken(t *testing.T) {
 	if err := Inject(p); err != nil {
 		t.Fatal(err)
 	}
-	data, _ := os.ReadFile(filepath.Join(p.DataDir, "hermes.env"))
+	data, _ := os.ReadFile(filepath.Join(p.DataDir, "config", "hermes.env"))
 	content := string(data)
 	if !strings.Contains(content, "FOX_DATA_PLANE_TOKEN=test-query-token-abc") {
 		t.Errorf("hermes.env missing FOX_DATA_PLANE_TOKEN, got:\n%s", content)
@@ -287,10 +292,10 @@ func TestInjectFilePermissions(t *testing.T) {
 	}
 
 	wantPerms := map[string]os.FileMode{
-		"hermes.env":    0o600,
-		"tools.json":    0o600,
-		"config.yaml":   0o644,
-		"settings.json": 0o644,
+		filepath.Join("config", "hermes.env"): 0o600,
+		"tools.json":                          0o600,
+		"config.yaml":                         0o644,
+		"settings.json":                       0o644,
 	}
 	for name, want := range wantPerms {
 		info, err := os.Stat(filepath.Join(p.DataDir, name))
@@ -316,7 +321,7 @@ func TestInjectMinimalConfig(t *testing.T) {
 	if err := Inject(p); err != nil {
 		t.Fatalf("Inject with minimal config: %v", err)
 	}
-	data, _ := os.ReadFile(filepath.Join(p.DataDir, "hermes.env"))
+	data, _ := os.ReadFile(filepath.Join(p.DataDir, "config", "hermes.env"))
 	if !strings.Contains(string(data), "FOX_PLANE_AUTH_SECRET=secret") {
 		t.Error("minimal config missing auth secret in hermes.env")
 	}
@@ -349,7 +354,7 @@ func TestHermesEnvCloudInjection(t *testing.T) {
 	if err := Inject(p); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(filepath.Join(p.DataDir, "hermes.env"))
+	data, err := os.ReadFile(filepath.Join(p.DataDir, "config", "hermes.env"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -371,7 +376,7 @@ func TestHermesEnvCloudSlugInjection(t *testing.T) {
 	if err := Inject(p); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(filepath.Join(p.DataDir, "hermes.env"))
+	data, err := os.ReadFile(filepath.Join(p.DataDir, "config", "hermes.env"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -396,7 +401,7 @@ func TestHermesEnvCloudDisabledNoInjection(t *testing.T) {
 	if err := Inject(p); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(filepath.Join(p.DataDir, "hermes.env"))
+	data, err := os.ReadFile(filepath.Join(p.DataDir, "config", "hermes.env"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -404,4 +409,43 @@ func TestHermesEnvCloudDisabledNoInjection(t *testing.T) {
 	if strings.Contains(content, "HERMES_WEBUI_ALLOWED_ORIGINS") {
 		t.Error("hermes.env should not contain Cloud env vars when cloud is disabled")
 	}
+}
+
+func TestCloudEnvVars(t *testing.T) {
+	t.Run("disabled", func(t *testing.T) {
+		got := CloudEnvVars(CloudConfig{Enabled: false, Domain: "x.com"})
+		if got != nil {
+			t.Errorf("expected nil when disabled, got %v", got)
+		}
+	})
+	t.Run("no domain", func(t *testing.T) {
+		got := CloudEnvVars(CloudConfig{Enabled: true})
+		if got != nil {
+			t.Errorf("expected nil when domain empty, got %v", got)
+		}
+	})
+	t.Run("domain only", func(t *testing.T) {
+		got := CloudEnvVars(CloudConfig{Enabled: true, Domain: "cloud.example.com"})
+		if got["HERMES_WEBUI_ALLOWED_ORIGINS"] != "https://cloud.example.com" {
+			t.Errorf("ALLOWED_ORIGINS = %q", got["HERMES_WEBUI_ALLOWED_ORIGINS"])
+		}
+		if got["HERMES_WEBUI_TRUST_FORWARDED_HOST"] != "true" {
+			t.Errorf("TRUST_FORWARDED_HOST = %q", got["HERMES_WEBUI_TRUST_FORWARDED_HOST"])
+		}
+		if got["HERMES_WEBUI_CSP_CONNECT_EXTRA"] != "https://cloud.example.com wss://cloud.example.com" {
+			t.Errorf("CSP_CONNECT_EXTRA = %q", got["HERMES_WEBUI_CSP_CONNECT_EXTRA"])
+		}
+	})
+	t.Run("with slug", func(t *testing.T) {
+		got := CloudEnvVars(CloudConfig{Enabled: true, Domain: "fleet.example.com", Slug: "alice"})
+		if got["HERMES_WEBUI_ALLOWED_ORIGINS"] != "https://alice.fleet.example.com" {
+			t.Errorf("ALLOWED_ORIGINS = %q", got["HERMES_WEBUI_ALLOWED_ORIGINS"])
+		}
+		if got["HERMES_WEBUI_TRUST_FORWARDED_HOST"] != "true" {
+			t.Errorf("TRUST_FORWARDED_HOST = %q", got["HERMES_WEBUI_TRUST_FORWARDED_HOST"])
+		}
+		if got["HERMES_WEBUI_CSP_CONNECT_EXTRA"] != "https://alice.fleet.example.com wss://alice.fleet.example.com" {
+			t.Errorf("CSP_CONNECT_EXTRA = %q", got["HERMES_WEBUI_CSP_CONNECT_EXTRA"])
+		}
+	})
 }

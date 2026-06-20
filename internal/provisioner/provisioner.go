@@ -257,6 +257,7 @@ func (s *service) Provision(ctx context.Context, req Request) (*Instance, error)
 		Config:     instanceCfg,
 		Port:       port,
 		DataDir:    dataDir,
+		CloudEnv:   config.CloudEnvVars(req.Cloud),
 	}); err != nil {
 		s.rollback(ctx, req.InstanceID, dataDir, true)
 		return nil, fmt.Errorf("provisioner: deploy: %w", err)
