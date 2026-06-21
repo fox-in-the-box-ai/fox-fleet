@@ -160,6 +160,15 @@ func TestSubdomainLoginPage_ServesHTML(t *testing.T) {
 	if !strings.Contains(body, `id="subtitle"`) {
 		t.Error("subdomain login page should have a subtitle element for slug display")
 	}
+	if !strings.Contains(body, `rel="icon"`) {
+		t.Error("subdomain login page should have a favicon link tag")
+	}
+}
+
+func TestSubdomainLoginPage_HasFavicon(t *testing.T) {
+	if !strings.Contains(subdomainLoginPage, `rel="icon" type="image/svg+xml"`) {
+		t.Error("subdomain login page missing SVG favicon link")
+	}
 }
 
 func TestSubdomainLoginPage_AuthenticatedProxiesToFox(t *testing.T) {
