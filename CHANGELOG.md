@@ -5,6 +5,17 @@ All notable changes to Fox Fleet are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.2] - 2026-06-21
+
+### Added
+
+- Favicon on all Fleet web surfaces — admin SPA, subdomain login page, and 503 error page display the Fox brand icon; sourced from design-system v0.1.0 assets
+- Subdomain login page now shows the real Fox logo instead of placeholder circle
+
+### Changed
+
+- CSP `img-src` on subdomain login and 503 pages includes `data:` to support inline favicon
+
 ## [1.8.1] - 2026-06-21
 
 ### Fixed

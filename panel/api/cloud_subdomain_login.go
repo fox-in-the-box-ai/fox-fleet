@@ -68,7 +68,7 @@ func (s *Server) handleSubdomainLoginPage(w http.ResponseWriter, r *http.Request
 
 	setSecurityHeaders(w)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self'; connect-src 'self'; form-action 'self'")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; form-action 'self'")
 	_, _ = w.Write([]byte(subdomainLoginPage))
 }
 
@@ -80,6 +80,7 @@ const subdomainLoginPage = `<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sign In - Fox Fleet</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMjAgMzU4IDM1OSI+CjxwYXRoIGQ9Ik0zNTUuOTE5IDIwLjYyNEMzNTYuODg1IDIwLjA4MTIgMzU4LjA1MSAyMC43NjcgMzU4LjA1MSAyMS44NTI1VjI3NC44NjZDMzU4LjA1MSAyNzUuODk0IDM1Ny41MTEgMjc2LjgzNyAzNTYuNjMgMjc3LjM1MkwxODEuODI0IDM3Ny43MzRDMTgwLjA5MSAzNzguNzM0IDE3Ny45MzEgMzc4LjczNCAxNzYuMTk3IDM3Ny43MzRMMS40MjA5IDI3Ny4zMjNDMC41Mzk5OTcgMjc2LjgwOSAwLjAwMDEwNTYyOSAyNzUuODY2IDAgMjc0LjgzOFYyMS44NTI1QzAgMjAuNzY3IDEuMTk0MDEgMjAuMDgxMiAyLjEzMTg0IDIwLjYyNEwxNzYuMjI2IDEyMC42MzZIMTc2LjE5N0MxNzcuOTMxIDEyMS42MzUgMTgwLjA5MSAxMjEuNjM1IDE4MS44MjQgMTIwLjYzNkwzNTUuOTE5IDIwLjYyNFpNMTIzLjM3IDIyMS45OTRDMTExLjA0IDIyMS45OTQgMTAxLjA0NCAyMzEuOTkgMTAxLjA0NCAyNDQuMzJDMTAxLjA0NCAyNTYuNjUxIDExMS4wNCAyNjYuNjQ2IDEyMy4zNyAyNjYuNjQ2QzEzNS43MDEgMjY2LjY0NiAxNDUuNjk2IDI1Ni42NTEgMTQ1LjY5NiAyNDQuMzJDMTQ1LjY5NiAyMzEuOTkgMTM1LjcgMjIxLjk5NCAxMjMuMzcgMjIxLjk5NFpNMjM1Ljc5NyAyMjEuOTk0QzIyMy40NjcgMjIxLjk5NCAyMTMuNDcxIDIzMS45OSAyMTMuNDcxIDI0NC4zMkMyMTMuNDcxIDI1Ni42NTEgMjIzLjQ2NiAyNjYuNjQ2IDIzNS43OTcgMjY2LjY0NkMyNDguMTI3IDI2Ni42NDYgMjU4LjEyMyAyNTYuNjUxIDI1OC4xMjMgMjQ0LjMyQzI1OC4xMjMgMjMxLjk5IDI0OC4xMjcgMjIxLjk5NCAyMzUuNzk3IDIyMS45OTRaIiBmaWxsPSJ1cmwoI2cpIi8+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIxNzkuMDI1IiB5MT0iMjAuNDM0IiB4Mj0iMTc5LjAyNSIgeTI9IjM3OC40ODYiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KPHN0b3Agc3RvcC1jb2xvcj0iI0Q5OEE1MiIvPgo8c3RvcCBvZmZzZXQ9Ii41IiBzdG9wLWNvbG9yPSIjQzg3NDNBIi8+CjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI0E4NUEzMiIvPgo8L2xpbmVhckdyYWRpZW50Pgo8L2RlZnM+Cjwvc3ZnPgo=">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -103,9 +104,9 @@ button:disabled{opacity:.6;cursor:not-allowed}
 <body>
 <div class="card">
 <div class="logo">
-<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-<circle cx="24" cy="24" r="22" stroke="#EA580C" stroke-width="2" fill="#1A1A2E"/>
-<text x="24" y="30" text-anchor="middle" fill="#F97316" font-size="20" font-weight="bold" font-family="sans-serif">F</text>
+<svg viewBox="0 20 358 359" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M355.919 20.624C356.885 20.0812 358.051 20.767 358.051 21.8525V274.866C358.051 275.894 357.511 276.837 356.63 277.352L181.824 377.734C180.091 378.734 177.931 378.734 176.197 377.734L1.4209 277.323C0.539997 276.809 0.000105629 275.866 0 274.838V21.8525C0 20.767 1.19401 20.0812 2.13184 20.624L176.226 120.636H176.197C177.931 121.635 180.091 121.635 181.824 120.636L355.919 20.624ZM123.37 221.994C111.04 221.994 101.044 231.99 101.044 244.32C101.044 256.651 111.04 266.646 123.37 266.646C135.701 266.646 145.696 256.651 145.696 244.32C145.696 231.99 135.7 221.994 123.37 221.994ZM235.797 221.994C223.467 221.994 213.471 231.99 213.471 244.32C213.471 256.651 223.466 266.646 235.797 266.646C248.127 266.646 258.123 256.651 258.123 244.32C258.123 231.99 248.127 221.994 235.797 221.994Z" fill="url(#lg)"/>
+<defs><linearGradient id="lg" x1="179.025" y1="20.434" x2="179.025" y2="378.486" gradientUnits="userSpaceOnUse"><stop stop-color="#D98A52"/><stop offset=".5" stop-color="#C8743A"/><stop offset="1" stop-color="#A85A32"/></linearGradient></defs>
 </svg>
 <h1>Fox Fleet</h1>
 <p id="subtitle">Sign in to access your instance</p>

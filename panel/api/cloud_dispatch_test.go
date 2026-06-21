@@ -634,6 +634,12 @@ func TestSubdomain_503HasSecurityHeaders(t *testing.T) {
 	}
 }
 
+func TestSubdomain_503HasFavicon(t *testing.T) {
+	if !strings.Contains(cloud503Page, `rel="icon" type="image/svg+xml"`) {
+		t.Error("503 page missing SVG favicon link")
+	}
+}
+
 func TestSubdomain_AuthenticatedLoginProxiesToFox(t *testing.T) {
 	srv, reg, users, sessions := newDispatchTestServer(t, "fleet.example.com")
 
