@@ -129,6 +129,241 @@ Data is stored in two Docker volumes: `fox-data` (SQLite registry + instance con
 
 ---
 
+## Cloud mode
+
+Cloud mode serves each user's Fox instance on its own subdomain (`<username>.<domain>`) with per-user login sessions and automatic TLS certificate issuance. This section covers the full setup — from DNS to first user.
+
+### Prerequisites
+
+Everything in the [general prerequisites](#prerequisites), plus:
+
+- **A domain you control** with DNS access (e.g. `fleet.example.com`)
+- **Wildcard DNS** — an A record for `*.fleet.example.com` pointing to your server's public IP
+- **Base domain DNS** — an A record for `fleet.example.com` pointing to the same IP
+- **Ports 80 and 443** open in your firewall (Caddy needs both for ACME challenges and HTTPS)
+
+Verify DNS:
+
+```bash
+dig +short fleet.example.com        # → your server IP
+dig +short test.fleet.example.com   # → same IP (wildcard)
+```
+
+### 1. Create the install directory
+
+```bash
+sudo mkdir -p /opt/fox-fleet
+cd /opt/fox-fleet
+```
+
+### 2. Write the environment file
+
+```bash
+cat > .env <<EOF
+FOX_ADMIN_SECRET=$(openssl rand -hex 32)
+FOX_INSTANCE_PASSWORD=$(openssl rand -hex 32)
+DOMAIN=fleet.example.com
+DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
+EOF
+```
+
+Save the `FOX_ADMIN_SECRET` value — you need it to manage Fleet via the API.
+
+`DOCKER_GID` is the group ID that owns `/var/run/docker.sock`. The fox-control container needs this to manage Docker containers.
+
+### 3. Write the config file
+
+```bash
+cat > fox-control.toml <<'EOF'
+[control]
+listen = "127.0.0.1:9090"
+data_root = "/var/lib/fox-control"
+health_poll_seconds = 15
+log_format = "json"
+log_level = "info"
+
+[docker]
+socket = "/var/run/docker.sock"
+image = "ghcr.io/fox-in-the-box-ai/cloud:latest"
+
+[cloud]
+enabled = true
+domain = "fleet.example.com"
+EOF
+```
+
+Replace `fleet.example.com` with your domain. The `[cloud]` section enables subdomain routing, the Cloud login page, and the user management API.
+
+### 4. Write the Caddyfile
+
+```bash
+cat > Caddyfile <<'CADDYEOF'
+{
+    on_demand_tls {
+        ask http://localhost:9090/cloud/tls-check
+    }
+}
+
+fleet.example.com {
+    handle /v1/* {
+        reverse_proxy localhost:9091
+    }
+
+    handle /healthz {
+        reverse_proxy localhost:9090
+    }
+
+    handle {
+        reverse_proxy localhost:9090
+    }
+}
+
+*.fleet.example.com {
+    tls {
+        on_demand
+    }
+
+    reverse_proxy localhost:9090
+}
+CADDYEOF
+```
+
+Replace `fleet.example.com` everywhere with your domain. The `on_demand_tls` block tells Caddy to validate certificate requests against fox-control's TLS-check endpoint — Caddy only issues certs for users that exist with a bound instance.
+
+### 5. Write the Compose file
+
+Cloud mode requires `network_mode: host` for both services so that fox-control and Caddy share the host network namespace (Caddy reaches fox-control on localhost, and fox-control reaches instance containers on their allocated ports).
+
+```bash
+cat > docker-compose.yml <<'COMPOSEEOF'
+services:
+  fox-control:
+    image: ghcr.io/fox-in-the-box-ai/fox-control:1.7.2
+    network_mode: host
+    group_add:
+      - "${DOCKER_GID:-999}"
+    volumes:
+      - fox-data:/var/lib/fox-control
+      - ./fox-control.toml:/etc/fox-control/fox-control.toml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - FOX_ADMIN_SECRET=${FOX_ADMIN_SECRET:?Set FOX_ADMIN_SECRET in .env}
+      - FOX_INSTANCE_PASSWORD=${FOX_INSTANCE_PASSWORD:?Set FOX_INSTANCE_PASSWORD in .env}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  caddy:
+    image: caddy:2-alpine
+    network_mode: host
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+    restart: unless-stopped
+
+volumes:
+  fox-data:
+  caddy_data:
+  caddy_config:
+COMPOSEEOF
+```
+
+### 6. Start the stack
+
+```bash
+docker compose up -d
+```
+
+Verify:
+
+```bash
+# fox-control healthy
+curl -s http://localhost:9090/healthz
+# → {"status":"ok"}
+
+# Caddy serving HTTPS
+curl -sI https://fleet.example.com/healthz
+# → HTTP/2 200
+```
+
+### 7. Create a user and provision an instance
+
+Cloud mode uses the user management API. Each user gets one Fox instance, served at `<username>.<domain>`.
+
+```bash
+# Read admin secret from .env
+source .env
+
+# Create a user
+curl -X POST http://localhost:9090/api/users \
+  -H "Authorization: Bearer $FOX_ADMIN_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "alice", "password": "secure-password-here"}'
+
+# Provision an instance with matching owner
+curl -X POST http://localhost:9090/api/instances \
+  -H "Authorization: Bearer $FOX_ADMIN_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"id": "alice", "owner": "alice"}'
+```
+
+The instance `id` must equal the `username` — this is the slug = username invariant that Cloud mode enforces. The `owner` field auto-binds the user to the instance.
+
+Wait for the instance to become healthy (first run pulls the Fox image, ~1-2 minutes):
+
+```bash
+curl -s http://localhost:9090/api/instances/alice \
+  -H "Authorization: Bearer $FOX_ADMIN_SECRET"
+# → {"id":"alice","status":"running",...}
+```
+
+### 8. Verify the subdomain
+
+```bash
+curl -sI https://alice.fleet.example.com/
+# → HTTP/2 200, redirects to /login
+```
+
+Open `https://alice.fleet.example.com/` in a browser. The user logs in with their username and password (set during user creation). After login, they see their Fox AI assistant.
+
+### Cloud mode API reference
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `POST /api/users` | Create | Create a user (`{"username":"...","password":"..."}`) |
+| `GET /api/users` | List | List all users |
+| `GET /api/users/{username}` | Read | Get user details (includes `instance_id`) |
+| `PUT /api/users/{username}` | Update | Update user fields (`{"instance_id":"..."}`) |
+| `DELETE /api/users/{username}` | Delete | Delete a user |
+| `POST /api/instances/provision` | Provision | Combined user + instance creation (`{"slug":"...","password":"..."}`) |
+| `GET /cloud/tls-check?domain=<fqdn>` | TLS check | Caddy's on-demand TLS validation (internal, loopback only) |
+
+The provision endpoint (`POST /api/instances/provision`) combines user creation and instance provisioning in one call — it creates the user, provisions the instance, and auto-binds them. The `slug` must equal the username.
+
+### Upgrading Cloud mode
+
+```bash
+cd /opt/fox-fleet
+
+# Update the image tag in docker-compose.yml
+sed -i 's|fox-control:[0-9.]*|fox-control:NEW_VERSION|' docker-compose.yml
+
+# Pull and restart
+docker compose pull fox-control
+docker compose up -d fox-control
+```
+
+Fox instances are unaffected by fox-control upgrades — they continue running independently.
+
+---
+
 ## Helm (Kubernetes)
 
 ### 1. Add the chart

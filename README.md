@@ -6,7 +6,7 @@
 
 Open-source management plane for [Fox in the Box](https://github.com/fox-in-the-box-ai/fox-in-the-box) AI assistants. One binary, one config file, one Docker host — provision, monitor, update, and destroy a fleet of Fox instances through a CLI and browser-based panel.
 
-> **Status: v1.6.0 GA.** Production-ready. Subdomain-per-instance routing, per-user sessions, signed releases (cosign + SBOM), conformance suite, full deployment paths (Compose / Helm / systemd / Homebrew / apt / container image).
+> **Status: v1.7.2 GA.** Production-ready. Subdomain-per-instance routing, per-user sessions, signed releases (cosign + SBOM), conformance suite, full deployment paths (Compose / Helm / systemd / Homebrew / apt / container image).
 
 ---
 
@@ -211,6 +211,7 @@ fox-cloud (Commercial)         Hosted product
 | **v1.4** | Panel & docs — health timeline, resource gauges, i18n (en/es/fr), skillset picker, operator/developer handbooks, OpenAPI spec, examples | Shipped (1.4.0) |
 | **v1.5** | Cloud mode — multi-user provisioning with login sessions, cloud login page, CSP hardening, data dir permissions, .deb packaging fixes | Shipped (1.5.3) |
 | **v1.6** | Subdomain-per-instance routing — each user's Fox served at `<username>.<domain>`, per-instance secrets, on-demand TLS, host-based dispatch | Shipped (1.6.0) |
+| **v1.7** | Cloud mode hardening — user-instance binding enforcement (slug = username invariant), admin API auto-bind, provision endpoint validation | Shipped (1.7.2) |
 
 Full roadmap: [FLEET_BASE_ROADMAP.md](https://github.com/fox-in-the-box-ai/fox-in-the-box/blob/main/docs/architecture/FLEET_BASE_ROADMAP.md)
 

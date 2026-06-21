@@ -58,6 +58,10 @@ model = "nomic-embed-text"
 # events = ["instance.created", "instance.deleted", "instance.unhealthy"]
 # secret = "webhook-hmac-secret"
 
+[cloud]
+# enabled = false
+# domain  = "fleet.example.com"
+
 [rate_limit]
 # requests_per_minute  = 100  # default: 100
 # provision_per_minute = 0
@@ -159,6 +163,24 @@ Repeatable TOML array of tables. Each entry defines a webhook receiver.
 | `url` | string | *(required)* | Webhook receiver URL |
 | `events` | string[] | `[]` | Event types to deliver (e.g. `instance.created`, `instance.deleted`, `instance.unhealthy`) |
 | `secret` | string | `""` | HMAC signing secret for webhook payloads |
+
+### `[cloud]`
+
+Enables Cloud mode — multi-user subdomain routing with per-instance sessions and on-demand TLS.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `enabled` | bool | `false` | Enable Cloud mode (subdomain-per-user routing, Cloud login page, user management API) |
+| `domain` | string | *(required when enabled)* | Base domain for subdomain routing. Each user's Fox instance is served at `<username>.<domain>`. Wildcard DNS must point `*.<domain>` to the Fleet host. |
+
+!!! note "Cloud mode requirements"
+    When `cloud.enabled = true`:
+    - `domain` is required — fox-control refuses to start without it.
+    - A reverse proxy (Caddy recommended) must handle TLS termination for `<domain>` and `*.<domain>`.
+    - Users are managed via the `/api/users` endpoints (create, list, update, delete).
+    - Each user is bound to one instance via `instance_id`. The instance `id` must equal the `username` (slug = username invariant).
+    - The panel serves a Cloud login page at `/cloud/login` instead of the default admin panel.
+    - See [Cloud mode deployment](DEPLOYMENT.md#cloud-mode) for the full setup guide.
 
 ### `[rate_limit]`
 

@@ -1,0 +1,14 @@
+[control]
+listen = "127.0.0.1:9090"
+data_root = "/var/lib/fox-control"
+health_poll_seconds = 15
+log_format = "json"
+log_level = "info"
+
+[docker]
+socket = "/var/run/docker.sock"
+image = "ghcr.io/fox-in-the-box-ai/cloud:latest"
+
+[cloud]
+enabled = true
+domain = "fleet.example.com"

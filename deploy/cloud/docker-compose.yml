@@ -1,0 +1,36 @@
+services:
+  fox-control:
+    image: ghcr.io/fox-in-the-box-ai/fox-control:${FOX_VERSION:-latest}
+    network_mode: host
+    group_add:
+      - "${DOCKER_GID:-999}"
+    volumes:
+      - fox-data:/var/lib/fox-control
+      - ./fox-control.toml:/etc/fox-control/fox-control.toml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - FOX_ADMIN_SECRET=${FOX_ADMIN_SECRET:?Set FOX_ADMIN_SECRET in .env}
+      - FOX_INSTANCE_PASSWORD=${FOX_INSTANCE_PASSWORD:?Set FOX_INSTANCE_PASSWORD in .env}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  caddy:
+    image: caddy:2-alpine
+    network_mode: host
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+    restart: unless-stopped
+
+volumes:
+  fox-data:
+  caddy_data:
+  caddy_config:

@@ -19,6 +19,9 @@ We will acknowledge receipt within 48 hours and provide an initial assessment wi
 
 | Version | Supported |
 |---------|-----------|
+| v1.7.x | Yes |
+| v1.6.x | Yes |
+| v1.5.x | Yes |
 | v1.4.x | Yes |
 | v1.3.x | Yes |
 | v1.2.x | Yes |
