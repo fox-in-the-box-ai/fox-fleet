@@ -148,6 +148,7 @@ func NewServer(d Deps) *Server {
 	apiMux.HandleFunc("POST /api/query", s.handleQuery)
 	apiMux.HandleFunc("GET /api/events", s.handleEvents)
 	apiMux.HandleFunc("POST /api/auth/session", s.handleSession)
+	apiMux.HandleFunc("POST /api/instances/{id}/upgrade", s.handleUpgrade)
 
 	if s.users != nil {
 		apiMux.HandleFunc("POST /api/users", s.handleCreateUser)

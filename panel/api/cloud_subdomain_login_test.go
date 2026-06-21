@@ -90,6 +90,46 @@ func TestSubdomainLogin_MissingFields(t *testing.T) {
 	}
 }
 
+func TestSubdomainLogin_PasswordOnly(t *testing.T) {
+	srv, _, users, _ := newDispatchTestServer(t, "fleet.example.com")
+
+	if _, err := users.Create("alice", "password123"); err != nil {
+		t.Fatal(err)
+	}
+
+	w := subdomainRequest(t, srv, "POST", "alice", "/login", `{"password":"password123"}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("password-only login: got %d, want 200; body = %s", w.Code, w.Body.String())
+	}
+
+	cookie := extractSessionCookie(w)
+	if cookie == nil {
+		t.Fatal("no session cookie set on password-only login")
+	}
+}
+
+func TestSubdomainLogin_PasswordOnly_WrongPassword(t *testing.T) {
+	srv, _, users, _ := newDispatchTestServer(t, "fleet.example.com")
+
+	if _, err := users.Create("alice", "password123"); err != nil {
+		t.Fatal(err)
+	}
+
+	w := subdomainRequest(t, srv, "POST", "alice", "/login", `{"password":"wrong"}`)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("wrong password: got %d, want 401", w.Code)
+	}
+}
+
+func TestSubdomainLogin_PasswordOnly_MissingPassword(t *testing.T) {
+	srv, _, _, _ := newDispatchTestServer(t, "fleet.example.com")
+
+	w := subdomainRequest(t, srv, "POST", "alice", "/login", `{}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("missing password: got %d, want 400", w.Code)
+	}
+}
+
 func TestSubdomainLoginPage_ServesHTML(t *testing.T) {
 	srv, _, _, _ := newDispatchTestServer(t, "fleet.example.com")
 
@@ -110,6 +150,15 @@ func TestSubdomainLoginPage_ServesHTML(t *testing.T) {
 	}
 	if !strings.Contains(body, `window.location.href="/"`) {
 		t.Error("login page should redirect to / on success")
+	}
+	if strings.Contains(body, `<label for="username"`) {
+		t.Error("subdomain login page should NOT have a username label (password-only)")
+	}
+	if !strings.Contains(body, `type="hidden" id="username"`) {
+		t.Error("subdomain login page should have a hidden username field for autocomplete")
+	}
+	if !strings.Contains(body, `id="subtitle"`) {
+		t.Error("subdomain login page should have a subtitle element for slug display")
 	}
 }
 

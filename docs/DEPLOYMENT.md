@@ -331,7 +331,7 @@ curl -sI https://alice.fleet.example.com/
 # → HTTP/2 200, redirects to /login
 ```
 
-Open `https://alice.fleet.example.com/` in a browser. The user logs in with their username and password (set during user creation). After login, they see their Fox AI assistant.
+Open `https://alice.fleet.example.com/` in a browser. The login page shows "Sign in as alice" with a password field only — the username is inferred from the subdomain. After login, the user sees their Fox AI assistant.
 
 ### Cloud mode API reference
 
@@ -343,6 +343,7 @@ Open `https://alice.fleet.example.com/` in a browser. The user logs in with thei
 | `PUT /api/users/{username}` | Update | Update user fields (`{"instance_id":"..."}`) |
 | `DELETE /api/users/{username}` | Delete | Delete a user |
 | `POST /api/instances/provision` | Provision | Combined user + instance creation (`{"slug":"...","password":"..."}`) |
+| `POST /api/instances/{id}/upgrade` | Upgrade | Per-instance image rollout (`{"target_image":"repo@sha256:..."}`) |
 | `GET /cloud/tls-check?domain=<fqdn>` | TLS check | Caddy's on-demand TLS validation (internal, loopback only) |
 
 The provision endpoint (`POST /api/instances/provision`) combines user creation and instance provisioning in one call — it creates the user, provisions the instance, and auto-binds them. The `slug` must equal the username.
@@ -681,7 +682,20 @@ sudo systemctl restart fox-control
 
 ### Rolling instance updates
 
-To update the Fox instance image across all managed instances:
+**Via API (per-instance):**
+
+```bash
+curl -X POST https://your-fleet-host/api/instances/<id>/upgrade \
+  -H "Authorization: Bearer $FOX_ADMIN_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"target_image": "ghcr.io/fox-in-the-box-ai/cloud@sha256:<digest>"}'
+```
+
+The upgrade endpoint accepts a digest reference (`repo@sha256:...`) or a tag reference (`repo:tag`). Rollout is synchronous — the API blocks until the instance is healthy on the new image or rolls back on failure. The response includes `previous_digest` and `current_digest` for verification.
+
+If the instance is already running the target digest, the endpoint returns `"status": "already_current"` without restarting.
+
+**Via CLI (fleet-wide):**
 
 ```bash
 ./fox-control rollout --image ghcr.io/fox-in-the-box-ai/fox@sha256:<digest>

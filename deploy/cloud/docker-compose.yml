@@ -5,7 +5,7 @@ services:
     group_add:
       - "${DOCKER_GID:-999}"
     volumes:
-      - fox-data:/var/lib/fox-control
+      - /var/lib/fox-control:/var/lib/fox-control
       - ./fox-control.toml:/etc/fox-control/fox-control.toml:ro
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
@@ -31,6 +31,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  fox-data:
   caddy_data:
   caddy_config:

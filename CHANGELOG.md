@@ -5,6 +5,24 @@ All notable changes to Fox Fleet are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-06-21
+
+### Added
+
+- Per-instance upgrade API endpoint (`POST /api/instances/{id}/upgrade`) — synchronous rollout with automatic rollback on failure, idempotency guard, and digest tracking; operator auth required
+- Password-only login for subdomain users — subdomain login page shows only the password field; username is inferred from the subdomain slug (data model unchanged: slug == username == instance ID)
+- ESC key handler for modals in the admin SPA — closes modals before sidebar, improving keyboard accessibility
+
+### Fixed
+
+- Volume mismatch in Docker Compose deploy templates — changed named volume to bind mount so Fox instance containers can read Fleet-written config files from the host filesystem (#180)
+- Modal swipe-close bug in admin SPA — mousedown inside modal content followed by mouseup on overlay no longer dismisses the modal; uses standard mousedown+click tracking pattern
+
+### Changed
+
+- Subdomain login page updated with "Sign in as {slug}" heading and autofocused password field
+- Deploy templates (`deploy/cloud/docker-compose.yml`, `deploy/docker-compose/docker-compose.yml`) use host bind mount `/var/lib/fox-control` instead of Docker named volume `fox-data`
+
 ## [1.7.2] - 2026-06-21
 
 ### Fixed

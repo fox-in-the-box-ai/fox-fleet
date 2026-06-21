@@ -6,7 +6,7 @@
 
 Open-source management plane for [Fox in the Box](https://github.com/fox-in-the-box-ai/fox-in-the-box) AI assistants. One binary, one config file, one Docker host — provision, monitor, update, and destroy a fleet of Fox instances through a CLI and browser-based panel.
 
-> **Status: v1.7.2 GA.** Production-ready. Subdomain-per-instance routing, per-user sessions, signed releases (cosign + SBOM), conformance suite, full deployment paths (Compose / Helm / systemd / Homebrew / apt / container image).
+> **Status: v1.8.0 GA.** Production-ready. Subdomain-per-instance routing, per-user sessions, signed releases (cosign + SBOM), conformance suite, full deployment paths (Compose / Helm / systemd / Homebrew / apt / container image).
 
 ---
 
