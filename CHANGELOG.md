@@ -5,6 +5,20 @@ All notable changes to Fox Fleet are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.2] - 2026-06-21
+
+### Fixed
+
+- Cloud provision handler allowed username to differ from slug — broke TLS certificate renewal, subdomain routing, and session validation for provisioned instances; username now always equals slug (subdomain = login identity = instance ID)
+- `POST /api/instances` (admin create) did not bind owner to instance in Cloud mode — instances provisioned via this path had no user↔instance association, causing "no instance assigned" errors on subdomain access and TLS-check failures
+- Cloud provision modal showed a separate username input field — replaced with a read-only hint confirming the slug will be the login username
+
+### Added
+
+- Regression test for username≠slug rejection at the provision API boundary
+- Regression test for `POST /api/instances` auto-binding owner in Cloud mode
+- End-to-end Playwright spec verifying provisioned instances reach working subdomains with correct user-instance binding
+
 ## [1.7.1] - 2026-06-20
 
 ### Fixed
