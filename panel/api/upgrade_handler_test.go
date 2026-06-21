@@ -72,7 +72,7 @@ func newUpgradeTestEnv(t *testing.T, plug plugins.DeploymentPlugin) *testEnv {
 		InstancePwd:  "test-instance-pwd",
 		MaxInstances: 10,
 		PollInterval: time.Hour,
-		SigningKey:    testSigningKey,
+		SigningKey:   testSigningKey,
 	})
 
 	return &testEnv{
