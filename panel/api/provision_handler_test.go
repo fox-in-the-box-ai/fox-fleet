@@ -22,7 +22,7 @@ func TestProvision_Success(t *testing.T) {
 	env, users := newTestEnvWithUsers(t)
 
 	w := env.doRequest("POST", "/api/instances/provision",
-		`{"username":"alice","password":"password123","slug":"alice-fox"}`)
+		`{"username":"alice","password":"password123","slug":"alice"}`)
 	if w.Code != http.StatusCreated {
 		t.Fatalf("status = %d, want %d; body = %s", w.Code, http.StatusCreated, w.Body.String())
 	}
@@ -31,8 +31,8 @@ func TestProvision_Success(t *testing.T) {
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if resp.InstanceID != "alice-fox" {
-		t.Errorf("instance_id = %q, want %q", resp.InstanceID, "alice-fox")
+	if resp.InstanceID != "alice" {
+		t.Errorf("instance_id = %q, want %q", resp.InstanceID, "alice")
 	}
 	if resp.Username != "alice" {
 		t.Errorf("username = %q, want %q", resp.Username, "alice")
@@ -41,7 +41,6 @@ func TestProvision_Success(t *testing.T) {
 		t.Errorf("status = %q, want %q", resp.Status, "provisioning")
 	}
 
-	// Verify user was created (instance_id binding happens after provisioning).
 	u, err := users.Get("alice")
 	if err != nil {
 		t.Fatalf("get user: %v", err)
@@ -50,7 +49,6 @@ func TestProvision_Success(t *testing.T) {
 		t.Errorf("username = %q, want %q", u.Username, "alice")
 	}
 
-	// Verify provisioner was called.
 	select {
 	case <-env.prov.provisionCh:
 	case <-time.After(2 * time.Second):
@@ -62,21 +60,40 @@ func TestProvision_Success(t *testing.T) {
 	if len(env.prov.provisions) != 1 {
 		t.Fatalf("expected 1 provision call, got %d", len(env.prov.provisions))
 	}
-	if env.prov.provisions[0].InstanceID != "alice-fox" {
-		t.Errorf("provisioned ID = %q, want %q", env.prov.provisions[0].InstanceID, "alice-fox")
+	if env.prov.provisions[0].InstanceID != "alice" {
+		t.Errorf("provisioned ID = %q, want %q", env.prov.provisions[0].InstanceID, "alice")
 	}
-	if env.prov.provisions[0].Cloud.Slug != "alice-fox" {
-		t.Errorf("cloud.Slug = %q, want %q", env.prov.provisions[0].Cloud.Slug, "alice-fox")
+	if env.prov.provisions[0].Cloud.Slug != "alice" {
+		t.Errorf("cloud.Slug = %q, want %q", env.prov.provisions[0].Cloud.Slug, "alice")
 	}
 }
 
-func TestProvision_MissingUsername(t *testing.T) {
-	env, _ := newTestEnvWithUsers(t)
+func TestProvision_MissingUsername_DefaultsToSlug(t *testing.T) {
+	env, users := newTestEnvWithUsers(t)
 
 	w := env.doRequest("POST", "/api/instances/provision",
 		`{"password":"password123","slug":"test"}`)
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d; body = %s", w.Code, http.StatusCreated, w.Body.String())
+	}
+
+	var resp provisionResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.Username != "test" {
+		t.Errorf("username = %q, want %q (should default to slug)", resp.Username, "test")
+	}
+	if resp.InstanceID != "test" {
+		t.Errorf("instance_id = %q, want %q", resp.InstanceID, "test")
+	}
+
+	u, err := users.Get("test")
+	if err != nil {
+		t.Fatalf("get user: %v", err)
+	}
+	if u.Username != "test" {
+		t.Errorf("username = %q, want %q", u.Username, "test")
 	}
 }
 
@@ -84,7 +101,7 @@ func TestProvision_MissingPassword(t *testing.T) {
 	env, _ := newTestEnvWithUsers(t)
 
 	w := env.doRequest("POST", "/api/instances/provision",
-		`{"username":"alice","slug":"test"}`)
+		`{"username":"test","slug":"test"}`)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
 	}
@@ -104,7 +121,7 @@ func TestProvision_ShortPassword(t *testing.T) {
 	env, _ := newTestEnvWithUsers(t)
 
 	w := env.doRequest("POST", "/api/instances/provision",
-		`{"username":"alice","password":"short","slug":"test"}`)
+		`{"username":"test","password":"short","slug":"test"}`)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
 	}
@@ -115,19 +132,29 @@ func TestProvision_LongPassword(t *testing.T) {
 
 	long := strings.Repeat("a", 73)
 	w := env.doRequest("POST", "/api/instances/provision",
-		`{"username":"alice","password":"`+long+`","slug":"test"}`)
+		`{"username":"test","password":"`+long+`","slug":"test"}`)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
 	}
 }
 
-func TestProvision_InvalidUsername(t *testing.T) {
+func TestProvision_UsernameMismatchRejected(t *testing.T) {
 	env, _ := newTestEnvWithUsers(t)
 
 	w := env.doRequest("POST", "/api/instances/provision",
-		`{"username":"Alice_UPPER","password":"password123","slug":"test"}`)
+		`{"username":"different","password":"password123","slug":"test"}`)
 	if w.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+		t.Fatalf("status = %d, want %d; body = %s", w.Code, http.StatusBadRequest, w.Body.String())
+	}
+	var resp apiError
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.Error != "bad_request" {
+		t.Errorf("error = %q, want %q", resp.Error, "bad_request")
+	}
+	if !strings.Contains(resp.Message, "username must equal slug") {
+		t.Errorf("message = %q, want it to mention slug=username invariant", resp.Message)
 	}
 }
 
@@ -135,7 +162,7 @@ func TestProvision_InvalidSlug_Uppercase(t *testing.T) {
 	env, _ := newTestEnvWithUsers(t)
 
 	w := env.doRequest("POST", "/api/instances/provision",
-		`{"username":"alice","password":"password123","slug":"Alice"}`)
+		`{"password":"password123","slug":"Alice"}`)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
 	}
@@ -145,7 +172,7 @@ func TestProvision_InvalidSlug_LeadingHyphen(t *testing.T) {
 	env, _ := newTestEnvWithUsers(t)
 
 	w := env.doRequest("POST", "/api/instances/provision",
-		`{"username":"alice","password":"password123","slug":"-test"}`)
+		`{"password":"password123","slug":"-test"}`)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
 	}
@@ -155,7 +182,7 @@ func TestProvision_InvalidSlug_TrailingHyphen(t *testing.T) {
 	env, _ := newTestEnvWithUsers(t)
 
 	w := env.doRequest("POST", "/api/instances/provision",
-		`{"username":"alice","password":"password123","slug":"test-"}`)
+		`{"password":"password123","slug":"test-"}`)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
 	}
@@ -165,7 +192,7 @@ func TestProvision_InvalidSlug_ConsecutiveHyphens(t *testing.T) {
 	env, _ := newTestEnvWithUsers(t)
 
 	w := env.doRequest("POST", "/api/instances/provision",
-		`{"username":"alice","password":"password123","slug":"te--st"}`)
+		`{"password":"password123","slug":"te--st"}`)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
 	}
@@ -176,7 +203,7 @@ func TestProvision_ReservedSlug(t *testing.T) {
 
 	for _, slug := range []string{"admin", "api", "login", "cloud", "healthz"} {
 		w := env.doRequest("POST", "/api/instances/provision",
-			`{"username":"alice","password":"password123","slug":"`+slug+`"}`)
+			`{"password":"password123","slug":"`+slug+`"}`)
 		if w.Code != http.StatusConflict {
 			t.Errorf("slug %q: status = %d, want %d", slug, w.Code, http.StatusConflict)
 		}
@@ -195,7 +222,7 @@ func TestProvision_SlugTaken(t *testing.T) {
 	env.seedInstance(t, "taken", 9100)
 
 	w := env.doRequest("POST", "/api/instances/provision",
-		`{"username":"alice","password":"password123","slug":"taken"}`)
+		`{"username":"taken","password":"password123","slug":"taken"}`)
 	if w.Code != http.StatusConflict {
 		t.Fatalf("status = %d, want %d; body = %s", w.Code, http.StatusConflict, w.Body.String())
 	}
@@ -216,7 +243,7 @@ func TestProvision_UserExists(t *testing.T) {
 	}
 
 	w := env.doRequest("POST", "/api/instances/provision",
-		`{"username":"alice","password":"password123","slug":"new-fox"}`)
+		`{"username":"alice","password":"password123","slug":"alice"}`)
 	if w.Code != http.StatusConflict {
 		t.Fatalf("status = %d, want %d; body = %s", w.Code, http.StatusConflict, w.Body.String())
 	}
@@ -235,7 +262,7 @@ func TestProvision_CapReached(t *testing.T) {
 	env.seedInstance(t, "fox-2", 9101)
 
 	w := env.doRequest("POST", "/api/instances/provision",
-		`{"username":"alice","password":"password123","slug":"fox3"}`)
+		`{"username":"fox3","password":"password123","slug":"fox3"}`)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusTooManyRequests)
 	}
@@ -421,8 +448,7 @@ func TestProvision_NoUserStoreReturns404(t *testing.T) {
 	env := newTestEnv(t)
 
 	w := env.doRequest("POST", "/api/instances/provision",
-		`{"username":"alice","password":"password123","slug":"test"}`)
-	// Without UserStore, the route is not registered → 404 or method-not-allowed.
+		`{"username":"test","password":"password123","slug":"test"}`)
 	if w.Code == http.StatusCreated {
 		t.Fatal("expected non-201 when UserStore is nil")
 	}
@@ -458,12 +484,11 @@ func TestProvision_BindsUserAfterProvision(t *testing.T) {
 	env := &testEnv{server: srv, registry: reg, logBuf: &logBuf}
 
 	w := env.doRequest("POST", "/api/instances/provision",
-		`{"username":"bob","password":"password123","slug":"bobfox"}`)
+		`{"username":"bob","password":"password123","slug":"bob"}`)
 	if w.Code != http.StatusCreated {
 		t.Fatalf("status = %d, want %d; body = %s", w.Code, http.StatusCreated, w.Body.String())
 	}
 
-	// Wait for background provisioning.
 	select {
 	case <-regProv.ch:
 	case <-time.After(2 * time.Second):
@@ -475,8 +500,8 @@ func TestProvision_BindsUserAfterProvision(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get user: %v", err)
 	}
-	if u.InstanceID == nil || *u.InstanceID != "bobfox" {
-		t.Errorf("instance_id = %v, want %q", u.InstanceID, "bobfox")
+	if u.InstanceID == nil || *u.InstanceID != "bob" {
+		t.Errorf("instance_id = %v, want %q", u.InstanceID, "bob")
 	}
 }
 
@@ -515,14 +540,67 @@ func TestProvision_UserCleanupOnSlugConflict(t *testing.T) {
 	env.seedInstance(t, "taken", 9100)
 
 	w := env.doRequest("POST", "/api/instances/provision",
-		`{"username":"alice","password":"password123","slug":"taken"}`)
+		`{"username":"taken","password":"password123","slug":"taken"}`)
 	if w.Code != http.StatusConflict {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusConflict)
 	}
 
-	// User should NOT have been created since slug check happens before user creation.
-	_, err := users.Get("alice")
+	_, err := users.Get("taken")
 	if err != cloud.ErrUserNotFound {
 		t.Errorf("expected user not found after slug conflict, got err=%v", err)
+	}
+}
+
+func TestCreate_AutoBindsOwnerInCloudMode(t *testing.T) {
+	dir := t.TempDir()
+	reg, err := registry.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { reg.Close() })
+
+	users := cloud.NewUserStore(reg.DB())
+	if _, err := users.Create("dennis", "password123"); err != nil {
+		t.Fatal(err)
+	}
+
+	regProv := &registryAwareProvisioner{reg: reg, ch: make(chan struct{}, 1)}
+
+	var logBuf bytes.Buffer
+	srv := NewServer(Deps{
+		Registry:     reg,
+		Provisioner:  regProv,
+		Plugin:       &fakePlugin{},
+		AdminSecret:  testSecret,
+		InstancePwd:  "test-instance-pwd",
+		MaxInstances: 5,
+		PollInterval: time.Hour,
+		SigningKey:   testSigningKey,
+		Logger:       slog.New(slog.NewTextHandler(&logBuf, nil)),
+		UserStore:    users,
+		Cloud:        CloudConfig{Domain: "test.example.com"},
+	})
+
+	env := &testEnv{server: srv, registry: reg, logBuf: &logBuf}
+
+	w := env.doRequest("POST", "/api/instances",
+		`{"id":"dennis","owner":"dennis"}`)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d; body = %s", w.Code, http.StatusCreated, w.Body.String())
+	}
+
+	select {
+	case <-regProv.ch:
+	case <-time.After(2 * time.Second):
+		t.Fatal("provisioner not called within timeout")
+	}
+	srv.Wait()
+
+	u, err := users.Get("dennis")
+	if err != nil {
+		t.Fatalf("get user: %v", err)
+	}
+	if u.InstanceID == nil || *u.InstanceID != "dennis" {
+		t.Errorf("instance_id = %v, want %q", u.InstanceID, "dennis")
 	}
 }

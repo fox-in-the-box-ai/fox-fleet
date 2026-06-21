@@ -218,6 +218,15 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 			if s.events != nil {
 				s.events.Emitf("error", body.ID, "provision failed: %v", err)
 			}
+			return
+		}
+		if s.cloudCfg.Domain != "" && body.Owner != "" && s.users != nil {
+			if bindErr := s.users.SetInstanceID(body.Owner, body.ID); bindErr != nil {
+				s.log.Warn("create: auto-bind owner to instance failed",
+					"owner", body.Owner,
+					"instance", body.ID,
+					"error", bindErr)
+			}
 		}
 	}()
 

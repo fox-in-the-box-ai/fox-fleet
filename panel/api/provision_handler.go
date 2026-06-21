@@ -64,23 +64,6 @@ func (s *Server) handleProvision(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Username == "" {
-		writeError(w, http.StatusBadRequest, "bad_request", "username is required")
-		return
-	}
-	if !validCloudUsername.MatchString(req.Username) {
-		writeError(w, http.StatusBadRequest, "bad_request",
-			"username must be 1-63 lowercase alphanumeric or hyphen characters, must start and end with alphanumeric")
-		return
-	}
-	if len(req.Password) < 8 {
-		writeError(w, http.StatusBadRequest, "bad_request", "password must be at least 8 characters")
-		return
-	}
-	if len(req.Password) > 72 {
-		writeError(w, http.StatusBadRequest, "bad_request", "password too long")
-		return
-	}
 	if req.Slug == "" {
 		writeError(w, http.StatusBadRequest, "bad_request", "slug is required")
 		return
@@ -93,6 +76,26 @@ func (s *Server) handleProvision(w http.ResponseWriter, r *http.Request) {
 	if reservedSlugs[req.Slug] {
 		writeError(w, http.StatusConflict, "slug_reserved",
 			fmt.Sprintf("slug %q is reserved", req.Slug))
+		return
+	}
+
+	// Slug = username = instance ID. The subdomain, login identity, and
+	// instance are always the same value. If the caller supplied a username
+	// that differs from the slug, reject — a mismatch breaks TLS-check,
+	// subdomain routing, and session validation.
+	if req.Username != "" && req.Username != req.Slug {
+		writeError(w, http.StatusBadRequest, "bad_request",
+			"username must equal slug (subdomain = login identity)")
+		return
+	}
+	req.Username = req.Slug
+
+	if len(req.Password) < 8 {
+		writeError(w, http.StatusBadRequest, "bad_request", "password must be at least 8 characters")
+		return
+	}
+	if len(req.Password) > 72 {
+		writeError(w, http.StatusBadRequest, "bad_request", "password too long")
 		return
 	}
 
