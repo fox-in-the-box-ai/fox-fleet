@@ -121,7 +121,7 @@ func renderHermesEnv(p InjectParams) ([]byte, error) {
 
 	var buf bytes.Buffer
 	for _, k := range keys {
-		fmt.Fprintf(&buf, "%s=%s\n", k, env[k])
+		fmt.Fprintf(&buf, "%s=\"%s\"\n", k, env[k])
 	}
 	return buf.Bytes(), nil
 }
