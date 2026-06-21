@@ -1400,8 +1400,7 @@ function showCloudProvisionModal() {
     + '<div class="slug-status" id="m-slug-status"></div>'
     + '</div>'
     + '<div class="modal-field">'
-    + '<label class="modal-label" for="m-username">' + esc(t("cprov.username_label")) + '</label>'
-    + '<input class="input" id="m-username" style="width:100%" placeholder="' + esc(t("cprov.username_placeholder")) + '" autocomplete="off" spellcheck="false">'
+    + '<div class="slug-username-hint" id="m-username-hint" style="font-size:.85rem;color:#C0B6A2"></div>'
     + '</div>'
     + '<div class="modal-field">'
     + '<label class="modal-label" for="m-password">' + esc(t("cprov.password_label")) + '</label>'
@@ -1416,9 +1415,6 @@ function showCloudProvisionModal() {
   document.getElementById("m-cancel").addEventListener("click", closeModal);
   document.getElementById("m-create").addEventListener("click", doCloudProvision);
   document.getElementById("m-slug").addEventListener("input", onSlugInput);
-  document.getElementById("m-username").addEventListener("input", function() {
-    this.dataset.manual = "1";
-  });
   document.getElementById("m-password").addEventListener("input", function() {
     var hint = document.getElementById("m-password-hint");
     hint.textContent = this.value.length > 0 && this.value.length < 8 ? t("cprov.password_short") : "";
@@ -1440,24 +1436,27 @@ function onSlugInput() {
   var indicator = document.getElementById("m-slug-status");
   clearTimeout(_slugTimer);
 
+  var usernameHint = document.getElementById("m-username-hint");
+
   if (!raw) {
     indicator.textContent = "";
     indicator.className = "slug-status";
+    if (usernameHint) usernameHint.textContent = "";
     return;
   }
 
   if (!isValidSlugClient(raw)) {
     indicator.textContent = t("cprov.slug_invalid");
     indicator.className = "slug-status slug-invalid";
+    if (usernameHint) usernameHint.textContent = "";
     return;
   }
 
   indicator.textContent = t("cprov.slug_checking");
   indicator.className = "slug-status slug-checking";
 
-  var usernameInput = document.getElementById("m-username");
-  if (usernameInput && !usernameInput.dataset.manual) {
-    usernameInput.value = raw;
+  if (usernameHint) {
+    usernameHint.textContent = t("cprov.username_is", { slug: raw });
   }
 
   _slugTimer = setTimeout(function() {
@@ -1486,7 +1485,6 @@ function onSlugInput() {
 
 function doCloudProvision() {
   var slug = document.getElementById("m-slug").value.trim().toLowerCase();
-  var username = document.getElementById("m-username").value.trim();
   var password = document.getElementById("m-password").value;
 
   if (!slug || !isValidSlugClient(slug)) {
@@ -1495,7 +1493,7 @@ function doCloudProvision() {
     document.getElementById("m-slug").focus();
     return;
   }
-  if (!username) { username = slug; }
+  var username = slug;
   if (password.length < 8) {
     document.getElementById("m-password-hint").textContent = t("cprov.password_short");
     document.getElementById("m-password").focus();
