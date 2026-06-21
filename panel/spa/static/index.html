@@ -1215,7 +1215,12 @@ document.getElementById("sidebar-overlay").addEventListener("click", function() 
 });
 
 document.addEventListener("keydown", function(e) {
-  if (e.key === "Escape" && document.body.classList.contains("sidebar-open")) {
+  if (e.key !== "Escape") return;
+  if (document.getElementById("modal-overlay").style.display === "flex") {
+    closeModal();
+    return;
+  }
+  if (document.body.classList.contains("sidebar-open")) {
     closeSidebar();
     document.getElementById("hamburger").focus();
   }
@@ -1250,8 +1255,12 @@ function closeModal() {
   document.getElementById("modal-overlay").innerHTML = "";
 }
 
-document.getElementById("modal-overlay").addEventListener("click", function(e) {
-  if (e.target === this) closeModal();
+var _modalOverlay = document.getElementById("modal-overlay");
+var _modalMouseDownTarget = null;
+_modalOverlay.addEventListener("mousedown", function(e) { _modalMouseDownTarget = e.target; });
+_modalOverlay.addEventListener("click", function(e) {
+  if (e.target === this && _modalMouseDownTarget === this) closeModal();
+  _modalMouseDownTarget = null;
 });
 
 /* ── Skeleton Helpers ──────────────────────────────────────────────── */

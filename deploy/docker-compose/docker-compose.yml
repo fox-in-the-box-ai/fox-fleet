@@ -9,7 +9,7 @@ services:
     group_add:
       - "${DOCKER_GID:-999}"
     volumes:
-      - fox-data:/var/lib/fox-control
+      - /var/lib/fox-control:/var/lib/fox-control
       - ./fox-control.toml:/etc/fox-control/fox-control.toml:ro
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
@@ -42,10 +42,4 @@ services:
       start_period: 5s
 
 volumes:
-  fox-data:
-    # Named volumes are recommended. For bind mounts, ensure the host
-    # directory is owned by uid 65532:
-    #   sudo mkdir -p ./data && sudo chown -R 65532:65532 ./data
-    # Then replace "fox-data:/var/lib/fox-control" above with
-    # "./data:/var/lib/fox-control".
   qdrant-data:

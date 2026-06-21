@@ -17,12 +17,11 @@ func (s *Server) handleSubdomainLogin(w http.ResponseWriter, r *http.Request, sl
 		return
 	}
 
-	if req.Username == "" || req.Password == "" {
-		writeError(w, http.StatusBadRequest, "bad_request", "username and password are required")
-		return
+	if req.Username == "" {
+		req.Username = slug
 	}
-	if len(req.Username) > 63 {
-		writeError(w, http.StatusBadRequest, "bad_request", "username too long")
+	if req.Password == "" {
+		writeError(w, http.StatusBadRequest, "bad_request", "password is required")
 		return
 	}
 	if len(req.Password) > 72 {
@@ -74,6 +73,7 @@ func (s *Server) handleSubdomainLoginPage(w http.ResponseWriter, r *http.Request
 }
 
 // subdomainLoginPage colors sourced from design-system v0.1.0 tokens.
+// Password-only: username is inferred from the subdomain (slug == username).
 const subdomainLoginPage = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -108,19 +108,21 @@ button:disabled{opacity:.6;cursor:not-allowed}
 <text x="24" y="30" text-anchor="middle" fill="#F97316" font-size="20" font-weight="bold" font-family="sans-serif">F</text>
 </svg>
 <h1>Fox Fleet</h1>
-<p>Sign in to access your instance</p>
+<p id="subtitle">Sign in to access your instance</p>
 </div>
 <div class="error" id="error"></div>
 <form id="loginForm" autocomplete="on">
-<label for="username">Username</label>
-<input type="text" id="username" name="username" required autofocus autocomplete="username">
+<input type="hidden" id="username" name="username" autocomplete="username">
 <label for="password">Password</label>
-<input type="password" id="password" name="password" required autocomplete="current-password">
+<input type="password" id="password" name="password" required autofocus autocomplete="current-password">
 <button type="submit" id="submitBtn">Sign In</button>
 </form>
 </div>
 <script>
 (function(){
+var slug=location.hostname.split(".")[0];
+document.getElementById("username").value=slug;
+document.getElementById("subtitle").textContent="Sign in as "+slug;
 var form=document.getElementById("loginForm");
 var err=document.getElementById("error");
 var btn=document.getElementById("submitBtn");
@@ -129,10 +131,7 @@ e.preventDefault();
 err.style.display="none";
 btn.disabled=true;
 btn.textContent="Signing in…";
-var body=JSON.stringify({
-username:document.getElementById("username").value,
-password:document.getElementById("password").value
-});
+var body=JSON.stringify({password:document.getElementById("password").value});
 fetch("/login",{method:"POST",headers:{"Content-Type":"application/json"},body:body,credentials:"same-origin"})
 .then(function(r){
 if(r.ok){window.location.href="/";return}
