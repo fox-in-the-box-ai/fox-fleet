@@ -238,12 +238,12 @@ Cloud mode requires `network_mode: host` for both services so that fox-control a
 cat > docker-compose.yml <<'COMPOSEEOF'
 services:
   fox-control:
-    image: ghcr.io/fox-in-the-box-ai/fox-control:1.7.2
+    image: ghcr.io/fox-in-the-box-ai/fox-control:${FOX_VERSION:-latest}
     network_mode: host
     group_add:
       - "${DOCKER_GID:-999}"
     volumes:
-      - fox-data:/var/lib/fox-control
+      - /var/lib/fox-control:/var/lib/fox-control
       - ./fox-control.toml:/etc/fox-control/fox-control.toml:ro
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
@@ -269,7 +269,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  fox-data:
   caddy_data:
   caddy_config:
 COMPOSEEOF
