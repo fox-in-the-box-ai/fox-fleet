@@ -149,12 +149,16 @@ dig +short fleet.example.com        # → your server IP
 dig +short test.fleet.example.com   # → same IP (wildcard)
 ```
 
-### 1. Create the install directory
+### 1. Create the install and data directories
 
 ```bash
 sudo mkdir -p /opt/fox-fleet
+sudo mkdir -p /var/lib/fox-control
+sudo chown -R 65532:65532 /var/lib/fox-control
 cd /opt/fox-fleet
 ```
+
+The data directory (`/var/lib/fox-control`) must be owned by uid 65532 — the non-root user inside the fox-control container.
 
 ### 2. Write the environment file
 
