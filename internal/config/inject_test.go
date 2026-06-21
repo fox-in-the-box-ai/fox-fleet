@@ -59,9 +59,9 @@ func TestHermesEnvContents(t *testing.T) {
 	}
 	content := string(data)
 	required := []string{
-		"FOX_PLANE_AUTH_SECRET=admin-secret-abc",
-		"HERMES_WEBUI_PASSWORD=inst-pass-123",
-		"CUSTOM_VAR=custom-value",
+		`FOX_PLANE_AUTH_SECRET="admin-secret-abc"`,
+		`HERMES_WEBUI_PASSWORD="inst-pass-123"`,
+		`CUSTOM_VAR="custom-value"`,
 	}
 	for _, line := range required {
 		if !strings.Contains(content, line) {
@@ -194,7 +194,7 @@ func TestInjectOverwritesOnChange(t *testing.T) {
 	if string(data1) == string(data2) {
 		t.Error("Inject did not update hermes.env after config change")
 	}
-	if !strings.Contains(string(data2), "FOX_PLANE_AUTH_SECRET=new-secret") {
+	if !strings.Contains(string(data2), `FOX_PLANE_AUTH_SECRET="new-secret"`) {
 		t.Error("hermes.env does not contain updated secret")
 	}
 }
@@ -275,10 +275,10 @@ func TestHermesEnvQueryToken(t *testing.T) {
 	}
 	data, _ := os.ReadFile(filepath.Join(p.DataDir, "config", "hermes.env"))
 	content := string(data)
-	if !strings.Contains(content, "FOX_DATA_PLANE_TOKEN=test-query-token-abc") {
+	if !strings.Contains(content, `FOX_DATA_PLANE_TOKEN="test-query-token-abc"`) {
 		t.Errorf("hermes.env missing FOX_DATA_PLANE_TOKEN, got:\n%s", content)
 	}
-	if !strings.Contains(content, "FOX_DATA_PLANE_URL=http://127.0.0.1:9091") {
+	if !strings.Contains(content, `FOX_DATA_PLANE_URL="http://127.0.0.1:9091"`) {
 		t.Errorf("hermes.env missing FOX_DATA_PLANE_URL, got:\n%s", content)
 	}
 }
@@ -322,7 +322,7 @@ func TestInjectMinimalConfig(t *testing.T) {
 		t.Fatalf("Inject with minimal config: %v", err)
 	}
 	data, _ := os.ReadFile(filepath.Join(p.DataDir, "config", "hermes.env"))
-	if !strings.Contains(string(data), "FOX_PLANE_AUTH_SECRET=secret") {
+	if !strings.Contains(string(data), `FOX_PLANE_AUTH_SECRET="secret"`) {
 		t.Error("minimal config missing auth secret in hermes.env")
 	}
 }
@@ -360,9 +360,9 @@ func TestHermesEnvCloudInjection(t *testing.T) {
 	}
 	content := string(data)
 	for _, want := range []string{
-		"HERMES_WEBUI_ALLOWED_ORIGINS=https://cloud.example.com",
-		"HERMES_WEBUI_TRUST_FORWARDED_HOST=true",
-		"HERMES_WEBUI_CSP_CONNECT_EXTRA=https://cloud.example.com wss://cloud.example.com",
+		`HERMES_WEBUI_ALLOWED_ORIGINS="https://cloud.example.com"`,
+		`HERMES_WEBUI_TRUST_FORWARDED_HOST="true"`,
+		`HERMES_WEBUI_CSP_CONNECT_EXTRA="https://cloud.example.com wss://cloud.example.com"`,
 	} {
 		if !strings.Contains(content, want) {
 			t.Errorf("hermes.env missing %q\ngot:\n%s", want, content)
@@ -382,15 +382,15 @@ func TestHermesEnvCloudSlugInjection(t *testing.T) {
 	}
 	content := string(data)
 	for _, want := range []string{
-		"HERMES_WEBUI_ALLOWED_ORIGINS=https://alice.fleet.example.com",
-		"HERMES_WEBUI_TRUST_FORWARDED_HOST=true",
-		"HERMES_WEBUI_CSP_CONNECT_EXTRA=https://alice.fleet.example.com wss://alice.fleet.example.com",
+		`HERMES_WEBUI_ALLOWED_ORIGINS="https://alice.fleet.example.com"`,
+		`HERMES_WEBUI_TRUST_FORWARDED_HOST="true"`,
+		`HERMES_WEBUI_CSP_CONNECT_EXTRA="https://alice.fleet.example.com wss://alice.fleet.example.com"`,
 	} {
 		if !strings.Contains(content, want) {
 			t.Errorf("hermes.env missing %q\ngot:\n%s", want, content)
 		}
 	}
-	if strings.Contains(content, "HERMES_WEBUI_ALLOWED_ORIGINS=https://fleet.example.com\n") {
+	if strings.Contains(content, "HERMES_WEBUI_ALLOWED_ORIGINS=\"https://fleet.example.com\"\n") {
 		t.Error("slug mode should not use base domain for ALLOWED_ORIGINS")
 	}
 }
