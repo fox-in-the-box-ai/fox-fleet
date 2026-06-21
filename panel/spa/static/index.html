@@ -1436,22 +1436,25 @@ function onSlugInput() {
   var indicator = document.getElementById("m-slug-status");
   clearTimeout(_slugTimer);
 
+  var usernameHint = document.getElementById("m-username-hint");
+
   if (!raw) {
     indicator.textContent = "";
     indicator.className = "slug-status";
+    if (usernameHint) usernameHint.textContent = "";
     return;
   }
 
   if (!isValidSlugClient(raw)) {
     indicator.textContent = t("cprov.slug_invalid");
     indicator.className = "slug-status slug-invalid";
+    if (usernameHint) usernameHint.textContent = "";
     return;
   }
 
   indicator.textContent = t("cprov.slug_checking");
   indicator.className = "slug-status slug-checking";
 
-  var usernameHint = document.getElementById("m-username-hint");
   if (usernameHint) {
     usernameHint.textContent = t("cprov.username_is", { slug: raw });
   }

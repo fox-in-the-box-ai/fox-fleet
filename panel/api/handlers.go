@@ -226,6 +226,9 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 					"owner", body.Owner,
 					"instance", body.ID,
 					"error", bindErr)
+				if s.events != nil {
+					s.events.Emitf("error", body.ID, "bind owner %s failed: %v", body.Owner, bindErr)
+				}
 			}
 		}
 	}()
