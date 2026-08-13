@@ -426,8 +426,10 @@ the configured `data_root`.
 # Stop services to ensure consistency
 docker compose stop
 
-# Back up the data root (host bind mount, not a named volume)
+# Back up the data root (host bind mount, not a named volume).
+# The archive contains instance secrets — restrict it immediately.
 sudo tar czf backups/fox-control-$(date +%Y%m%d).tar.gz -C /var/lib/fox-control .
+sudo chmod 600 backups/fox-control-$(date +%Y%m%d).tar.gz
 
 docker run --rm \
   -v qdrant-data:/data \
