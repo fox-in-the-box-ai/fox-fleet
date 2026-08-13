@@ -2,12 +2,12 @@
 
 Fox Fleet runs on any Linux host with Docker. This guide covers four deployment methods — pick the one that fits your infrastructure.
 
-| Method | Best for | TLS | Data plane |
-|--------|----------|-----|------------|
-| [Docker Compose](#docker-compose) | Quickstart, single host, dev/staging | Via Caddy add-on | Included (Qdrant sidecar) |
-| [Helm chart](#helm-kubernetes) | Kubernetes clusters | Via Ingress controller | Bring your own Qdrant |
-| [systemd](#systemd-bare-metal) | Bare-metal / VM, no container orchestrator | Via Caddy add-on | Bring your own Qdrant |
-| [Binary](#binary-manual) | Development, testing, CI | None (localhost) | Optional |
+| Method                            | Best for                                   | TLS                    | Data plane                |
+| --------------------------------- | ------------------------------------------ | ---------------------- | ------------------------- |
+| [Docker Compose](#docker-compose) | Quickstart, single host, dev/staging       | Via Caddy add-on       | Included (Qdrant sidecar) |
+| [Helm chart](#helm-kubernetes)    | Kubernetes clusters                        | Via Ingress controller | Bring your own Qdrant     |
+| [systemd](#systemd-bare-metal)    | Bare-metal / VM, no container orchestrator | Via Caddy add-on       | Bring your own Qdrant     |
+| [Binary](#binary-manual)          | Development, testing, CI                   | None (localhost)       | Optional                  |
 
 All methods share the same binary and config format. The difference is how the binary starts and how secrets are injected.
 
@@ -125,7 +125,7 @@ docker compose down            # stop services, keep data
 docker compose down -v         # stop services AND delete volumes
 ```
 
-Data is stored in two Docker volumes: `fox-data` (SQLite registry + instance configs) and `qdrant-data` (vector storage).
+Data lives in two places: the host bind mount `/var/lib/fox-control` (SQLite registry + instance configs — a host path, not a named volume, so Fox instance containers can bind-mount the same files; see #180) and the Docker volume `qdrant-data` (vector storage). Note `docker compose down -v` only deletes `qdrant-data`; the bind-mounted data root persists on the host.
 
 ---
 
@@ -338,16 +338,16 @@ Open `https://alice.fleet.example.com/` in a browser. The login page shows "Sign
 
 ### Cloud mode API reference
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `POST /api/users` | Create | Create a user (`{"username":"...","password":"..."}`) |
-| `GET /api/users` | List | List all users |
-| `GET /api/users/{username}` | Read | Get user details (includes `instance_id`) |
-| `PUT /api/users/{username}` | Update | Update user fields (`{"instance_id":"..."}`) |
-| `DELETE /api/users/{username}` | Delete | Delete a user |
-| `POST /api/instances/provision` | Provision | Combined user + instance creation (`{"slug":"...","password":"..."}`) |
-| `POST /api/instances/{id}/upgrade` | Upgrade | Per-instance image rollout (`{"target_image":"repo@sha256:..."}`) |
-| `GET /cloud/tls-check?domain=<fqdn>` | TLS check | Caddy's on-demand TLS validation (internal, loopback only) |
+| Endpoint                             | Method    | Description                                                           |
+| ------------------------------------ | --------- | --------------------------------------------------------------------- |
+| `POST /api/users`                    | Create    | Create a user (`{"username":"...","password":"..."}`)                 |
+| `GET /api/users`                     | List      | List all users                                                        |
+| `GET /api/users/{username}`          | Read      | Get user details (includes `instance_id`)                             |
+| `PUT /api/users/{username}`          | Update    | Update user fields (`{"instance_id":"..."}`)                          |
+| `DELETE /api/users/{username}`       | Delete    | Delete a user                                                         |
+| `POST /api/instances/provision`      | Provision | Combined user + instance creation (`{"slug":"...","password":"..."}`) |
+| `POST /api/instances/{id}/upgrade`   | Upgrade   | Per-instance image rollout (`{"target_image":"repo@sha256:..."}`)     |
+| `GET /cloud/tls-check?domain=<fqdn>` | TLS check | Caddy's on-demand TLS validation (internal, loopback only)            |
 
 The provision endpoint (`POST /api/instances/provision`) combines user creation and instance provisioning in one call — it creates the user, provisions the instance, and auto-binds them. The `slug` must equal the username.
 
@@ -382,18 +382,18 @@ helm install fox-control deploy/helm/fox-control \
 
 ### 2. Key values
 
-| Value | Default | Description |
-|-------|---------|-------------|
-| `image.repository` | `ghcr.io/fox-in-the-box-ai/fox-control` | Container image |
-| `image.tag` | Chart appVersion | Image tag |
-| `service.port` | `9090` | Service port |
-| `persistence.enabled` | `true` | Persistent volume for SQLite + instance data |
-| `persistence.size` | `1Gi` | Volume size |
-| `config.maxInstances` | `10` | Instance cap |
-| `config.dockerImage` | `ghcr.io/fox-in-the-box-ai/cloud:stable` | Fox instance image |
-| `config.portStart` | `8787` | First instance port |
-| `auth.existingSecret` | `""` | Use an existing Secret instead of creating one |
-| `ingress.enabled` | `false` | Enable Ingress resource |
+| Value                 | Default                                  | Description                                    |
+| --------------------- | ---------------------------------------- | ---------------------------------------------- |
+| `image.repository`    | `ghcr.io/fox-in-the-box-ai/fox-control`  | Container image                                |
+| `image.tag`           | Chart appVersion                         | Image tag                                      |
+| `service.port`        | `9090`                                   | Service port                                   |
+| `persistence.enabled` | `true`                                   | Persistent volume for SQLite + instance data   |
+| `persistence.size`    | `1Gi`                                    | Volume size                                    |
+| `config.maxInstances` | `10`                                     | Instance cap                                   |
+| `config.dockerImage`  | `ghcr.io/fox-in-the-box-ai/cloud:stable` | Fox instance image                             |
+| `config.portStart`    | `8787`                                   | First instance port                            |
+| `auth.existingSecret` | `""`                                     | Use an existing Secret instead of creating one |
+| `ingress.enabled`     | `false`                                  | Enable Ingress resource                        |
 
 ### 3. Docker socket access
 
@@ -464,6 +464,7 @@ sudo ./deploy/systemd/install.sh ./fox-control
 ```
 
 The installer:
+
 - Creates a `fox-control` system user (no login shell)
 - Adds it to the `docker` group
 - Installs the binary to `/usr/local/bin/fox-control`
@@ -710,14 +711,14 @@ Rollout is health-gated — each instance must pass health checks before the nex
 
 ## Troubleshooting
 
-| Symptom | Check |
-|---------|-------|
-| Panel returns 401 | Verify `FOX_ADMIN_SECRET` matches between your client and the running config. Check env var override vs. TOML value. |
-| `fox-control` refuses to start | Missing `admin_secret` or `instance_password`. Both are required. |
-| Instance stuck in "provisioning" | Check Docker daemon is running. Check `docker.image` is pullable. Check port range is available. |
-| Data plane queries return 503 | Qdrant is unreachable. Verify Qdrant is running and the configured ports are correct. |
-| SSE not working behind proxy | Ensure your reverse proxy disables response buffering. Caddy and the `X-Accel-Buffering: no` header handle this automatically. For nginx, add `proxy_buffering off;`. |
-| Panel shows stale data | SSE may have disconnected. The panel falls back to 5-second polling. Hard refresh or check browser DevTools for EventSource errors. |
+| Symptom                          | Check                                                                                                                                                                 |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Panel returns 401                | Verify `FOX_ADMIN_SECRET` matches between your client and the running config. Check env var override vs. TOML value.                                                  |
+| `fox-control` refuses to start   | Missing `admin_secret` or `instance_password`. Both are required.                                                                                                     |
+| Instance stuck in "provisioning" | Check Docker daemon is running. Check `docker.image` is pullable. Check port range is available.                                                                      |
+| Data plane queries return 503    | Qdrant is unreachable. Verify Qdrant is running and the configured ports are correct.                                                                                 |
+| SSE not working behind proxy     | Ensure your reverse proxy disables response buffering. Caddy and the `X-Accel-Buffering: no` header handle this automatically. For nginx, add `proxy_buffering off;`. |
+| Panel shows stale data           | SSE may have disconnected. The panel falls back to 5-second polling. Hard refresh or check browser DevTools for EventSource errors.                                   |
 
 ---
 
