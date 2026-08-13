@@ -80,8 +80,10 @@ jobs:
       - name: Run govulncheck
         run: |
           govulncheck -format json ./... > vuln.json 2>&1 || true
-          # Filter out Docker daemon-side vulns with no upstream fix (see ADR-0016)
-          EXCLUDED="GO-2026-4887 GO-2026-4883"
+          # Filter out accepted-risk vulns with no upstream fix (see ADR-0016
+          # + its 2026-08-12 amendment): Docker daemon-side paths the client
+          # never calls, plus the deprecated x/crypto/openpgp advisory.
+          EXCLUDED="GO-2026-4887 GO-2026-4883 GO-2026-5617 GO-2026-5668 GO-2026-5746 GO-2026-5932"
           UNEXCLUDED=$(jq -r '
             select(.finding != null)
             | .finding.osv
