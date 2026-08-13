@@ -144,7 +144,7 @@ curl -X DELETE http://localhost:9090/api/instances/my-fox \
 
 # Stop the stack
 docker compose down       # keep data
-docker compose down -v    # delete all data
+docker compose down -v    # deletes qdrant-data only; /var/lib/fox-control persists on the host
 ```
 
 ---

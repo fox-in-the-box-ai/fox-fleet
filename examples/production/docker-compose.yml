@@ -6,7 +6,12 @@ services:
     group_add:
       - "${DOCKER_GID:-999}"
     volumes:
-      - fox-data:/var/lib/fox-control
+      # Host bind mount, NOT a named volume: the Docker deployment plugin
+      # passes instance data dirs as bind-mount sources to Fox containers,
+      # and Docker resolves those against the HOST filesystem. A named
+      # volume here would make Fleet write config where Fox never reads
+      # it (#180).
+      - /var/lib/fox-control:/var/lib/fox-control
       - ./fox-control.toml:/etc/fox-control/fox-control.toml:ro
       - ./tls:/etc/fox-control/tls:ro
       - /var/run/docker.sock:/var/run/docker.sock
@@ -51,5 +56,4 @@ services:
         max-file: "3"
 
 volumes:
-  fox-data:
   qdrant-data:

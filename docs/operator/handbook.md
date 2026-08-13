@@ -11,34 +11,34 @@ deployment — see the [Quickstart](../quickstart/linux.md) or
 Before serving real users, verify each item:
 
 - [ ] **Secrets are random and unique** — `FOX_ADMIN_SECRET` and
-  `FOX_INSTANCE_PASSWORD` are cryptographically random (32+ hex
-  characters). Not the demo values from the walkthrough.
+      `FOX_INSTANCE_PASSWORD` are cryptographically random (32+ hex
+      characters). Not the demo values from the walkthrough.
 - [ ] **Secrets are not in config files** — use environment variables
-  (`FOX_ADMIN_SECRET`, `FOX_INSTANCE_PASSWORD`) or a secrets manager.
-  The TOML `[auth]` section is a fallback; env vars take precedence.
+      (`FOX_ADMIN_SECRET`, `FOX_INSTANCE_PASSWORD`) or a secrets manager.
+      The TOML `[auth]` section is a fallback; env vars take precedence.
 - [ ] **TLS is enabled** — either configure built-in TLS via
-  `tls.cert_file` and `tls.key_file` in `fox-control.toml`, or
-  terminate TLS at a reverse proxy (Caddy, nginx, cloud load
-  balancer). See [Caddy add-on](../DEPLOYMENT.md#6-add-tls-with-caddy-optional).
-  Do not serve plain HTTP to the internet.
+      `tls.cert_file` and `tls.key_file` in `fox-control.toml`, or
+      terminate TLS at a reverse proxy (Caddy, nginx, cloud load
+      balancer). See [Caddy add-on](../DEPLOYMENT.md#6-add-tls-with-caddy-optional).
+      Do not serve plain HTTP to the internet.
 - [ ] **Listen address is restricted** — in production, bind to
-  `127.0.0.1:9090` (behind a reverse proxy) or a private interface.
-  Never bind `0.0.0.0` without a firewall or reverse proxy.
+      `127.0.0.1:9090` (behind a reverse proxy) or a private interface.
+      Never bind `0.0.0.0` without a firewall or reverse proxy.
 - [ ] **Firewall rules cover the instance port range** — instances
-  allocate ports from `instances.port_start` (default 8787) upward.
-  Open only the ports you need; block external access to instance
-  ports if the instances are accessed through a proxy.
+      allocate ports from `instances.port_start` (default 8787) upward.
+      Open only the ports you need; block external access to instance
+      ports if the instances are accessed through a proxy.
 - [ ] **Docker socket is protected** — fox-control needs
-  `/var/run/docker.sock`. This is root-equivalent access. Run
-  fox-control under a dedicated user with only `docker` group
-  membership. Do not expose the socket over TCP.
+      `/var/run/docker.sock`. This is root-equivalent access. Run
+      fox-control under a dedicated user with only `docker` group
+      membership. Do not expose the socket over TCP.
 - [ ] **Data directory has restricted permissions** — `/var/lib/fox-control`
-  should be owned by the fox-control user, mode 0700. Contains the
-  SQLite registry and instance configs (which include secrets).
+      should be owned by the fox-control user, mode 0700. Contains the
+      SQLite registry and instance configs (which include secrets).
 - [ ] **Backups are configured** — see [Backup and recovery](#backup-and-recovery).
 - [ ] **Monitoring is in place** — see [Monitoring](#monitoring).
 - [ ] **Instance cap is set** — `instances.max_instances` defaults to 2.
-  Set it to match your host capacity.
+      Set it to match your host capacity.
 
 ---
 
@@ -373,19 +373,20 @@ appears as an event.
 
 ### What to back up
 
-| Component | Path / volume | Contains |
-|-----------|---------------|----------|
-| Instance registry | `<data_root>/registry.db` | Instance metadata, ports, status, skillset assignments |
-| Source registry | `<data_root>/sources.db` | Data plane source metadata |
-| Event store | `<data_root>/events.db` | Persistent event history |
-| Instance data | `<data_root>/<instance-id>/` | Per-instance config, conversation history, settings |
-| Qdrant vectors | Qdrant data directory or Docker volume `qdrant-data` | Knowledge embeddings |
-| Config | `/etc/fox-control/fox-control.toml` or `deploy/docker-compose/fox-control.toml` | Server configuration |
-| Secrets | `/etc/fox-control/env` or `deploy/docker-compose/.env` | Admin secret, instance password |
-| Skillsets | `<data_root>/skillsets/` | Uploaded skillset manifests |
+| Component         | Path / volume                                                                   | Contains                                               |
+| ----------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Instance registry | `<data_root>/registry.db`                                                       | Instance metadata, ports, status, skillset assignments |
+| Source registry   | `<data_root>/sources.db`                                                        | Data plane source metadata                             |
+| Event store       | `<data_root>/events.db`                                                         | Persistent event history                               |
+| Instance data     | `<data_root>/<instance-id>/`                                                    | Per-instance config, conversation history, settings    |
+| Qdrant vectors    | Qdrant data directory or Docker volume `qdrant-data`                            | Knowledge embeddings                                   |
+| Config            | `/etc/fox-control/fox-control.toml` or `deploy/docker-compose/fox-control.toml` | Server configuration                                   |
+| Secrets           | `/etc/fox-control/env` or `deploy/docker-compose/.env`                          | Admin secret, instance password                        |
+| Skillsets         | `<data_root>/skillsets/`                                                        | Uploaded skillset manifests                            |
 
 Default `data_root`:
-- Docker Compose: Docker volume `fox-data` (mounted at `/var/lib/fox-control` in the container)
+
+- Docker Compose: host bind mount `/var/lib/fox-control` (same path inside and outside the container — required so Fox instance containers can bind-mount Fleet-written config, #180)
 - systemd: `/var/lib/fox-control`
 - Binary: whatever you set in `fox-control.toml`
 
@@ -425,11 +426,10 @@ the configured `data_root`.
 # Stop services to ensure consistency
 docker compose stop
 
-# Back up volumes
-docker run --rm \
-  -v fox-data:/data \
-  -v $(pwd)/backups:/backup \
-  alpine tar czf /backup/fox-data-$(date +%Y%m%d).tar.gz -C /data .
+# Back up the data root (host bind mount, not a named volume).
+# The archive contains instance secrets — create it unreadable to others.
+mkdir -p backups
+sudo sh -c 'umask 077 && tar czf backups/fox-control-$(date +%Y%m%d).tar.gz -C /var/lib/fox-control .'
 
 docker run --rm \
   -v qdrant-data:/data \
@@ -542,13 +542,13 @@ fox-control exposes a Prometheus-compatible metrics endpoint at
 
 Exposed metrics:
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `foxcontrol_requests_total` | counter | Total API requests |
-| `foxcontrol_errors_total` | counter | Total error responses |
-| `foxcontrol_provisions_total` | counter | Instance provision count |
-| `foxcontrol_sse_connections` | gauge | Active SSE connections |
-| `foxcontrol_uptime_seconds` | gauge | Process uptime in seconds |
+| Metric                        | Type    | Description               |
+| ----------------------------- | ------- | ------------------------- |
+| `foxcontrol_requests_total`   | counter | Total API requests        |
+| `foxcontrol_errors_total`     | counter | Total error responses     |
+| `foxcontrol_provisions_total` | counter | Instance provision count  |
+| `foxcontrol_sse_connections`  | gauge   | Active SSE connections    |
+| `foxcontrol_uptime_seconds`   | gauge   | Process uptime in seconds |
 
 The `/metrics` endpoint does not require authentication, so restrict
 access via firewall or reverse proxy rules if needed.
@@ -559,7 +559,7 @@ Scrape config for Prometheus:
 scrape_configs:
   - job_name: fox-control
     static_configs:
-      - targets: ['localhost:9090']
+      - targets: ["localhost:9090"]
     metrics_path: /metrics
 ```
 
@@ -684,14 +684,14 @@ and does not conflict with other services.
 
 ### Network exposure
 
-| Surface | Default bind | Auth | Notes |
-|---------|-------------|------|-------|
-| Management panel + API | `127.0.0.1:9090` | Bearer token (`admin_secret`) | Use built-in TLS or a reverse proxy for production |
-| Prometheus metrics | `127.0.0.1:9090/metrics` | None | Enabled by default (`control.metrics_enabled`); restrict via firewall or proxy |
-| Fox instances | `0.0.0.0:<port>` | Instance-level auth | Ports 8787+ |
-| Data plane API | `127.0.0.1:9091` | See data plane docs | Only when `data_plane.enabled = true` |
-| Qdrant | `6333` (HTTP), `6334` (gRPC) | None by default | Restrict to localhost or private network |
-| Docker socket | Unix socket | Unix permissions | Root-equivalent access |
+| Surface                | Default bind                 | Auth                          | Notes                                                                          |
+| ---------------------- | ---------------------------- | ----------------------------- | ------------------------------------------------------------------------------ |
+| Management panel + API | `127.0.0.1:9090`             | Bearer token (`admin_secret`) | Use built-in TLS or a reverse proxy for production                             |
+| Prometheus metrics     | `127.0.0.1:9090/metrics`     | None                          | Enabled by default (`control.metrics_enabled`); restrict via firewall or proxy |
+| Fox instances          | `0.0.0.0:<port>`             | Instance-level auth           | Ports 8787+                                                                    |
+| Data plane API         | `127.0.0.1:9091`             | See data plane docs           | Only when `data_plane.enabled = true`                                          |
+| Qdrant                 | `6333` (HTTP), `6334` (gRPC) | None by default               | Restrict to localhost or private network                                       |
+| Docker socket          | Unix socket                  | Unix permissions              | Root-equivalent access                                                         |
 
 ### Audit checklist
 
@@ -724,25 +724,25 @@ If you suspect the admin secret has been compromised:
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---------|-------------|-----|
-| Panel returns 401 | Admin secret mismatch | Verify `FOX_ADMIN_SECRET` matches between client and server. Check env var vs. TOML precedence. |
-| fox-control won't start | Missing required secrets | Both `admin_secret` and `instance_password` are required. Set via env vars or TOML. |
-| Instance stuck in "provisioning" | Docker pull failure or port conflict | Check Docker daemon is running. Verify the Fox image is pullable. Check no other service is using the allocated port. |
-| Instance unhealthy | Container crashed or port unreachable | Check `docker logs <container-id>`. Verify the instance port is not blocked by a firewall. |
-| Data plane queries return 503 | Qdrant unreachable | Verify Qdrant is running and ports match the config. Check `docker compose ps` or `systemctl status qdrant`. |
-| SSE not working behind proxy | Response buffering enabled | Disable response buffering in your reverse proxy. Caddy handles this automatically. For nginx: `proxy_buffering off;`. |
-| Panel shows stale data | SSE disconnected | The panel falls back to 5-second polling. Hard refresh the browser. Check DevTools for EventSource errors. |
-| Rollout stopped mid-way | Instance failed health check after update | The failed instance rolls back automatically. Check its logs. Fix the issue, then re-run the rollout. |
-| Port conflict on instance start | Another service on the port | Change `instances.port_start` in the config, or stop the conflicting service. |
-| Rate limited (429 response) | Client exceeding API rate limit | Check the `Retry-After` header for wait time. Increase `rate_limit.requests_per_minute` if the load is legitimate. |
-| Metrics endpoint returns 404 | Metrics disabled | Metrics are enabled by default. If disabled, set `control.metrics_enabled = true` in `fox-control.toml` and restart. |
-| Webhook not firing | Target unreachable or event filter mismatch | Verify the webhook URL is reachable from the fox-control host. Check that the `events` filter in the webhook config includes the event type you expect. |
-| Auto-restart not working | Feature disabled or misconfigured | Verify `auto_restart.enabled = true` in config. Check `threshold` and `cooldown_seconds` values. Review logs for auto-restart decisions. |
-| TLS handshake failure | Certificate or key issue | Verify `tls.cert_file` and `tls.key_file` paths exist and are readable by the fox-control user. Check certificate chain completeness and expiry. |
-| Backup fails | Destination issue or database error | Verify the `--output` directory is writable. The backup uses SQLite VACUUM INTO which requires write access to the destination. |
-| Instance stats return 503 | Docker stats unavailable | The container may not be running, or the Docker daemon stats API is unresponsive. Verify the instance is in a healthy or running state. |
-| Health history empty | No transitions recorded | The instance has had no health state changes in the last 24 hours, or the event store is not configured. Check `events.db` exists in `data_root`. |
+| Symptom                          | Likely cause                                | Fix                                                                                                                                                     |
+| -------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Panel returns 401                | Admin secret mismatch                       | Verify `FOX_ADMIN_SECRET` matches between client and server. Check env var vs. TOML precedence.                                                         |
+| fox-control won't start          | Missing required secrets                    | Both `admin_secret` and `instance_password` are required. Set via env vars or TOML.                                                                     |
+| Instance stuck in "provisioning" | Docker pull failure or port conflict        | Check Docker daemon is running. Verify the Fox image is pullable. Check no other service is using the allocated port.                                   |
+| Instance unhealthy               | Container crashed or port unreachable       | Check `docker logs <container-id>`. Verify the instance port is not blocked by a firewall.                                                              |
+| Data plane queries return 503    | Qdrant unreachable                          | Verify Qdrant is running and ports match the config. Check `docker compose ps` or `systemctl status qdrant`.                                            |
+| SSE not working behind proxy     | Response buffering enabled                  | Disable response buffering in your reverse proxy. Caddy handles this automatically. For nginx: `proxy_buffering off;`.                                  |
+| Panel shows stale data           | SSE disconnected                            | The panel falls back to 5-second polling. Hard refresh the browser. Check DevTools for EventSource errors.                                              |
+| Rollout stopped mid-way          | Instance failed health check after update   | The failed instance rolls back automatically. Check its logs. Fix the issue, then re-run the rollout.                                                   |
+| Port conflict on instance start  | Another service on the port                 | Change `instances.port_start` in the config, or stop the conflicting service.                                                                           |
+| Rate limited (429 response)      | Client exceeding API rate limit             | Check the `Retry-After` header for wait time. Increase `rate_limit.requests_per_minute` if the load is legitimate.                                      |
+| Metrics endpoint returns 404     | Metrics disabled                            | Metrics are enabled by default. If disabled, set `control.metrics_enabled = true` in `fox-control.toml` and restart.                                    |
+| Webhook not firing               | Target unreachable or event filter mismatch | Verify the webhook URL is reachable from the fox-control host. Check that the `events` filter in the webhook config includes the event type you expect. |
+| Auto-restart not working         | Feature disabled or misconfigured           | Verify `auto_restart.enabled = true` in config. Check `threshold` and `cooldown_seconds` values. Review logs for auto-restart decisions.                |
+| TLS handshake failure            | Certificate or key issue                    | Verify `tls.cert_file` and `tls.key_file` paths exist and are readable by the fox-control user. Check certificate chain completeness and expiry.        |
+| Backup fails                     | Destination issue or database error         | Verify the `--output` directory is writable. The backup uses SQLite VACUUM INTO which requires write access to the destination.                         |
+| Instance stats return 503        | Docker stats unavailable                    | The container may not be running, or the Docker daemon stats API is unresponsive. Verify the instance is in a healthy or running state.                 |
+| Health history empty             | No transitions recorded                     | The instance has had no health state changes in the last 24 hours, or the event store is not configured. Check `events.db` exists in `data_root`.       |
 
 ---
 
@@ -753,63 +753,63 @@ If you suspect the admin secret has been compromised:
 All endpoints require `Authorization: Bearer <admin_secret>`
 except `/healthz`.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/healthz` | Health check (no auth) |
-| `GET` | `/api/instances` | List all instances |
-| `GET` | `/api/instances/{id}` | Get instance details |
-| `POST` | `/api/instances` | Create an instance |
-| `DELETE` | `/api/instances/{id}` | Destroy an instance |
-| `GET` | `/api/sources` | List knowledge sources (read-only) |
-| `GET` | `/api/sources/{id}` | Get source details (read-only) |
-| `GET` | `/api/skillsets` | List skillsets |
-| `GET` | `/api/skillsets/{name}` | Get skillset details |
-| `POST` | `/api/skillsets` | Upload a skillset (multipart) |
-| `GET` | `/api/skillsets/{name}/download` | Download skillset file |
-| `DELETE` | `/api/skillsets/{name}` | Delete a skillset |
-| `POST` | `/api/query` | Query the knowledge base (proxied to data plane) |
-| `GET` | `/api/instances/{id}/stats` | Container resource statistics |
-| `GET` | `/api/instances/{id}/health-history` | Health event history (24h) |
-| `GET` | `/api/events` | Get recent events |
-| `GET` | `/api/events/stream` | SSE event stream |
-| `GET` | `/metrics` | Prometheus metrics (no auth, enabled by default via `control.metrics_enabled`) |
+| Method   | Path                                 | Description                                                                    |
+| -------- | ------------------------------------ | ------------------------------------------------------------------------------ |
+| `GET`    | `/healthz`                           | Health check (no auth)                                                         |
+| `GET`    | `/api/instances`                     | List all instances                                                             |
+| `GET`    | `/api/instances/{id}`                | Get instance details                                                           |
+| `POST`   | `/api/instances`                     | Create an instance                                                             |
+| `DELETE` | `/api/instances/{id}`                | Destroy an instance                                                            |
+| `GET`    | `/api/sources`                       | List knowledge sources (read-only)                                             |
+| `GET`    | `/api/sources/{id}`                  | Get source details (read-only)                                                 |
+| `GET`    | `/api/skillsets`                     | List skillsets                                                                 |
+| `GET`    | `/api/skillsets/{name}`              | Get skillset details                                                           |
+| `POST`   | `/api/skillsets`                     | Upload a skillset (multipart)                                                  |
+| `GET`    | `/api/skillsets/{name}/download`     | Download skillset file                                                         |
+| `DELETE` | `/api/skillsets/{name}`              | Delete a skillset                                                              |
+| `POST`   | `/api/query`                         | Query the knowledge base (proxied to data plane)                               |
+| `GET`    | `/api/instances/{id}/stats`          | Container resource statistics                                                  |
+| `GET`    | `/api/instances/{id}/health-history` | Health event history (24h)                                                     |
+| `GET`    | `/api/events`                        | Get recent events                                                              |
+| `GET`    | `/api/events/stream`                 | SSE event stream                                                               |
+| `GET`    | `/metrics`                           | Prometheus metrics (no auth, enabled by default via `control.metrics_enabled`) |
 
 ### Data plane admin API (port 9091)
 
 Requires `Authorization: Bearer <admin_secret>`. Only available
 when `data_plane.enabled = true`.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/v1/health` | Data plane health (no auth) |
-| `GET` | `/v1/readyz` | Data plane readiness (no auth) |
-| `GET` | `/v1/sources` | List sources (query token or admin secret) |
-| `POST` | `/v1/query` | Query vectors (query token or admin secret) |
-| `GET` | `/v1/admin/sources` | List sources (admin) |
-| `POST` | `/v1/admin/sources` | Create a source (JSON) |
-| `GET` | `/v1/admin/sources/{id}` | Get source details |
-| `DELETE` | `/v1/admin/sources/{id}` | Delete a source |
-| `POST` | `/v1/admin/sources/{id}/ingest` | Trigger source ingestion |
+| Method   | Path                            | Description                                 |
+| -------- | ------------------------------- | ------------------------------------------- |
+| `GET`    | `/v1/health`                    | Data plane health (no auth)                 |
+| `GET`    | `/v1/readyz`                    | Data plane readiness (no auth)              |
+| `GET`    | `/v1/sources`                   | List sources (query token or admin secret)  |
+| `POST`   | `/v1/query`                     | Query vectors (query token or admin secret) |
+| `GET`    | `/v1/admin/sources`             | List sources (admin)                        |
+| `POST`   | `/v1/admin/sources`             | Create a source (JSON)                      |
+| `GET`    | `/v1/admin/sources/{id}`        | Get source details                          |
+| `DELETE` | `/v1/admin/sources/{id}`        | Delete a source                             |
+| `POST`   | `/v1/admin/sources/{id}/ingest` | Trigger source ingestion                    |
 
 ### CLI reference (quick)
 
-| Command | Description |
-|---------|-------------|
-| `fox-control serve` | Start the management plane |
-| `fox-control provision --id <id>` | Provision an instance |
-| `fox-control destroy --id <id> [--remove-data]` | Destroy an instance |
-| `fox-control list` | List all instances |
-| `fox-control rollout --image <ref>` | Rolling update (digest reference) |
-| `fox-control version` | Print version |
-| `fox-control backup --output <dir>` | SQLite VACUUM INTO backup of all databases |
-| `fox-control restore --input <dir>` | Restore databases from backup |
-| `fox-control diagnostics` | Run built-in health checks (config, docker, registry, disk, port, plus optional qdrant/embedding/data-plane checks) |
-| `fox-control generate-secret [--bytes N]` | Generate a cryptographic secret (default 32 bytes, hex-encoded) |
-| `fox-control verify <file>` | Verify cosign signature |
-| `fox-control sec rotate-sse-key` | Rotate the SSE session token signing key |
-| `fox-control sec rotate-query-token --instance <id>` | Rotate the data plane query token for an instance |
-| `fox-control conformance run --image <img>` | Run runtime conformance |
-| `fox-control conformance plugin --image <img>` | Run plugin conformance |
+| Command                                              | Description                                                                                                         |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `fox-control serve`                                  | Start the management plane                                                                                          |
+| `fox-control provision --id <id>`                    | Provision an instance                                                                                               |
+| `fox-control destroy --id <id> [--remove-data]`      | Destroy an instance                                                                                                 |
+| `fox-control list`                                   | List all instances                                                                                                  |
+| `fox-control rollout --image <ref>`                  | Rolling update (digest reference)                                                                                   |
+| `fox-control version`                                | Print version                                                                                                       |
+| `fox-control backup --output <dir>`                  | SQLite VACUUM INTO backup of all databases                                                                          |
+| `fox-control restore --input <dir>`                  | Restore databases from backup                                                                                       |
+| `fox-control diagnostics`                            | Run built-in health checks (config, docker, registry, disk, port, plus optional qdrant/embedding/data-plane checks) |
+| `fox-control generate-secret [--bytes N]`            | Generate a cryptographic secret (default 32 bytes, hex-encoded)                                                     |
+| `fox-control verify <file>`                          | Verify cosign signature                                                                                             |
+| `fox-control sec rotate-sse-key`                     | Rotate the SSE session token signing key                                                                            |
+| `fox-control sec rotate-query-token --instance <id>` | Rotate the data plane query token for an instance                                                                   |
+| `fox-control conformance run --image <img>`          | Run runtime conformance                                                                                             |
+| `fox-control conformance plugin --image <img>`       | Run plugin conformance                                                                                              |
 
 Global flags: `--config <path>` (default `/etc/fox-control/fox-control.toml`),
 `--output/-o <format>` (`table`, `json`, `quiet`; default `table`).

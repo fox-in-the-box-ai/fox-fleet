@@ -229,7 +229,7 @@ Stop the stack:
 ```bash
 cd deploy/docker-compose
 docker compose down       # keeps data
-# docker compose down -v  # also deletes volumes
+# docker compose down -v  # deletes qdrant-data only; /var/lib/fox-control persists
 ```
 
 ---

@@ -146,7 +146,7 @@ Stop the stack:
 
 ```powershell
 docker compose down       # stop services, keep data
-docker compose down -v    # stop services AND delete volumes
+docker compose down -v    # deletes qdrant-data only; /var/lib/fox-control persists on the host
 ```
 
 ---
