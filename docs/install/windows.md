@@ -71,7 +71,7 @@ Open `http://localhost:9090` in your browser.
 
 ```powershell
 docker compose down            # stop services, keep data
-docker compose down -v         # stop services AND delete volumes
+docker compose down -v         # deletes qdrant-data only; the bind-mounted /var/lib/fox-control persists
 ```
 
 ---

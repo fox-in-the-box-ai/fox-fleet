@@ -127,13 +127,13 @@ docker compose down -v         # stop services AND delete volumes
 
 Data lives in two places: the host bind mount `/var/lib/fox-control` (SQLite registry + instance configs — a host path, not a named volume, so Fox instance containers can bind-mount the same files; see #180) and the Docker volume `qdrant-data` (vector storage). Note `docker compose down -v` only deletes `qdrant-data`; the bind-mounted data root persists on the host.
 
-Before first start, create the data root owned by the service user:
+Before first start, create the data root with restricted permissions (the standard compose example runs the container as root, so root ownership is correct; for Cloud mode's non-root container, chown to uid 65532 as shown in the Cloud section):
 
 ```bash
 sudo mkdir -p /var/lib/fox-control && sudo chmod 0700 /var/lib/fox-control
 ```
 
-**Upgrading from a pre-1.8.0 compose file** (which used the `fox-data` named volume): your existing registry and instance configs are inside that volume, not at the host path. Move them once before switching:
+**Upgrading from a pre-1.8.0 compose file** (which used the `fox-data` named volume): your existing registry and instance configs are inside that volume, not at the host path. Find the volume name with `docker volume ls` (typically `<project>_fox-data`, e.g. `fox-fleet_fox-data`), then move the data once before switching:
 
 ```bash
 docker compose down

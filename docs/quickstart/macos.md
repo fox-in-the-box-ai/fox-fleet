@@ -143,7 +143,7 @@ Stop the stack:
 
 ```bash
 docker compose down       # keep data
-docker compose down -v    # delete all data
+docker compose down -v    # deletes qdrant-data only; /var/lib/fox-control persists on the host
 ```
 
 ---
