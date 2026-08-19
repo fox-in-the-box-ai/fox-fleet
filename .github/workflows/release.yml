@@ -328,8 +328,11 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           if [ -z "${TAP_TOKEN:-}" ]; then
-            echo "::warning::HOMEBREW_TAP_TOKEN not set — skipping tap update"
-            exit 0
+            # Fail loud: the silent-skip variant let the tap fall five
+            # releases behind (stuck at 1.5.1 through v1.8.2) while every
+            # release run reported green.
+            echo "::error::HOMEBREW_TAP_TOKEN not set — tap update cannot run; restore the secret or remove the tap step deliberately"
+            exit 1
           fi
           VERSION="${TAG#v}"
           git clone "https://github.com/fox-in-the-box-ai/homebrew-fox-fleet.git" tap
