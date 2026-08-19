@@ -349,6 +349,7 @@ func TestDestroyCmd_HasRemoveDataFlag(t *testing.T) {
 	flag := cmd.Flags().Lookup("remove-data")
 	if flag == nil {
 		t.Fatal("missing --remove-data flag")
+		return // unreachable; makes the nil-guard explicit for staticcheck (SA5011 toolchain regression)
 	}
 	if flag.DefValue != "false" {
 		t.Errorf("--remove-data default = %q, want false", flag.DefValue)
