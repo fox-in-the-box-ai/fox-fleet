@@ -110,6 +110,7 @@ func TestCloudAuth_LoginSuccess(t *testing.T) {
 	cookie := extractSessionCookie(w)
 	if cookie == nil {
 		t.Fatal("no session cookie set")
+		return // unreachable; SA5011 toolchain regression
 	}
 	if !cookie.Secure {
 		t.Error("cookie should be Secure in cloud mode")
@@ -210,6 +211,7 @@ func TestCloudAuth_Logout(t *testing.T) {
 	clearCookie := extractSessionCookie(w)
 	if clearCookie == nil {
 		t.Fatal("no cookie-clear header on logout")
+		return // unreachable; SA5011 toolchain regression
 	}
 	if clearCookie.MaxAge >= 0 {
 		t.Errorf("MaxAge = %d, want negative (cookie deletion)", clearCookie.MaxAge)
