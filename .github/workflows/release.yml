@@ -272,7 +272,7 @@ jobs:
           Architecture: ${DEBARCH}
           Depends: ca-certificates
           Recommends: docker-ce | docker.io, docker-compose-plugin
-          Maintainer: Fox in the Box AI <support@fox-in-the-box.ai>
+          Maintainer: Fox in the Box AI <support@foxinthebox.io>
           Description: Fox Fleet management plane
            Provision and manage Fox AI assistant instances on Docker.
            Includes systemd unit, default config, and env file.
