@@ -6,4 +6,4 @@ For the full text, see https://www.contributor-covenant.org/version/2/1/code_of_
 
 ## Enforcement
 
-Report unacceptable behavior to support@foxinthebox.ai.
+Report unacceptable behavior to support@foxinthebox.io.
