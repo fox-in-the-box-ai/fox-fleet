@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.3] - 2026-08-20
+
 ### Fixed
 
-- `examples/production/docker-compose.yml` still mounted the data root as the named volume `fox-data`, reproducing the #180 config-injection mismatch for anyone following the example; now a host bind mount like the deploy templates fixed in 1.8.0. Backup and deployment docs updated to match (host-path backup instead of volume backup; `down -v` note)
+- `examples/production/docker-compose.yml` still mounted the data root as the named volume `fox-data`, reproducing the #180 config-injection mismatch for anyone following the example; now a host bind mount like the deploy templates fixed in 1.8.0. Backup and deployment docs updated to match (host-path backup instead of volume backup; `down -v` note) (#196)
+- Release pipeline: a missing `HOMEBREW_TAP_TOKEN` now fails the tap-update job instead of silently skipping — the silent path let the Homebrew formula fall five releases behind while release runs stayed green; the formula was manually caught up to 1.8.2 (#199)
+- Test files: nil-guard `t.Fatal` terminations made explicit so fresh staticcheck analysis (golangci-lint v2.12.2 / go1.26.6) no longer raises SA5011 on correct guards — this was blocking every PR under the enforced Lint gate (#200)
+
+### Changed
+
+- Govulncheck accept-list formalized per ADR-0016 (#195)
+- Dependencies: golang.org/x/crypto 0.55.0 (#197) and the go-deps group (#194); CI actions groups refreshed (#193)
+- Branch protection on `main` now enforces the real check contexts (Lint, Test, Build ×3, Conformance, Govulncheck) — the previous lowercase names could never report and the gate was silently ineffective
 
 ## [1.8.2] - 2026-06-21
 
