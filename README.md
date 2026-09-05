@@ -221,7 +221,7 @@ Full roadmap: [FLEET_BASE_ROADMAP.md](https://github.com/fox-in-the-box-ai/fox-i
 
 ### Prerequisites
 
-- Go 1.25+
+- Go 1.26+
 - Docker (for integration tests and the Docker plugin)
 - [golangci-lint](https://golangci-lint.run/) (for `make lint`)
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- golang.org/x/crypto 0.55.0 → 0.56.0, clearing the GO-2026-6354/6355 ssh advisories (unreachable in fox-control — bcrypt-only import graph — but they failed the Govulncheck gate). Rides along: minimum Go toolchain for source builds rises to 1.26, required by x/crypto 0.56.0; the Docker build image and README follow.
+
 ## [1.8.3] - 2026-08-20
 
 ### Fixed
